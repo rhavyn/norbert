@@ -1,0 +1,31 @@
+package norbert;
+
+option optimize_for = SPEED;
+option java_package = "com.linkedin.norbert.protos";
+option java_outer_classname = "NorbertProtos";
+
+message NorbertMessage {
+  required sfixed64 request_id_msb = 1;
+  required sfixed64 request_id_lsb = 2;
+
+  enum Status {
+    OK = 0;
+    ERROR = 1;
+  }
+  optional Status status = 10 [default = OK];
+
+  required string message_name = 11;
+  optional bytes message = 12;
+  optional string error_message = 13;
+}
+
+message Ping {
+  required int64 timestamp = 1;
+}
+
+message Node {
+  required int32 id = 1;
+  required string hostname = 2;
+  required int32 port = 3;
+  repeated int32 partitions = 4;
+}
