@@ -183,64 +183,6 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       zooKeeperMonitor.markNodeAvailable(node.id) was called
     }
 
-    "when handling markNodeAvailable" in {
-      "mark the node with the same host and port specified available if found" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        doNothing.when(zooKeeperMonitor).markNodeAvailable(2)
-
-        val cluster = new DefaultCluster
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
-        cluster.markMyselfAvailable(new InetSocketAddress("localhost", 31314)) must be_==(true)
-
-        zooKeeperMonitor.markNodeAvailable(2) was called
-      }
-
-      "mark the node with the local host and port specified available if found" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        doNothing.when(zooKeeperMonitor).markNodeAvailable(2)
-
-        val cluster = new DefaultCluster
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
-        cluster.markMyselfAvailable(new InetSocketAddress(31315)) must be_==(true)
-
-        zooKeeperMonitor.markNodeAvailable(3) was called
-      }
-
-      "do nothing if not found with address and port" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        doNothing.when(zooKeeperMonitor).markNodeAvailable(anyInt())
-
-        val cluster = new DefaultCluster
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
-        cluster.markMyselfAvailable(new InetSocketAddress("localhost", 31316)) must be_==(false)
-
-        zooKeeperMonitor.markNodeAvailable(anyInt()) wasnt called
-      }
-
-      "do nothing if not found with port" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        doNothing.when(zooKeeperMonitor).markNodeAvailable(anyInt())
-
-        val cluster = new DefaultCluster
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
-        cluster.markMyselfAvailable(new InetSocketAddress(31316)) must be_==(false)
-
-        zooKeeperMonitor.markNodeAvailable(anyInt()) wasnt called
-      }
-    }
-
     "when handling nodeWithId" in {
       "return the node that matches the specified id" in {
         val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),

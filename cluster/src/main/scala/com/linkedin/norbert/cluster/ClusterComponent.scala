@@ -82,13 +82,6 @@ trait ClusterComponent {
     def markNodeAvailable(nodeId: Int): Unit
 
     /**
-     * Marks a cluster node with the specified address.  If the address specified is a wildcard address
-     * then all the network addresses of the local machine are searched for an address that matches an
-     * address of a node.
-     */
-    def markMyselfAvailable(address: InetSocketAddress): Boolean
-
-    /**
      * Registers a {@code ClusterListener} with the cluster to receive cluster event callbacks.
      */
     def addListener(listener: ClusterListener): Unit
@@ -172,16 +165,6 @@ trait ClusterComponent {
     def removeNode(nodeId: Int) = doIfConnected(zooKeeperMonitor.removeNode(nodeId))
 
     def markNodeAvailable(nodeId: Int) = doIfConnected(zooKeeperMonitor.markNodeAvailable(nodeId))
-
-    def markMyselfAvailable(address: InetSocketAddress) = doIfConnected {
-      val node = nodeWithAddress(address)
-      if (node.isDefined) {
-        markNodeAvailable(node.get.id)
-        true
-      } else {
-        false
-      }
-    }
 
     def awaitConnection: Unit = doIfNotShutdown(connectedLatch.await)
 

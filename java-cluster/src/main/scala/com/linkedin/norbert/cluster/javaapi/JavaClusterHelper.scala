@@ -64,8 +64,6 @@ trait JavaClusterHelper extends Cluster {
 
   def markNodeAvailable(nodeId: Int): Unit = cluster.markNodeAvailable(nodeId)
 
-  def markMyselfAvailable(address: InetSocketAddress): Boolean = cluster.markMyselfAvailable(address)
-
   def addListener(listener: JClusterListener): Unit = {
     val l = new ClusterListenerWrapper(listener)
 

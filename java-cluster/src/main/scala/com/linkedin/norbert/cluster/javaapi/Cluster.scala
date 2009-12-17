@@ -73,14 +73,6 @@ trait Cluster {
   def markNodeAvailable(nodeId: Int): Unit
 
   /**
-   * Marks a cluster node with the specified address.  If the address specified is a wildcard address
-   * then all the network addresses of the local machine are searched for an address that matches an
-   * address of a node.
-   */
-  @throws(classOf[ClusterException])
-  def markMyselfAvailable(address: InetSocketAddress): Boolean
-
-  /**
    * Registers a {@code ClusterListener} with the cluster to receive cluster event callbacks.
    */
   @throws(classOf[ClusterException])
