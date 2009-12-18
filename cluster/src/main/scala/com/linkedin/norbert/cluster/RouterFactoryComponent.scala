@@ -15,14 +15,36 @@
  */
 package com.linkedin.norbert.cluster
 
+/**
+ * A component which provides the machinery for the <code>Cluster</code> to route a request to the
+ * <code>Node</code> which can process the request.
+ */
 trait RouterFactoryComponent {
+  /**
+   * The type of the id which the <code>Router</code> can process.
+   */
   type Id
 
   val routerFactory: RouterFactory
 
+  /**
+   * A <code>Router</code> provides a mapping between an <code>Id</code> and a <code>Node</code> which
+   * can process requests for the <code>Id</code>.
+   */
   trait Router extends Function1[Id, Option[Node]]
 
+  /**
+   * A factory which can generate <code>Router</code>s.
+   */
   trait RouterFactory {
+    /**
+     * Create a new router instance based on the currently available <code>Node</code>s.
+     *
+     * @param nodes the currently available <code>Node</code>s in the cluster
+     *
+     * @return a new <code>Router</code> instance
+     * @throws InvalidClusterException thrown to indicate that the current cluster topology is invalid in some way
+     */
     @throws(classOf[InvalidClusterException])
     def newRouter(nodes: Seq[Node]): Router
   }

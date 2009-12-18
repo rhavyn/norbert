@@ -20,9 +20,33 @@ import scala.reflect.BeanProperty
 import com.google.protobuf.InvalidProtocolBufferException
 import com.linkedin.norbert.protos.NorbertProtos
 
+/**
+ * The <code>Node</code> companion object. Provides factory methods and implicits.
+ */
 object Node {
-  def apply(id: Int, host: String, port: Int, partitions: Array[Int], available: Boolean): Node = Node(id, new InetSocketAddress(host, port), partitions, available)
-  
+  /**
+   * Create a <code>Node</code> instance.
+   *
+   * @param id the id of the node
+   * @param hostname the name of the host the node runs on
+   * @param port the port on the host to which requests should be sent
+   * @param partitions the partitions for which the node can handle requests
+   * @param available whether or not the node is currently able to process requests
+   *
+   * @return a new <code>Node</code> instance
+   */
+  def apply(id: Int, hostname: String, port: Int, partitions: Array[Int], available: Boolean): Node = Node(id, new InetSocketAddress(hostname, port), partitions, available)
+
+  /**
+   * Creates a <code>Node</code> instance using the serialized state of a node.
+   *
+   * @param id the id of the node
+   * @param bytes the serialized state of the a node.  <code>Node</code>s should be serialized using the
+   * <code>nodeToByteArray</code> implicit implemented in this object.
+   * @param available whether or not the node is currently able to process requests
+   *
+   * @return a new <code>Node</code> instance
+   */
   def apply(id: Int, bytes: Array[Byte], available: Boolean): Node = {
     import collection.jcl.Conversions._
 
@@ -32,12 +56,18 @@ object Node {
       node.getPartitionsList.asInstanceOf[java.util.List[Int]].copyToArray(partitions, 0)
 
       Node(node.getId, new InetSocketAddress(node.getHostname, node.getPort), partitions, available)
-    }
-    catch {
+    } catch {
       case ex: InvalidProtocolBufferException => throw new InvalidNodeException("Error deserializing node", ex)
     }
   }
 
+  /**
+   * Implicit method which serializes a <code>Node</code> instance into an array of bytes.
+   *
+   * @param node the <code>Node</code> to serialize
+   *
+   * @return the serialized <code>Node</code>
+   */
   implicit def nodeToByteArray(node: Node): Array[Byte] = {
     val builder = NorbertProtos.Node.newBuilder
     builder.setId(node.id).setHostname(node.address.getHostName).setPort(node.address.getPort)
@@ -47,6 +77,14 @@ object Node {
   }
 }
 
+/**
+ * A representation of a physical node in the cluster.
+ *
+ * @param id the id of the node
+ * @param address the <code>InetSocketAddress</code> on which requests can be sent to the node
+ * @param partitions the partitions for which the node can handle requests
+ * @param available whether or not the node is currently able to process requests
+ */
 final case class Node(@BeanProperty id: Int, @BeanProperty address: InetSocketAddress,
         @BeanProperty partitions: Array[Int], @BeanProperty available: Boolean) {
   override def hashCode = id.hashCode

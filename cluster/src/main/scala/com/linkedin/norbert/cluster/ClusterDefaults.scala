@@ -15,7 +15,17 @@
  */
 package com.linkedin.norbert.cluster
 
+/**
+ * A container for constants used in the <code>Cluster</code>.
+ */
 object ClusterDefaults {
+  /**
+   * The default ZooKeeper session timeout in milliseconds.
+   */
   val ZOOKEEPER_SESSION_TIMEOUT = 30000
+
+  /**
+   * The default cluster disconnect timeout in milliseconds.
+   */
   val CLUSTER_DISCONNECT_TIMEOUT = 30000
 }

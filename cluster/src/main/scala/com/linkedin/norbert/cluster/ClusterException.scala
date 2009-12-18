@@ -17,18 +17,33 @@ package com.linkedin.norbert.cluster
 
 import com.linkedin.norbert.NorbertException
 
+/**
+ * Base class for exceptions thrown by the <code>Cluster</code>.
+ */
 class ClusterException(message: String, cause: Throwable) extends NorbertException(message, cause) {
   def this() = this(null, null)
   def this(message: String) = this(message, null)
   def this(cause: Throwable) = this(cause.getMessage, cause)
 }
 
+/**
+ * Exception that indicates that an operation was attempted when the current node was not connected to the cluster.
+ */
 class ClusterDisconnectedException(message: String) extends ClusterException(message)
 
+/**
+ * Exception that indicates that an operation was attempted after <code>shutdown</code> was called on the cluster.
+ */
 class ClusterShutdownException extends ClusterException
 
+/**
+ * Exception that indicates something was invalid on the node for which the operation was being performed.
+ */
 class InvalidNodeException(message: String, cause: Throwable) extends ClusterException(message) {
   def this(message: String) = this(message, null)
 }
 
+/**
+ * Exception that indicates that something about the cluster was invalid when an operation was attempted.
+ */
 class InvalidClusterException(message: String) extends ClusterException(message)
