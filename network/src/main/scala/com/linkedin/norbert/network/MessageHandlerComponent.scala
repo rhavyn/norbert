@@ -32,7 +32,7 @@ trait MessageHandlerComponent {
       }
 
       def newErrorMessage(ex: Exception) = Some(newBuilder.setMessageName(ex.getClass.getName)
-              .setStatus(NorbertProtos.NorbertMessage.Status.ERROR).setErrorMessage(ex.getMessage).build)
+              .setStatus(NorbertProtos.NorbertMessage.Status.ERROR).setErrorMessage(if (ex.getMessage != null) ex.getMessage else "").build)
 
       if (norbertMessage.getStatus != NorbertProtos.NorbertMessage.Status.OK) {
         newErrorMessage(new InvalidRequestException("Recieved a request in the error state"))
