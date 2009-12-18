@@ -17,7 +17,21 @@ package com.linkedin.norbert.cluster.router
 
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
 
+/**
+ * A mixin trait that provides functionality to help implement a consistent hash based <code>RouterFactory</code>.
+ */
 trait ConsistentHashRouterFactoryHelper {
+  /**
+   * Given the currently available <code>Node</code>s and the total number of partitions in the cluster, this method
+   * generates a <code>Map</code> of partition id to the <code>Node</code>s which service that partition.
+   *
+   * @param nodes the current available nodes
+   * @param numPartitions the total number of partitions in the cluster
+   *
+   * @return a <code>Map</code> of partition id to the <code>Node</code>s which service that partition
+   * @throws InvalidClusterException thrown if every partition doesn't have at least one available <code>Node</code>
+   * assigned to it
+   */
   protected def generatePartitionToNodeMap(nodes: Seq[Node], numPartitions: Int): Map[Int, Seq[Node]] = {
     val partitionToNodeMap = (for (n <- nodes; p <- n.partitions) yield (p, n)).foldLeft(Map.empty[Int, List[Node]].withDefaultValue(Nil)) {
       case (map, (partitionId, node)) => map(partitionId) = node :: map(partitionId)
@@ -30,11 +44,26 @@ trait ConsistentHashRouterFactoryHelper {
   }
 }
 
+/**
+ * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
+ */
 trait ConsistentHashRouterHelper {
   private val random = new scala.util.Random()
+
+  /**
+   * A mapping from partition id to the <code>Node</code>s which can service that partition.
+   */
   protected val partitionToNodeMap: Map[Int, Seq[Node]]  
 
-  protected def nodeForPartition(partition: Int): Option[Node] = partitionToNodeMap.get(partition).map { nodes =>
+  /**
+   * Calculates a <code>Node</code> which can service a request for the specified partition id.
+   *
+   * @param partitionId the id of the partition
+   *
+   * @return <code>Some</code> with the <code>Node</code> which can service the partition id, <code>None</code>
+   * if there are no available <code>Node</code>s for the partition requested
+   */
+  protected def nodeForPartition(partitionId: Int): Option[Node] = partitionToNodeMap.get(partitionId).map { nodes =>
     val i = random.nextInt % nodes.size
     nodes(i)
   }

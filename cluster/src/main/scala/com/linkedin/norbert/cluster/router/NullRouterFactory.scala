@@ -17,6 +17,9 @@ package com.linkedin.norbert.cluster.router
 
 import com.linkedin.norbert.cluster.RouterFactoryComponent
 
+/**
+ * A <code>RouterFactoryComponent</code> implementation which sets the <code>routerFactory</code> to null.
+ */
 trait NullRouterFactory extends RouterFactoryComponent {
   val routerFactory = null
 }

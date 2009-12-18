@@ -17,9 +17,16 @@ package com.linkedin.norbert.cluster.router
 
 import com.linkedin.norbert.cluster.{Node, RouterFactoryComponent}
 
+/**
+ * A <code>RouterFactoryComponent</code> implementation that provides a consistent hash routing strategy.
+ */
 trait ConsistentHashRouterFactoryComponent extends RouterFactoryComponent {
   override val routerFactory: ConsistentHashRouterFactory
-  
+
+  /**
+   * A <code>RouterFactory</code> implementation that provides a consistent hash routing strategy. Users must
+   * implement the <code>calculateHash</code> method.
+   */
   abstract class ConsistentHashRouterFactory(np: Int) extends RouterFactory with ConsistentHashRouterFactoryHelper {
     def newRouter(nodes: Seq[Node]): Router = new Router with ConsistentHashRouterHelper {
       protected val partitionToNodeMap = generatePartitionToNodeMap(nodes, np)
@@ -27,8 +34,23 @@ trait ConsistentHashRouterFactoryComponent extends RouterFactoryComponent {
       def apply(id: Id): Option[Node] = nodeForPartition(partitionForId(id))
     }
 
+    /**
+     * Calculates the id of the partition on which the specified <code>Id</code> resides.
+     *
+     * @param id the <code>Id</code> to map to a partition
+     *
+     * @return the id of the partition on which the <code>Id</code> resides
+     */
     def partitionForId(id: Id): Int = calculateHash(id).abs % np
 
+    /**
+     * Hashes the <code>Id</code> provided. Users must implement this method. The <code>HashFunctions</code>
+     * object provides an implementation of the FNV hash which may help in the implementation.
+     *
+     * @param id the <code>Id</code> to hash
+     *
+     * @return the hashed value
+     */
     protected def calculateHash(id: Id): Int
   }
 }

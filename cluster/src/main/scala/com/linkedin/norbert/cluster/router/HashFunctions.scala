@@ -15,7 +15,19 @@
  */
 package com.linkedin.norbert.cluster.router
 
+/**
+ * Object which provides hash function implementations.
+ */
 object HashFunctions {
+  /**
+   * An implementation of the FNV hash function.
+   *
+   * @param bytes the bytes to hash
+   *
+   * @return the hashed value of the bytes
+   * 
+   * @see http://en.wikipedia.org/wiki/Fowler-Noll-Vo_hash_function
+   */
   def fnv[T <% Array[Byte]](bytes: T): Int = {
     val FNV_BASIS = 0x811c9dc5
     val FNV_PRIME = (1 << 24) + 0x193
