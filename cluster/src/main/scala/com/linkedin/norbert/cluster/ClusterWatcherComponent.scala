@@ -62,7 +62,7 @@ trait ClusterWatcherComponent {
                     log.error("Unable to communicate with ZooKeeper for %d seconds, disconnecting cluster", clusterDisconnectTimeout)
                     clusterManager ! ClusterMessages.Disconnected
                   }
-                }, clusterDisconnectTimeout, 30, TimeUnit.SECONDS)
+                }, clusterDisconnectTimeout, 30000, TimeUnit.MILLISECONDS)
                 disconnectFuture = Some(f)
 
               case KeeperState.Expired =>

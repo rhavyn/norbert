@@ -16,6 +16,6 @@
 package com.linkedin.norbert.cluster
 
 object ClusterDefaults {
-  val ZOOKEEPER_SESSION_TIMEOUT = 30
-  val CLUSTER_DISCONNECT_TIMEOUT = 30
+  val ZOOKEEPER_SESSION_TIMEOUT = 30000
+  val CLUSTER_DISCONNECT_TIMEOUT = 30000
 }

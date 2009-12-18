@@ -127,8 +127,8 @@ trait Cluster {
 class ClusterConfig {
   @BeanProperty var clusterName: String = _
   @BeanProperty var zooKeeperUrls: String = _
-  @BeanProperty var zooKeeperSessionTimeout: Int = 30
-  @BeanProperty var clusterDisconnectTimeout: Int = 30
+  @BeanProperty var zooKeeperSessionTimeout: Int = 30000
+  @BeanProperty var clusterDisconnectTimeout: Int = 30000
   @BeanProperty var routerFactory: JRouterFactory = _
 
   def validate() {
