@@ -15,6 +15,9 @@
  */
 package com.linkedin.norbert
 
+/**
+ * Base exception class from which all other Norbert exceptions inherit.
+ */
 class NorbertException(message: String, cause: Throwable) extends Exception(message, cause) {
   def this() = this(null, null)
   def this(message: String) = this(message, null)

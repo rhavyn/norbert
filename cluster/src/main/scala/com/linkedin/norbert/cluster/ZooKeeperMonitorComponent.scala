@@ -19,6 +19,9 @@ import java.net.InetSocketAddress
 import org.apache.zookeeper._
 import com.linkedin.norbert.util.Logging
 
+/**
+ * A component which manages the connection to ZooKeeper.
+ */
 trait ZooKeeperMonitorComponent {
   this: ClusterWatcherComponent =>
 

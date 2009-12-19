@@ -18,29 +18,180 @@ package com.linkedin.norbert.util
 import org.apache.log4j.{Level, Logger => l4jLogger}
 import Level._
 
+/**
+ * A wrapper around a Log4j <code>Logger</code> which provides higher level methods to reduce boilerplate.
+ */
 class Logger(wrapped: l4jLogger) {
   val fqcn = this.getClass.getName
 
+  /**
+   * Logs a message at info level.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def info(message: String, items: Any*) = logDirect(INFO, message, items: _*)
+
+  /**
+   * Logs an exception and message at info level.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def info(cause: Throwable, message: String, items: Any*) = logDirect(INFO, cause, message, items: _*)
+
+  /**
+   * Logs a message at warn level.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def warn(message: String, items: Any*) = logDirect(WARN, message, items: _*)
+
+  /**
+   * Logs an exception and message at warn level.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def warn(cause: Throwable, message: String, items: Any*) = logDirect(WARN, cause, message, items: _*)
+
+  /**
+   * Logs a message at error level.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def error(message: String, items: Any*) = logDirect(ERROR, message, items: _*)
+
+  /**
+   * Logs an exception and message at error level.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def error(cause: Throwable, message: String, items: Any*) = logDirect(ERROR, cause, message, items: _*)
+
+  /**
+   * Logs a message at fatal level.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def fatal(message: String, items: Any*) = logDirect(FATAL, message, items: _*)
+
+  /**
+   * Logs an exception and message at fatal level.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def fatal(cause: Throwable, message: String, items: Any*) = logDirect(FATAL, cause, message, items: _*)
 
+  /**
+   * Logs a message at trace level if that level is enabled.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifTrace(message: String, items: Any*) = log(TRACE, message, items: _*)
+
+  /**
+   * Logs an exception and message at trace level if that level is enabled.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifTrace(cause: Throwable, message: String, items: Any*) = log(TRACE, cause, message, items: _*)
+
+  /**
+   * Logs a message at debug level if that level is enabled.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifDebug(message: String, items: Any*) = log(DEBUG, message, items: _*)
+
+  /**
+   * Logs an exception and message at debug level if that level is enabled.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifDebug(cause: Throwable, message: String, items: Any*) = log(DEBUG, cause, message, items: _*)
+
+  /**
+   * Logs a message at info level if that level is enabled.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifInfo(message: String, items: Any*) = log(INFO, message, items: _*)
+
+  /**
+   * Logs an exception and message at info level if that level is enabled.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifInfo(cause: Throwable, message: String, items: Any*) = log(INFO, cause, message, items: _*)
+
+  /**
+   * Logs a message at warn level if that level is enabled.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifWarn(message: String, items: Any*) = log(WARN, message, items: _*)
+
+  /**
+   * Logs an exception and message at warn level if that level is enabled.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifWarn(cause: Throwable, message: String, items: Any*) = log(WARN, cause, message, items: _*)
+
+  /**
+   * Logs a message at error level if that level is enabled.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifError(message: String, items: Any*) = log(ERROR, message, items: _*)
+
+  /**
+   * Logs an exception and message at error level if that level is enabled.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifError(cause: Throwable, message: String, items: Any*) = log(ERROR, cause, message, items: _*)
+
+  /**
+   * Logs a message at fatal level if that level is enabled.
+   *
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifFatal(message: String, items: Any*) = log(FATAL, message, items: _*)
+
+  /**
+   * Logs an exception and message at fatal level if that level is enabled.
+   *
+   * @param exception the exception to log
+   * @param message a printf style message to log
+   * @param items the substitution values for the printf placeholders
+   */
   def ifFatal(cause: Throwable, message: String, items: Any*) = log(FATAL, cause, message, items: _*)
 
   private def logDirect(level: Level, message: String, items: Any*) = {

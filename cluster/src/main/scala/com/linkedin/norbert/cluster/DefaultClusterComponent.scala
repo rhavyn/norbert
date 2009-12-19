@@ -15,14 +15,33 @@
  */
 package com.linkedin.norbert.cluster
 
+/**
+ * The default cluster implementation component mixin. Users should mix this component into their
+ * component registry instead of pulling in the individual components. A <code>RouterFactory</code> implementation
+ * must be provided.
+ */
 trait DefaultClusterComponent extends ClusterComponent with ClusterManagerComponent
         with ClusterWatcherComponent with ZooKeeperMonitorComponent {
   this: RouterFactoryComponent =>
 
+  /**
+   * The name of the cluster.
+   */
   val clusterName: String
+
+  /**
+   * The URL string to use to connect to ZooKeeper.
+   */
   val zooKeeperUrls: String
 
+  /**
+   * The ZooKeeper session timeout in milliseconds. Defaults to 30000.
+   */
   val zooKeeperSessionTimeout: Int = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT
+
+  /**
+   * The cluster disconnect timeout in milliseconds. Defaults to 30000.
+   */
   val clusterDisconnectTimeout: Int = ClusterDefaults.CLUSTER_DISCONNECT_TIMEOUT
 
   val clusterManager = new ClusterManager

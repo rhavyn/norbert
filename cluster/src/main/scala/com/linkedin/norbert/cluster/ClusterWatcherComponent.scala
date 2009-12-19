@@ -20,6 +20,9 @@ import java.util.concurrent.{TimeUnit, ScheduledThreadPoolExecutor, ScheduledFut
 import org.apache.zookeeper.{WatchedEvent, Watcher}
 import com.linkedin.norbert.util.Logging
 
+/**
+ * A component which provides the ZooKeeper <code>Watcher</code> instance used in Norbert.
+ */
 trait ClusterWatcherComponent {
   this: ZooKeeperMonitorComponent with ClusterManagerComponent =>
   

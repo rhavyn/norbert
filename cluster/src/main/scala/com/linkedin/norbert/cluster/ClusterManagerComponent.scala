@@ -19,6 +19,9 @@ import java.util.concurrent.Executors
 import actors.Actor
 import com.linkedin.norbert.util.Logging
 
+/**
+ * The component which manages the state of the cluster and notifies clients when the state changes.
+ */
 trait ClusterManagerComponent {
   this: ClusterComponent with RouterFactoryComponent =>
 
