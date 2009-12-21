@@ -20,6 +20,9 @@ import com.linkedin.norbert.cluster.javaapi.{Router => JRouter, ClusterListener 
 import java.util.concurrent.TimeUnit
 import java.net.InetSocketAddress
 
+/**
+ * A mixin trait that provides functionality to help adapt the Java API to the Scala API.
+ */
 trait JavaRouterHelper extends RouterFactoryComponent {
   val javaRouterFactory: JRouterFactory
   
@@ -37,6 +40,9 @@ trait JavaRouterHelper extends RouterFactoryComponent {
   } else null
 }
 
+/**
+ * A mixin trait that provides functionality to help adapt the Java API to the Scala API.
+ */
 trait JavaClusterHelper extends Cluster {
   protected val componentRegistry: ClusterComponent with JavaRouterHelper
 

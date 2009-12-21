@@ -18,15 +18,40 @@ package com.linkedin.norbert.cluster.javaapi
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
 import com.linkedin.norbert.cluster.router.{ConsistentHashRouterHelper, ConsistentHashRouterFactoryHelper, HashFunctions}
 
+/**
+ * A factory which can generate <code>Router</code>s.
+ */
 trait RouterFactory {
+  /**
+   * Create a new router instance based on the currently available <code>Node</code>s.
+   *
+   * @param nodes the currently available <code>Node</code>s in the cluster
+   *
+   * @return a new <code>Router</code> instance
+   * @throws InvalidClusterException thrown to indicate that the current cluster topology is invalid in some way
+   */
   @throws(classOf[InvalidClusterException])
   def newRouter(nodes: Array[Node]): Router
 }
 
+/**
+ * A <code>Router</code> provides a mapping between an <code>Id</code> and a <code>Node</code> which
+ * can process requests for the <code>Id</code>.
+ */
 trait Router {
+  /**
+   * Calculates a <code>Node</code> which can process a request for the specified id.
+   *
+   * @param id the id the request is being addressed to
+   *
+   * @return a <code>Node</code> which can process a request for the specified id
+   */
   def calculateRoute(id: Int): Node
 }
 
+/**
+ * A <code>RouterFactory</code> implementation that provides a consistent hash routing strategy.
+ */
 class ConsistentHashRouterFactory(numPartitions: Int) extends RouterFactory with ConsistentHashRouterFactoryHelper {
   def newRouter(nodes: Array[Node]) = new Router with ConsistentHashRouterHelper {
     protected val partitionToNodeMap = generatePartitionToNodeMap(nodes, numPartitions)
