@@ -49,6 +49,7 @@ object NorbertNetworkServerMain {
     def loop {
       try {
         networkServer.bind
+        println("Connected to cluster and listening for requests")
       } catch {
         case ex: NetworkingException =>
           println("Unable to bind to port, exiting: " + ex)
