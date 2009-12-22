@@ -17,16 +17,48 @@ package com.linkedin.norbert.network
 
 import com.google.protobuf.Message
 
+/**
+ * A component which provides a registry for the messages sent to a server or received by a client.
+ */
 trait MessageRegistryComponent {
   val messageRegistry: MessageRegistry
 
+  /**
+   * A <code>MessageRegistry</code> provides the default instances of the <code>Message</code>s a client
+   * receives as well as the pairs of <code>Message</code>s and handlers a server uses to process requests. 
+   */
   trait MessageRegistry {
     def defaultInstanceForClassName(className: String): Option[Message]
     def defaultInstanceAndHandlerForClassName(className: String): Option[(Message, (Message) => Option[Message])]
   }
 
+  /**
+   * A <code>MessageRegistry</code> implementation that provides a registry of <code>Message</code>s received
+   * by a client and/or the pairs of <code>Message</code>s processed by a server and a handler method to
+   * process the <code>Message</code>
+   *
+   * @param responseMessages an array of the <code>Message</code>s received by a client
+   * @param requestMessages an array of the pairs of <code>Message</code>s processed by a server and a handler
+   * method to process <code>Message</code>. The handler method is passed the recieved <code>Message</code> and should
+   * return an <code>Option</code> where None means there is no response to the client and a Some represents
+   * there is a response with the value of the Some being the <code>Message</code> to return.
+   */
   class DefaultMessageRegistry[T <: Message](responseMessages: Array[T], requestMessages: Array[(T, (Message) => Option[Message])]) extends MessageRegistry {
+    /**
+     * A constructor for clients that only receive responses to sent messages.
+     *
+     * @param responseMessages an array of the <code>Message</code>s received by a client
+     */
     def this(responseMessages: Array[T]) = this (responseMessages, Array[(T, (Message) => Option[Message])]())
+
+    /**
+     * A constructor for serves that only receive requests from clients.
+     *
+     * @param requestMessages an array of the pairs of <code>Message</code>s processed by a server and a handler
+     * method to process <code>Message</code>. The handler method is passed the recieved <code>Message</code> and should
+     * return an <code>Option</code> where None means there is no response to the client and a Some represents
+     * there is a response with the value of the Some being the <code>Message</code> to return.
+     */
     def this(requestMessages: Array[(T, (Message) => Option[Message])]) = this(Array[T](), requestMessages)
     
     private val handledMessageMap = (if (requestMessages == null) {
