@@ -23,8 +23,8 @@ trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent
         with MessageRegistryComponent {
   this: RouterFactoryComponent =>
 
-  val maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
-  val writeTimeout = NetworkDefaults.WRITE_TIMEOUT
+  val maxConnectionsPerNode: Int
+  val writeTimeout: Int
 
   val bootstrapFactory = new BootstrapFactory
   val channelPool = new ChannelPool(maxConnectionsPerNode, writeTimeout)

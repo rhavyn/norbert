@@ -41,9 +41,10 @@ class ServerBootstrap(serverConfig: ServerConfig) extends ClientBootstrapHelper 
     val clusterName = serverConfig.clusterName
     val zooKeeperUrls = serverConfig.zooKeeperUrls
     val javaRouterFactory = serverConfig.routerFactory
-
-    override val clusterDisconnectTimeout = serverConfig.clusterDisconnectTimeout
-    override val zooKeeperSessionTimeout = serverConfig.zooKeeperSessionTimeout
+    val clusterDisconnectTimeout = serverConfig.clusterDisconnectTimeout
+    val zooKeeperSessionTimeout = serverConfig.zooKeeperSessionTimeout
+    val writeTimeout = serverConfig.writeTimeout
+    val maxConnectionsPerNode = serverConfig.maxConnectionsPerNode
   } with DefaultNetworkServerComponent with JavaRouterHelper {
     val messageRegistry = new DefaultMessageRegistry(serverConfig.responseMessages, for {
       mh <- serverConfig.messageHandlers

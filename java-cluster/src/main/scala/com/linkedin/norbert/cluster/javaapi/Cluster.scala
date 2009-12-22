@@ -199,12 +199,12 @@ class ClusterConfig {
   /**
    * The ZooKeeper session timeout in milliseconds. Defaults to 30000.
    */
-  @BeanProperty var zooKeeperSessionTimeout: Int = 30000
+  @BeanProperty var zooKeeperSessionTimeout: Int = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT
 
   /**
    * The cluster disconnect timeout in seconds.  Defaults to 30000.
    */
-  @BeanProperty var clusterDisconnectTimeout: Int = 30000
+  @BeanProperty var clusterDisconnectTimeout: Int = ClusterDefaults.CLUSTER_DISCONNECT_TIMEOUT
 
   /**
    * The <code>RouterFactory</code> the <code>Cluster</code> should use to generate <code>Router</code> instances.
@@ -238,8 +238,7 @@ class DefaultCluster(clusterConfig: ClusterConfig) extends JavaClusterHelper {
     val clusterName = clusterConfig.clusterName
     val zooKeeperUrls = clusterConfig.zooKeeperUrls
     val javaRouterFactory = clusterConfig.routerFactory
-
-    override val clusterDisconnectTimeout = clusterConfig.clusterDisconnectTimeout
-    override val zooKeeperSessionTimeout = clusterConfig.zooKeeperSessionTimeout
+    val clusterDisconnectTimeout = clusterConfig.clusterDisconnectTimeout
+    val zooKeeperSessionTimeout = clusterConfig.zooKeeperSessionTimeout
   } with DefaultClusterComponent with JavaRouterHelper
 }

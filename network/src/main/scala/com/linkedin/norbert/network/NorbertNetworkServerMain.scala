@@ -19,6 +19,7 @@ import com.google.protobuf.Message
 import org.jboss.netty.logging.{InternalLoggerFactory, Log4JLoggerFactory}
 import com.linkedin.norbert.cluster.router.NullRouterFactory
 import com.linkedin.norbert.protos.NorbertProtos
+import com.linkedin.norbert.cluster.ClusterDefaults
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
@@ -32,6 +33,10 @@ object NorbertNetworkServerMain {
     println("Connecting to cluster...")
 
     object ComponentRegistry extends {
+      val zooKeeperSessionTimeout = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT
+      val clusterDisconnectTimeout = ClusterDefaults.CLUSTER_DISCONNECT_TIMEOUT
+      val maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
+      val writeTimeout = NetworkDefaults.WRITE_TIMEOUT
       val clusterName = Main.this.clusterName
       val zooKeeperUrls = Main.this.zooKeeperUrls
     } with NullRouterFactory with DefaultNetworkServerComponent {

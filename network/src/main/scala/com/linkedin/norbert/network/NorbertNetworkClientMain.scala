@@ -18,9 +18,9 @@ package com.linkedin.norbert.network
 import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
 import org.jboss.netty.logging.{Log4JLoggerFactory, InternalLoggerFactory}
-import com.linkedin.norbert.cluster.ClusterShutdownException
 import com.linkedin.norbert.cluster.router.NullRouterFactory
 import com.linkedin.norbert.protos.NorbertProtos
+import com.linkedin.norbert.cluster.{ClusterDefaults, ClusterShutdownException}
 
 object NorbertNetworkClientMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
@@ -34,6 +34,10 @@ object NorbertNetworkClientMain {
     println("Connecting to cluster...")
 
     object ComponentRegistry extends {
+      val zooKeeperSessionTimeout = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT
+      val clusterDisconnectTimeout = ClusterDefaults.CLUSTER_DISCONNECT_TIMEOUT
+      val maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
+      val writeTimeout = NetworkDefaults.WRITE_TIMEOUT
       val clusterName = Main.this.clusterName
       val zooKeeperUrls = Main.this.zooKeeperUrls
     } with DefaultNetworkClientFactoryComponent with NullRouterFactory {

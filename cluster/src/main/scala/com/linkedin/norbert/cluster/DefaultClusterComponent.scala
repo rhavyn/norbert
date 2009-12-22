@@ -35,14 +35,14 @@ trait DefaultClusterComponent extends ClusterComponent with ClusterManagerCompon
   val zooKeeperUrls: String
 
   /**
-   * The ZooKeeper session timeout in milliseconds. Defaults to 30000.
+   * The ZooKeeper session timeout in milliseconds.
    */
-  val zooKeeperSessionTimeout: Int = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT
+  val zooKeeperSessionTimeout: Int
 
   /**
-   * The cluster disconnect timeout in milliseconds. Defaults to 30000.
+   * The cluster disconnect timeout in milliseconds.
    */
-  val clusterDisconnectTimeout: Int = ClusterDefaults.CLUSTER_DISCONNECT_TIMEOUT
+  val clusterDisconnectTimeout: Int
 
   val clusterManager = new ClusterManager
   val clusterWatcher = new ClusterWatcher(clusterDisconnectTimeout)

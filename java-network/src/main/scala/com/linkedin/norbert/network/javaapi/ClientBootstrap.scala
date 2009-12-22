@@ -16,12 +16,14 @@
 package com.linkedin.norbert.network.javaapi
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.DefaultNetworkClientFactoryComponent
 import com.linkedin.norbert.cluster.javaapi.{ClusterConfig, JavaRouterHelper, RouterFactory}
 import scala.reflect.BeanProperty
 import com.linkedin.norbert.NorbertException
+import com.linkedin.norbert.network.{NetworkDefaults, DefaultNetworkClientFactoryComponent}
 
 class ClientConfig extends ClusterConfig {
+  @BeanProperty var writeTimeout = NetworkDefaults.WRITE_TIMEOUT
+  @BeanProperty var maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
   @BeanProperty var responseMessages: Array[Message] = _
 
   override def validate() = {
@@ -37,9 +39,10 @@ class ClientBootstrap(clientConfig: ClientConfig) extends ClientBootstrapHelper 
     val clusterName = clientConfig.clusterName
     val zooKeeperUrls = clientConfig.zooKeeperUrls
     val javaRouterFactory = clientConfig.routerFactory
-
-    override val clusterDisconnectTimeout = clientConfig.clusterDisconnectTimeout
-    override val zooKeeperSessionTimeout = clientConfig.zooKeeperSessionTimeout
+    val clusterDisconnectTimeout = clientConfig.clusterDisconnectTimeout
+    val zooKeeperSessionTimeout = clientConfig.zooKeeperSessionTimeout
+    val writeTimeout = clientConfig.writeTimeout
+    val maxConnectionsPerNode = clientConfig.maxConnectionsPerNode
   } with DefaultNetworkClientFactoryComponent with JavaRouterHelper {
     val messageRegistry = new DefaultMessageRegistry(clientConfig.responseMessages)
   }
