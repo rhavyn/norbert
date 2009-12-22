@@ -26,11 +26,11 @@ object NorbertNetworkClientMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
 
   def main(args: Array[String]) {
-    val main = new Main(args(0), args(1), args(2).toInt)
+    val main = new Main(args(0), args(1))
     main.loop
   }
 
-  private class Main(clusterName: String, zooKeeperUrls: String, numPartitions: Int) {
+  private class Main(clusterName: String, zooKeeperUrls: String) {
     println("Connecting to cluster...")
 
     object ComponentRegistry extends {
