@@ -19,6 +19,7 @@ import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.Node
 
 trait ScatterGatherHandler[A] {
+  @throws(classOf[Exception])
   def customizeMessage(originalRequest: Message, node: Node, ids: Array[Int]): Message
 
   @throws(classOf[Exception])

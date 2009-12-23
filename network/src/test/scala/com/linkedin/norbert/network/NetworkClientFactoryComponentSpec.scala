@@ -172,6 +172,30 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
         nodeMap(nodes(0)) must haveTheSameElementsAs(Array(1, 2))
         nodeMap(nodes(1)) must haveTheSameElementsAs(Array(3, 4))
       }
+
+      "treats an exception from the message customizer as a failed response" in {
+        var callCount = 0
+        var nodeMap = Map[Node, Seq[Int]]()
+
+        def mc(message: Message, node: Node, ids: Seq[Int]): Message = {
+          throw new NorbertException("MC Exception")
+        }
+
+        val router = mock[Router]
+        val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true))
+        List(1, 2).foreach(i => router(i) returns Some(nodes(0)))
+        doNothing.when(channelPool).sendRequest(containAll(nodes), isA(classOf[Request]))
+
+        val client = new NetworkClientFactory().newNetworkClient
+        client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
+        val ri = client.sendMessage(Array(1, 2), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build, mc _)
+
+        ri.hasNext must beTrue
+        ri.next must beSome[Either[Throwable, Message]].which { either =>
+          either.isLeft must beTrue
+          either.left.get must haveClass[NorbertException]
+        }
+      }
     }
 
     "when sendMessage is called with a response gatherer" in {

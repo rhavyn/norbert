@@ -157,10 +157,14 @@ trait NetworkClientFactoryComponent {
           val responseIterator = new Request.ResponseIteratorImpl(nodes.size)
 
           nodes.foreach { case (node, r) =>
-            val m = messageCustomizer(message, node, r)
-            log.ifDebug("Sending message [%s] to node: %s", m, node)
-            val request = Request(m, nodes.size, responseIterator)
-            channelPool.sendRequest(Set(node), request)
+            try {
+              val m = messageCustomizer(message, node, r)
+              log.ifDebug("Sending message [%s] to node: %s", m, node)
+              val request = Request(m, nodes.size, responseIterator)
+              channelPool.sendRequest(Set(node), request)
+            } catch {
+              case ex: Exception => responseIterator.offerResponse(Left(ex))
+            }
           }
 
           responseIterator
