@@ -25,7 +25,8 @@ public class JavaNorbertClusterMain {
       config.setClusterName(args[0]);
       config.setZooKeeperUrls(args[1]);
 
-      Cluster cluster = new DefaultCluster(config);
+      ClusterBootstrap bootstrap = new ClusterBootstrap(config);
+      Cluster cluster = bootstrap.getCluster();
       cluster.awaitConnectionUninterruptibly();
       for (Node node : cluster.getNodes()) {
         System.out.println(node);
