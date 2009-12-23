@@ -158,8 +158,8 @@ trait NetworkClientFactoryComponent {
 
           nodes.foreach { case (node, r) =>
             val m = messageCustomizer(message, node, r)
-            log.ifDebug("Sending message [%s] to node: %s", message, node)
-            val request = Request(message, nodes.size, responseIterator)
+            log.ifDebug("Sending message [%s] to node: %s", m, node)
+            val request = Request(m, nodes.size, responseIterator)
             channelPool.sendRequest(Set(node), request)
           }
 
