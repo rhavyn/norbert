@@ -20,5 +20,7 @@ import com.linkedin.norbert.cluster.Node
 
 trait ScatterGatherHandler[A] {
   def customizeMessage(originalRequest: Message, node: Node, ids: Array[Int]): Message
+
+  @throws(classOf[Exception])
   def gatherResponses(originalRequest: Message, responseIterator: ResponseIterator): A
 }

@@ -20,8 +20,13 @@ import com.linkedin.norbert.cluster.Node
 
 trait NetworkClient {
   def sendMessage(ids: Array[Int], message: Message): ResponseIterator
+
+  @throws(classOf[Exception])
   def sendMessage[A](ids: Array[Int], message: Message, scatterGather: ScatterGatherHandler[A]): A
+
   def sendMessageToNode(node: Node, message: Message): ResponseIterator
+
   def isConnected: Boolean
+
   def close: Unit
 }

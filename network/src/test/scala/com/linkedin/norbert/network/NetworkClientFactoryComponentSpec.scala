@@ -23,6 +23,7 @@ import com.linkedin.norbert.cluster._
 import org.specs.mock.Mockito
 import org.mockito.Matchers._
 import com.linkedin.norbert.protos.NorbertProtos
+import com.linkedin.norbert.NorbertException
 
 class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
         with ChannelPoolComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
@@ -173,24 +174,43 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
       }
     }
 
-    "when sendMessage is called with a response gatherer it calls the response gatherer" in {
-      var callCount = 0
-      def rg(message: Message, ri: ResponseIterator) = {
-        callCount += 1
-        message
+    "when sendMessage is called with a response gatherer" in {
+      "it calls the response gatherer" in {
+        var callCount = 0
+        def rg(message: Message, ri: ResponseIterator) = {
+          callCount += 1
+          123454321
+        }
+
+        val router = mock[Router]
+        val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true), Node(2, new InetSocketAddress(13132), Array(1), true))
+        List(0, 1).foreach(i => router(i + 1) returns Some(nodes(i)))
+
+        List(0, 1).foreach(i => doNothing.when(channelPool).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
+
+        val client = new NetworkClientFactory().newNetworkClient
+        client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
+        val ping = NorbertProtos.Ping.newBuilder.setTimestamp(1L).build
+        client.sendMessage(Array(1, 2), ping, rg _) must be_==(123454321)
+
+        callCount must be_==(1)
       }
 
-      val router = mock[Router]
-      val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true), Node(2, new InetSocketAddress(13132), Array(1), true))
-      List(0, 1).foreach(i => router(i + 1) returns Some(nodes(i)))
+      "it rethrows exceptions thrown by the response gatherer" in {
+        def rg(message: Message, ri: ResponseIterator): Message = {
+          throw new NorbertException("RG Exception")
+        }
 
-      List(0, 1).foreach(i => doNothing.when(channelPool).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
+        val router = mock[Router]
+        val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true), Node(2, new InetSocketAddress(13132), Array(1), true))
+        List(0, 1).foreach(i => router(i + 1) returns Some(nodes(i)))
 
-      val client = new NetworkClientFactory().newNetworkClient
-      client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
-      client.sendMessage(Array(1, 2), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build, rg _)
+        List(0, 1).foreach(i => doNothing.when(channelPool).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
 
-      callCount must be_==(1)      
+        val client = new NetworkClientFactory().newNetworkClient
+        client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
+        client.sendMessage(Array(1, 2), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build, rg _) must throwA[NorbertException]
+      }
     }
 
     "when sentMessageToNode is called" in {
