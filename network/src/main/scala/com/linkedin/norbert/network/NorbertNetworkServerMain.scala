@@ -41,7 +41,7 @@ object NorbertNetworkServerMain {
       val zooKeeperUrls = Main.this.zooKeeperUrls
     } with NullRouterFactory with DefaultNetworkServerComponent {
       val messageRegistry = new DefaultMessageRegistry(Array((NorbertProtos.Ping.getDefaultInstance, pingHandler _)))
-      val networkServer = new NetworkServer(nodeId)
+      val networkServer = new NettyNetworkServer(nodeId)
     }
 
     import ComponentRegistry._

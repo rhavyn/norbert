@@ -55,9 +55,9 @@ class ServerBootstrap(serverConfig: ServerConfig) extends ClientBootstrapHelper 
     }))
 
     val networkServer = if (serverConfig.bindAddress == null) {
-      new NetworkServer(serverConfig.nodeId)
+      new NettyNetworkServer(serverConfig.nodeId)
     } else {
-      new NetworkServer(serverConfig.bindAddress)
+      new NettyNetworkServer(serverConfig.bindAddress)
     }
   }
 

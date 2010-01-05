@@ -16,7 +16,7 @@
 package com.linkedin.norbert.network
 
 import com.linkedin.norbert.cluster.{RouterFactoryComponent, DefaultClusterComponent}
-import netty.{ChannelHandlerActorComponent, RequestHandlerComponent}
+import netty.{NettyNetworkServerComponent, ChannelHandlerActorComponent, RequestHandlerComponent}
 
 trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with ChannelPoolComponent
         with BootstrapFactoryComponent with DefaultClusterComponent with RequestHandlerComponent
@@ -31,7 +31,7 @@ trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent
   val networkClientFactory = new NetworkClientFactory
 }
 
-trait DefaultNetworkServerComponent extends DefaultNetworkClientFactoryComponent with NetworkServerComponent
+trait DefaultNetworkServerComponent extends DefaultNetworkClientFactoryComponent with NettyNetworkServerComponent
         with ChannelHandlerActorComponent with MessageHandlerComponent with CurrentNodeLocatorComponent {
   this: RouterFactoryComponent =>
   
