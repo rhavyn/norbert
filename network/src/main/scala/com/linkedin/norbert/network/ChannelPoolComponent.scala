@@ -32,7 +32,12 @@ trait ChannelPoolComponent {
 
   val channelPool: ChannelPool
 
-  class ChannelPool(maxConnectionsPerNode: Int, writeTimeout: Int, channelGroup: ChannelGroup) extends Logging {
+  trait ChannelPool {
+    def sendRequest(nodes: scala.collection.Set[Node], request: Request): Unit
+    def shutdown: Unit
+  }
+
+  class DefaultChannelPool(maxConnectionsPerNode: Int, writeTimeout: Int, channelGroup: ChannelGroup) extends ChannelPool with Logging {
     def this(maxConnectionsPerNode: Int, writeTimeout: Int) = this(maxConnectionsPerNode, writeTimeout, new DefaultChannelGroup("norbert-client"))
     def this(channelGroup: ChannelGroup) = this(NetworkDefaults.MAX_CONNECTIONS_PER_NODE, NetworkDefaults.WRITE_TIMEOUT, channelGroup)
     def this() = this(new DefaultChannelGroup("norbert-client"))

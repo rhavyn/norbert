@@ -42,7 +42,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       doNothing.when(bootstrap).setOption("tcpNoDelay", true)
       doNothing.when(bootstrap).setOption("reuseAddress", true)
 
-      new ChannelPool(mock[ChannelGroup])
+      new DefaultChannelPool(mock[ChannelGroup])
 
       bootstrap.setPipelineFactory(isA(classOf[ChannelPipelineFactory])) was called
       bootstrap.setOption("tcpNoDelay", true) was called
@@ -59,7 +59,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new ChannelPool(mock[ChannelGroup])
+        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
         channelPool.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
 
@@ -75,7 +75,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         val future = new TestChannelFuture(channel, false)
         bootstrap.connect(node.address) returns future
 
-        val channelPool = new ChannelPool(mock[ChannelGroup])
+        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
         val request = Request(mock[Message], 1)
         channelPool.sendRequest(Set(node), request)
         future.listener.operationComplete(future)
@@ -95,7 +95,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns openFuture
         channel.write(isA(classOf[Request])) returns writeFuture
 
-        val channelPool = new ChannelPool(mock[ChannelGroup])
+        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
         val request = Request(mock[Message], 1)
         channelPool.sendRequest(Set(node), request)
         openFuture.listener.operationComplete(openFuture)
@@ -116,7 +116,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new ChannelPool(mock[ChannelGroup])
+        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
         channelPool.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
         channelPool.sendRequest(Set(node), Request(mock[Message], 1))
@@ -135,7 +135,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new ChannelPool(mock[ChannelGroup])
+        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
         channelPool.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
         channelPool.sendRequest(Set(node), Request(mock[Message], 1))
@@ -155,7 +155,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new ChannelPool(1, NetworkDefaults.WRITE_TIMEOUT, mock[ChannelGroup])
+        val channelPool = new DefaultChannelPool(1, NetworkDefaults.WRITE_TIMEOUT, mock[ChannelGroup])
         channelPool.sendRequest(Set(node), Request(mock[Message], 1))
         channelPool.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
@@ -174,7 +174,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new ChannelPool(NetworkDefaults.MAX_CONNECTIONS_PER_NODE, 1, mock[ChannelGroup])
+        val channelPool = new DefaultChannelPool(NetworkDefaults.MAX_CONNECTIONS_PER_NODE, 1, mock[ChannelGroup])
         val request = Request(mock[Message], 1)
         channelPool.sendRequest(Set(node), request)
         waitFor(2.ms)
@@ -195,7 +195,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         doNothing.when(bootstrap).releaseExternalResources
         channelGroup.close returns mock[ChannelGroupFuture]
 
-        new ChannelPool(1, 1, channelGroup).shutdown
+        new DefaultChannelPool(1, 1, channelGroup).shutdown
 
         bootstrap.releaseExternalResources was called
         channelGroup.close was called

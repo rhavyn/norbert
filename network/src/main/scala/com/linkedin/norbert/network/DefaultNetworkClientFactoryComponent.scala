@@ -27,7 +27,7 @@ trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent
   val writeTimeout: Int
 
   val bootstrapFactory = new BootstrapFactory
-  val channelPool = new ChannelPool(maxConnectionsPerNode, writeTimeout)
+  val channelPool = new DefaultChannelPool(maxConnectionsPerNode, writeTimeout)
   val networkClientFactory = new NetworkClientFactory
 }
 
