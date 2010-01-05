@@ -24,6 +24,7 @@ import org.specs.mock.Mockito
 import org.mockito.Matchers._
 import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.NorbertException
+import collection.Set
 
 class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
         with ChannelPoolComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
@@ -237,7 +238,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
       }
     }
 
-    "when sentMessageToNode is called" in {
+    "when sendMessageToNode is called" in {
       "a message is sent to the Node" in {
         val node = Node(1, new InetSocketAddress(13131), Array(0), true)
         doNothing.when(channelPool).sendRequest(containAll(List(node)), isA(classOf[Request]))
@@ -284,4 +285,46 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
   }
 
   def messageCustomizer(message: Message, node: Node, isd: Seq[Int]) = message  
+}
+
+class NetworkClientFactoryComponentMessageCustomizerSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
+        with ChannelPoolComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
+        with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent with RequestHandlerComponent
+        with MessageRegistryComponent {
+
+  type Id = Int
+  val clusterWatcher = null
+  val zooKeeperMonitor = null
+  val clusterManager = null
+  val routerFactory = null
+  val cluster = mock[Cluster]
+  val bootstrapFactory = mock[BootstrapFactory]
+  val networkClientFactory = mock[NetworkClientFactory]
+  val channelPool = new ChannelPool {
+    var r: Request = null
+
+    def shutdown = {}
+
+    def sendRequest(nodes: Set[Node], request: Request) {
+      r = request
+    }
+  }
+  val messageRegistry = null
+  val msg = NorbertProtos.Ping.newBuilder.setTimestamp(1234L).build
+
+  "NetworkClient" should {
+    "sends the correct message" in {
+      val router = mock[Router]
+      val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true))
+      router(1) returns Some(nodes(0))
+
+      val client = new NetworkClientFactory().newNetworkClient
+      client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
+      client.sendMessage(Array(1), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build, messageCustomizer _)
+
+      channelPool.r.message must be(msg)
+    }
+  }
+
+  def messageCustomizer(message: Message, node: Node, isd: Seq[Int]) = msg
 }
