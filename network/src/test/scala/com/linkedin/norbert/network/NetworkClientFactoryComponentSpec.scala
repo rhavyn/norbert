@@ -16,8 +16,8 @@
 package com.linkedin.norbert.network
 
 import java.net.InetSocketAddress
-import netty.RequestHandlerComponent
 import com.google.protobuf.Message
+import netty.{BootstrapFactoryComponent, RequestHandlerComponent}
 import org.specs.SpecificationWithJUnit
 import com.linkedin.norbert.cluster._
 import org.specs.mock.Mockito

@@ -18,10 +18,10 @@ package com.linkedin.norbert.network
 import java.net.InetSocketAddress
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
+import netty.{BootstrapFactoryComponent, RequestHandlerComponent}
 import org.jboss.netty.channel._
 import org.jboss.netty.handler.codec.protobuf.{ProtobufEncoder, ProtobufDecoder}
 import org.jboss.netty.handler.codec.frame.{LengthFieldPrepender, LengthFieldBasedFrameDecoder}
-import netty.RequestHandlerComponent
 import org.jboss.netty.channel.group.{DefaultChannelGroup, ChannelGroup}
 import com.linkedin.norbert.util.Logging
 import com.linkedin.norbert.cluster.Node

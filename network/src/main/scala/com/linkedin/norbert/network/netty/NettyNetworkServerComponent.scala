@@ -18,7 +18,7 @@ package com.linkedin.norbert.network.netty
 import java.net.InetSocketAddress
 import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.util.Logging
-import com.linkedin.norbert.network.{BootstrapFactoryComponent, NetworkClientFactoryComponent, NetworkingException, NetworkServerComponent}
+import com.linkedin.norbert.network.{NetworkClientFactoryComponent, NetworkingException, NetworkServerComponent}
 import com.linkedin.norbert.cluster.{ClusterComponent, InvalidNodeException, Node}
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}

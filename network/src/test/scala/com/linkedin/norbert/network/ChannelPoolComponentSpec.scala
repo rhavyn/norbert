@@ -17,7 +17,7 @@ package com.linkedin.norbert.network
 
 import java.net.InetSocketAddress
 import java.util.concurrent.{TimeoutException, TimeUnit}
-import netty.RequestHandlerComponent
+import netty.{BootstrapFactoryComponent, RequestHandlerComponent}
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.group.{ChannelGroupFuture, ChannelGroup}
 import org.jboss.netty.channel.{Channel, ChannelFutureListener, ChannelFuture, ChannelPipelineFactory}

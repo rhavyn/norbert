@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert.network.netty
 
 import java.util.concurrent.Executors
 import org.jboss.netty.bootstrap.{ClientBootstrap, ServerBootstrap}

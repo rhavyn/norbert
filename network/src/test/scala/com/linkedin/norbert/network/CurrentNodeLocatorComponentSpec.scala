@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.network
 
-import netty.{RequestHandlerComponent, ChannelHandlerActorComponent}
+import netty.{BootstrapFactoryComponent, RequestHandlerComponent, ChannelHandlerActorComponent}
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.linkedin.norbert.cluster._

@@ -16,7 +16,7 @@
 package com.linkedin.norbert.network
 
 import com.linkedin.norbert.cluster.{RouterFactoryComponent, DefaultClusterComponent}
-import netty.{NettyNetworkServerComponent, ChannelHandlerActorComponent, RequestHandlerComponent}
+import netty.{BootstrapFactoryComponent, NettyNetworkServerComponent, ChannelHandlerActorComponent, RequestHandlerComponent}
 
 trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with ChannelPoolComponent
         with BootstrapFactoryComponent with DefaultClusterComponent with RequestHandlerComponent
