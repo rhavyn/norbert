@@ -23,7 +23,7 @@ import com.google.protobuf.Message
  * A component which provides a network client for interacting with nodes in a cluster.
  */
 trait NetworkClientFactoryComponent {
-  this: ChannelPoolComponent with ClusterComponent with RouterFactoryComponent =>
+  this: ClusterIoClientComponent with ClusterComponent with RouterFactoryComponent =>
 
   val networkClientFactory: NetworkClientFactory
 
@@ -148,7 +148,7 @@ trait NetworkClientFactoryComponent {
           val nodes = calculateNodesFromIds(ids)
           log.ifDebug("Sending message [%s] to nodes: %s", message, nodes)
           val request = Request(message, nodes.size)
-          channelPool.sendRequest(nodes.keySet, request)
+          clusterIoClient.sendRequest(nodes.keySet, request)
           request.responseIterator
         }
 
@@ -161,7 +161,7 @@ trait NetworkClientFactoryComponent {
               val m = messageCustomizer(message, node, r)
               log.ifDebug("Sending message [%s] to node: %s", m, node)
               val request = Request(m, nodes.size, responseIterator)
-              channelPool.sendRequest(Set(node), request)
+              clusterIoClient.sendRequest(Set(node), request)
             } catch {
               case ex: Exception => responseIterator.offerResponse(Left(ex))
             }
@@ -184,7 +184,7 @@ trait NetworkClientFactoryComponent {
           
           log.ifDebug("Sending message [%s] to node: %s", message, node)
           val request = Request(message, 1)
-          channelPool.sendRequest(Set(node), request)
+          clusterIoClient.sendRequest(Set(node), request)
           request.responseIterator
         }
 
@@ -225,7 +225,7 @@ trait NetworkClientFactoryComponent {
      * sockets and shutting down the underlying <code>Cluster</code> instance.
      */
     def shutdown: Unit = {
-      channelPool.shutdown
+      clusterIoClient.shutdown
       cluster.shutdown
     }
   }

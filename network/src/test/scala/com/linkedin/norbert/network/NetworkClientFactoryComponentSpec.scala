@@ -27,7 +27,7 @@ import com.linkedin.norbert.NorbertException
 import collection.Set
 
 class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
-        with ChannelPoolComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
+        with ClusterIoClientComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
         with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent with RequestHandlerComponent
         with MessageRegistryComponent {
 
@@ -39,7 +39,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
   val cluster = mock[Cluster]
   val bootstrapFactory = mock[BootstrapFactory]
   val networkClientFactory = mock[NetworkClientFactory]
-  val channelPool = mock[ChannelPool]
+  val clusterIoClient = mock[ClusterIoClient]
   val messageRegistry = null
 
   "NetworkClientFactory" should {
@@ -70,12 +70,12 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
     }
 
     "shutdown should shutdown the network and cluster" in {
-      doNothing.when(channelPool).shutdown
+      doNothing.when(clusterIoClient).shutdown
       doNothing.when(cluster).shutdown
 
       new NetworkClientFactory().shutdown
 
-      channelPool.shutdown was called
+      clusterIoClient.shutdown was called
       cluster.shutdown was called
     }
   }
@@ -105,13 +105,13 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
         List(0, 1).foreach { i =>
           router(i + 1) returns Some(nodes(i))
         }
-        doNothing.when(channelPool).sendRequest(containAll(nodes), isA(classOf[Request]))
+        doNothing.when(clusterIoClient).sendRequest(containAll(nodes), isA(classOf[Request]))
 
         val client = new NetworkClientFactory().newNetworkClient
         client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
         client.sendMessage(Array(1, 2), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build)
 
-        channelPool.sendRequest(containAll(nodes), isA(classOf[Request])) was called
+        clusterIoClient.sendRequest(containAll(nodes), isA(classOf[Request])) was called
       }
     }
 
@@ -138,13 +138,13 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
         val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true), Node(2, new InetSocketAddress(13132), Array(1), true))
         List(0, 1).foreach(i => router(i + 1) returns Some(nodes(i)))
 
-        List(0, 1).foreach(i => doNothing.when(channelPool).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
+        List(0, 1).foreach(i => doNothing.when(clusterIoClient).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
 
         val client = new NetworkClientFactory().newNetworkClient
         client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
         client.sendMessage(Array(1, 2), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build, messageCustomizer _)
 
-        List(0, 1).foreach(i => channelPool.sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])) was called)
+        List(0, 1).foreach(i => clusterIoClient.sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])) was called)
       }
 
       "calls the message customizer" in {
@@ -162,7 +162,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
         List(1, 2).foreach(i => router(i) returns Some(nodes(0)))
         List(3, 4).foreach(i => router(i) returns Some(nodes(1)))
 
-        List(0, 1).foreach(i => doNothing.when(channelPool).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
+        List(0, 1).foreach(i => doNothing.when(clusterIoClient).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
 
         val client = new NetworkClientFactory().newNetworkClient
         client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
@@ -185,7 +185,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
         val router = mock[Router]
         val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true))
         List(1, 2).foreach(i => router(i) returns Some(nodes(0)))
-        doNothing.when(channelPool).sendRequest(containAll(nodes), isA(classOf[Request]))
+        doNothing.when(clusterIoClient).sendRequest(containAll(nodes), isA(classOf[Request]))
 
         val client = new NetworkClientFactory().newNetworkClient
         client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
@@ -211,7 +211,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
         val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true), Node(2, new InetSocketAddress(13132), Array(1), true))
         List(0, 1).foreach(i => router(i + 1) returns Some(nodes(i)))
 
-        List(0, 1).foreach(i => doNothing.when(channelPool).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
+        List(0, 1).foreach(i => doNothing.when(clusterIoClient).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
 
         val client = new NetworkClientFactory().newNetworkClient
         client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
@@ -230,7 +230,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
         val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true), Node(2, new InetSocketAddress(13132), Array(1), true))
         List(0, 1).foreach(i => router(i + 1) returns Some(nodes(i)))
 
-        List(0, 1).foreach(i => doNothing.when(channelPool).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
+        List(0, 1).foreach(i => doNothing.when(clusterIoClient).sendRequest(containAll(Array(nodes(i))), isA(classOf[Request])))
 
         val client = new NetworkClientFactory().newNetworkClient
         client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
@@ -241,12 +241,12 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
     "when sendMessageToNode is called" in {
       "a message is sent to the Node" in {
         val node = Node(1, new InetSocketAddress(13131), Array(0), true)
-        doNothing.when(channelPool).sendRequest(containAll(List(node)), isA(classOf[Request]))
+        doNothing.when(clusterIoClient).sendRequest(containAll(List(node)), isA(classOf[Request]))
 
         val client = new NetworkClientFactory().newNetworkClient
         client.sendMessageToNode(node, NorbertProtos.Ping.newBuilder.setTimestamp(1L).build)
 
-        channelPool.sendRequest(containAll(List(node)), isA(classOf[Request])) was called
+        clusterIoClient.sendRequest(containAll(List(node)), isA(classOf[Request])) was called
       }
 
       "an InvalidNodeException is thrown if the node is not available" in {
@@ -288,7 +288,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
 }
 
 class NetworkClientFactoryComponentMessageCustomizerSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
-        with ChannelPoolComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
+        with ClusterIoClientComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
         with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent with RequestHandlerComponent
         with MessageRegistryComponent {
 
@@ -300,7 +300,7 @@ class NetworkClientFactoryComponentMessageCustomizerSpec extends SpecificationWi
   val cluster = mock[Cluster]
   val bootstrapFactory = mock[BootstrapFactory]
   val networkClientFactory = mock[NetworkClientFactory]
-  val channelPool = new ChannelPool {
+  val clusterIoClient = new ClusterIoClient {
     var r: Request = null
 
     def shutdown = {}
@@ -322,7 +322,7 @@ class NetworkClientFactoryComponentMessageCustomizerSpec extends SpecificationWi
       client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
       client.sendMessage(Array(1), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build, messageCustomizer _)
 
-      channelPool.r.message must be(msg)
+      clusterIoClient.r.message must be(msg)
     }
   }
 

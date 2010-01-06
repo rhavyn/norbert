@@ -16,9 +16,9 @@
 package com.linkedin.norbert.network
 
 import com.linkedin.norbert.cluster.{RouterFactoryComponent, DefaultClusterComponent}
-import netty.{BootstrapFactoryComponent, NettyNetworkServerComponent, ChannelHandlerActorComponent, RequestHandlerComponent}
+import netty._
 
-trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with ChannelPoolComponent
+trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with NettyClusterIoClientComponent
         with BootstrapFactoryComponent with DefaultClusterComponent with RequestHandlerComponent
         with MessageRegistryComponent {
   this: RouterFactoryComponent =>
@@ -27,7 +27,7 @@ trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent
   val writeTimeout: Int
 
   val bootstrapFactory = new BootstrapFactory
-  val channelPool = new DefaultChannelPool(maxConnectionsPerNode, writeTimeout)
+  val clusterIoClient = new NettyClusterIoClient(maxConnectionsPerNode, writeTimeout)
   val networkClientFactory = new NetworkClientFactory
 }
 

@@ -13,11 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert.network.netty
 
 import java.net.InetSocketAddress
 import java.util.concurrent.{TimeoutException, TimeUnit}
-import netty.{BootstrapFactoryComponent, RequestHandlerComponent}
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.group.{ChannelGroupFuture, ChannelGroup}
 import org.jboss.netty.channel.{Channel, ChannelFutureListener, ChannelFuture, ChannelPipelineFactory}
@@ -27,14 +26,15 @@ import org.specs.SpecificationWithJUnit
 import org.specs.util.WaitFor
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.Node
+import com.linkedin.norbert.network.{NetworkDefaults, Request, MessageRegistryComponent}
 
-class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ChannelPoolComponent
+class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with NettyClusterIoClientComponent
         with BootstrapFactoryComponent with RequestHandlerComponent with MessageRegistryComponent {
-  val channelPool = mock[ChannelPool]
+  val clusterIoClient = mock[ClusterIoClient]
   val bootstrapFactory = mock[BootstrapFactory]
   val messageRegistry = null
   
-  "ChannelPool" should {
+  "NettyClusterIoClient" should {
     "correctly configure the ClientBootstrap" in {
       val bootstrap = mock[ClientBootstrap]
       bootstrapFactory.newClientBootstrap returns bootstrap
@@ -42,7 +42,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       doNothing.when(bootstrap).setOption("tcpNoDelay", true)
       doNothing.when(bootstrap).setOption("reuseAddress", true)
 
-      new DefaultChannelPool(mock[ChannelGroup])
+      new NettyClusterIoClient(mock[ChannelGroup])
 
       bootstrap.setPipelineFactory(isA(classOf[ChannelPipelineFactory])) was called
       bootstrap.setOption("tcpNoDelay", true) was called
@@ -59,8 +59,8 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
-        channelPool.sendRequest(Set(node), Request(mock[Message], 1))
+        val clusterIoClient = new NettyClusterIoClient(mock[ChannelGroup])
+        clusterIoClient.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
 
         bootstrap.connect(node.address) was called
@@ -75,9 +75,9 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         val future = new TestChannelFuture(channel, false)
         bootstrap.connect(node.address) returns future
 
-        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
+        val clusterIoClient = new NettyClusterIoClient(mock[ChannelGroup])
         val request = Request(mock[Message], 1)
-        channelPool.sendRequest(Set(node), request)
+        clusterIoClient.sendRequest(Set(node), request)
         future.listener.operationComplete(future)
 
         bootstrap.connect(node.address) was called
@@ -95,9 +95,9 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns openFuture
         channel.write(isA(classOf[Request])) returns writeFuture
 
-        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
+        val clusterIoClient = new NettyClusterIoClient(mock[ChannelGroup])
         val request = Request(mock[Message], 1)
-        channelPool.sendRequest(Set(node), request)
+        clusterIoClient.sendRequest(Set(node), request)
         openFuture.listener.operationComplete(openFuture)
         writeFuture.listener.operationComplete(writeFuture)
 
@@ -116,10 +116,10 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
-        channelPool.sendRequest(Set(node), Request(mock[Message], 1))
+        val clusterIoClient = new NettyClusterIoClient(mock[ChannelGroup])
+        clusterIoClient.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
-        channelPool.sendRequest(Set(node), Request(mock[Message], 1))
+        clusterIoClient.sendRequest(Set(node), Request(mock[Message], 1))
 
         bootstrap.connect(node.address) was called.once
         channel.write(isA(classOf[Request])) was called.twice
@@ -135,10 +135,10 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new DefaultChannelPool(mock[ChannelGroup])
-        channelPool.sendRequest(Set(node), Request(mock[Message], 1))
+        val clusterIoClient = new NettyClusterIoClient(mock[ChannelGroup])
+        clusterIoClient.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
-        channelPool.sendRequest(Set(node), Request(mock[Message], 1))
+        clusterIoClient.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
 
         bootstrap.connect(node.address) was called.twice
@@ -155,9 +155,9 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new DefaultChannelPool(1, NetworkDefaults.WRITE_TIMEOUT, mock[ChannelGroup])
-        channelPool.sendRequest(Set(node), Request(mock[Message], 1))
-        channelPool.sendRequest(Set(node), Request(mock[Message], 1))
+        val clusterIoClient = new NettyClusterIoClient(1, NetworkDefaults.WRITE_TIMEOUT, mock[ChannelGroup])
+        clusterIoClient.sendRequest(Set(node), Request(mock[Message], 1))
+        clusterIoClient.sendRequest(Set(node), Request(mock[Message], 1))
         future.listener.operationComplete(future)
 
         bootstrap.connect(node.address) was called.once
@@ -174,9 +174,9 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         bootstrap.connect(node.address) returns future
         channel.write(isA(classOf[Request])) returns mock[ChannelFuture]
 
-        val channelPool = new DefaultChannelPool(NetworkDefaults.MAX_CONNECTIONS_PER_NODE, 1, mock[ChannelGroup])
+        val clusterIoClient = new NettyClusterIoClient(NetworkDefaults.MAX_CONNECTIONS_PER_NODE, 1, mock[ChannelGroup])
         val request = Request(mock[Message], 1)
-        channelPool.sendRequest(Set(node), request)
+        clusterIoClient.sendRequest(Set(node), request)
         waitFor(2.ms)
         future.listener.operationComplete(future)
 
@@ -195,7 +195,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
         doNothing.when(bootstrap).releaseExternalResources
         channelGroup.close returns mock[ChannelGroupFuture]
 
-        new DefaultChannelPool(1, 1, channelGroup).shutdown
+        new NettyClusterIoClient(1, 1, channelGroup).shutdown
 
         bootstrap.releaseExternalResources was called
         channelGroup.close was called

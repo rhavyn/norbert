@@ -13,31 +13,24 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert.network.netty
 
-import java.net.InetSocketAddress
-import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicInteger
-import netty.{BootstrapFactoryComponent, RequestHandlerComponent}
-import org.jboss.netty.channel._
-import org.jboss.netty.handler.codec.protobuf.{ProtobufEncoder, ProtobufDecoder}
-import org.jboss.netty.handler.codec.frame.{LengthFieldPrepender, LengthFieldBasedFrameDecoder}
+import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel.group.{DefaultChannelGroup, ChannelGroup}
 import com.linkedin.norbert.util.Logging
+import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
+import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
+import org.jboss.netty.channel._
+import java.util.concurrent._
+import java.util.concurrent.atomic.AtomicInteger
+import java.net.InetSocketAddress
+import com.linkedin.norbert.network.{Request, ClusterIoClientComponent, NetworkDefaults}
 import com.linkedin.norbert.cluster.Node
-import com.linkedin.norbert.protos._
 
-trait ChannelPoolComponent {
+trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
   this: BootstrapFactoryComponent with RequestHandlerComponent =>
 
-  val channelPool: ChannelPool
-
-  trait ChannelPool {
-    def sendRequest(nodes: scala.collection.Set[Node], request: Request): Unit
-    def shutdown: Unit
-  }
-
-  class DefaultChannelPool(maxConnectionsPerNode: Int, writeTimeout: Int, channelGroup: ChannelGroup) extends ChannelPool with Logging {
+  class NettyClusterIoClient(maxConnectionsPerNode: Int, writeTimeout: Int, channelGroup: ChannelGroup) extends ClusterIoClient with Logging {
     def this(maxConnectionsPerNode: Int, writeTimeout: Int) = this(maxConnectionsPerNode, writeTimeout, new DefaultChannelGroup("norbert-client"))
     def this(channelGroup: ChannelGroup) = this(NetworkDefaults.MAX_CONNECTIONS_PER_NODE, NetworkDefaults.WRITE_TIMEOUT, channelGroup)
     def this() = this(new DefaultChannelGroup("norbert-client"))
@@ -46,7 +39,7 @@ trait ChannelPoolComponent {
     bootstrap.setPipelineFactory(pipelineFactory)
     bootstrap.setOption("tcpNoDelay", true)
     bootstrap.setOption("reuseAddress", true)
-    
+
     private val channelPool = new ConcurrentHashMap[Node, Pool]
     private val queuedWriteExecutor = Executors.newCachedThreadPool
     private val requestHandler = new RequestHandler
@@ -66,7 +59,7 @@ trait ChannelPoolComponent {
 
     def shutdown: Unit = {
       log.info("Shutting down ChannelPool")
-      
+
       channelGroup.close
       bootstrap.releaseExternalResources
       queuedWriteExecutor.shutdown
@@ -82,7 +75,7 @@ trait ChannelPoolComponent {
         p.addLast("protobufEncoder", new ProtobufEncoder)
 
         p.addLast("requestHandler", requestHandler)
-        
+
         p
       }
     }
@@ -124,7 +117,7 @@ trait ChannelPoolComponent {
           })
         }
       }
-      
+
       private def attemptGrow = if (poolSize.incrementAndGet > maxConnectionsPerNode) {
         poolSize.decrementAndGet
         false
@@ -134,7 +127,7 @@ trait ChannelPoolComponent {
 
       private def openChannelAndWrite(request: Request): Unit = {
         log.ifDebug("Opening a channel to: %s", address)
-        
+
         bootstrap.connect(address).addListener(new ChannelFutureListener {
           def operationComplete(openFuture: ChannelFuture) = {
             if (openFuture.isSuccess) {

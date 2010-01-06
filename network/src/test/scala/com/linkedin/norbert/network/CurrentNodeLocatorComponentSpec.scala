@@ -23,7 +23,7 @@ import com.linkedin.norbert.cluster._
 class CurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with Mockito with CurrentNodeLocatorComponent
         with NetworkServerComponent with BootstrapFactoryComponent with ClusterComponent with ChannelHandlerActorComponent
         with NetworkClientFactoryComponent with ClusterManagerComponent with ClusterWatcherComponent with ZooKeeperMonitorComponent
-        with RouterFactoryComponent with MessageHandlerComponent with ChannelPoolComponent with MessageRegistryComponent
+        with RouterFactoryComponent with MessageHandlerComponent with ClusterIoClientComponent with MessageRegistryComponent
         with RequestHandlerComponent {
   val clusterWatcher = null
   val cluster = null
@@ -33,7 +33,7 @@ class CurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with Mockit
   val zooKeeperMonitor = null
   val routerFactory = null
   val messageHandler = null
-  val channelPool = null
+  val clusterIoClient = null
   val messageRegistry = null
   
   val currentNodeLocator = mock[CurrentNodeLocator]
