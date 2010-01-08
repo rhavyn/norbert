@@ -24,7 +24,9 @@ trait NetworkServerComponent {
     protected var myNode: Node = _
 
     def bind: Unit
+    def bind(markAvailable: Boolean): Unit
     def currentNode: Node = myNode
+    def markAvailable: Unit
     def shutdown: Unit
   }
 }

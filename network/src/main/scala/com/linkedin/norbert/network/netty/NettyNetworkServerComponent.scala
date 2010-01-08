@@ -28,7 +28,7 @@ import org.jboss.netty.channel.group.DefaultChannelGroup
 trait NettyNetworkServerComponent extends NetworkServerComponent {
   this: BootstrapFactoryComponent with ClusterComponent with ChannelHandlerActorComponent with NetworkClientFactoryComponent =>
 
-  class NettyNetworkServer private (nodeIdOption: Option[Int], bindAddressOption: Option[InetSocketAddress]) extends NetworkServer with Logging {
+  class NettyNetworkServer private (nodeIdOption: Option[Int], bindAddressOption: Option[InetSocketAddress]) extends NetworkServer with ClusterListener with Logging {
     def this(nodeId: Int) = this(Some(nodeId), None)
     def this(bindAddress: InetSocketAddress) = this(None, Some(bindAddress))
 
@@ -41,6 +41,8 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
 
     private var serverChannel: Channel = _
     private val channelGroup = new DefaultChannelGroup("norbert-server")
+
+    @volatile private var markAvailableWhenConnected = true
 
     def bind {
       log.ifDebug("Waiting for cluster connection to complete...")
@@ -66,14 +68,18 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
 
       log.info("Listening at %s", bindAddress)
 
-      cluster.addListener(new ClusterListener {
-        def handleClusterEvent(event: ClusterEvent) = event match {
-          case ClusterEvents.Connected(_, _) =>
-            log.info("Marking node with id %d available", myNode.id)
-            cluster.markNodeAvailable(myNode.id)
-          case _ => // do nothing
-        }
-      })
+      cluster.addListener(this)
+    }
+
+    def bind(markAvailable: Boolean) {
+      markAvailableWhenConnected = markAvailable
+      bind
+    }
+
+    def markAvailable = {
+      if (myNode == null) throw new NetworkingException("bind() must be called before calling markAvailable")
+      markAvailableWhenConnected = true
+      doMarkNodeAvailable
     }
 
     def shutdown {
@@ -93,6 +99,12 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
       log.info("Shutdown complete")
     }
 
+    def handleClusterEvent(event: ClusterEvent) = event match {
+      case ClusterEvents.Connected(_, _) => doMarkNodeAvailable
+
+      case _ => // do nothing
+    }
+
     protected def pipelineFactory = new ChannelPipelineFactory {
       def getPipeline = {
         val p = Channels.pipeline
@@ -105,6 +117,13 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
         p.addLast("channelHandler", new ChannelHandlerActorAdapter(channelGroup, channel => new ChannelHandlerActor(channel)))
 
         p
+      }
+    }
+
+    private def doMarkNodeAvailable {
+      if (markAvailableWhenConnected) {
+        log.info("Marking node with id %d available", myNode.id)
+        cluster.markNodeAvailable(myNode.id)
       }
     }
   }

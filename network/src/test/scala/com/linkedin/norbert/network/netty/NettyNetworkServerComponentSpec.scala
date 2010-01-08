@@ -126,6 +126,63 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
 
         server.currentNode must be(node)
       }
+
+      "marks the node available in the cluster" in {
+        val bootstrap = mock[ServerBootstrap]
+        bootstrapFactory.newServerBootstrap returns bootstrap
+        val node = Node(1, "localhost", 31313, Array(0, 1, 2), true)
+        cluster.nodeWithId(1) returns Some(node)
+        doNothing.when(cluster).markNodeAvailable(1)
+        
+        bootstrap.bind(new InetSocketAddress("localhost", 31313)) returns mock[Channel]
+
+        val server = new NettyNetworkServer(1)
+        server.bind
+        server.handleClusterEvent(ClusterEvents.Connected(null, null))
+
+        cluster.markNodeAvailable(1) was called
+      }
+
+      "doesn't mark the node available in the cluster" in {
+        val bootstrap = mock[ServerBootstrap]
+        bootstrapFactory.newServerBootstrap returns bootstrap
+        val node = Node(1, "localhost", 31313, Array(0, 1, 2), true)
+        cluster.nodeWithId(1) returns Some(node)
+        doNothing.when(cluster).markNodeAvailable(1)
+
+        bootstrap.bind(new InetSocketAddress("localhost", 31313)) returns mock[Channel]
+
+        val server = new NettyNetworkServer(1)
+        server.bind(false)
+        server.handleClusterEvent(ClusterEvents.Connected(null, null))
+
+        cluster.markNodeAvailable(1) wasnt called        
+      }
+
+      "marks the node available after calling markNodeAvailable" in {
+        val bootstrap = mock[ServerBootstrap]
+        bootstrapFactory.newServerBootstrap returns bootstrap
+        val node = Node(1, "localhost", 31313, Array(0, 1, 2), true)
+        cluster.nodeWithId(1) returns Some(node)
+        doNothing.when(cluster).markNodeAvailable(1)
+
+        bootstrap.bind(new InetSocketAddress("localhost", 31313)) returns mock[Channel]
+
+        val server = new NettyNetworkServer(1)
+        server.bind(false)
+        server.markAvailable
+        server.handleClusterEvent(ClusterEvents.Connected(null, null))
+
+        cluster.markNodeAvailable(1) was called.twice         
+      }
+
+      "throw a NetworkingException if markAvailable is called before calling bind" in {
+        val bootstrap = mock[ServerBootstrap]
+        bootstrapFactory.newServerBootstrap returns bootstrap
+
+        val server = new NettyNetworkServer(1)
+        server.markAvailable must throwA[NetworkingException]
+      }
     }
 
     "when instantiated with an InetSocketAddress" in {

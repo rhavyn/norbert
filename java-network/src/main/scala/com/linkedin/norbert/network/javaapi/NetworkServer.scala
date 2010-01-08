@@ -21,6 +21,8 @@ import com.linkedin.norbert.cluster.Node
 trait NetworkServer {
   @throws(classOf[NetworkingException])
   def bind: Unit
+  def bind(markAvailable: Boolean): Unit
   def getCurrentNode: Node
+  def markAvailable: Unit
   def shutdown: Unit
 }

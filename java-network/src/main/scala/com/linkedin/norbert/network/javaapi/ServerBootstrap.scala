@@ -68,7 +68,11 @@ class ServerBootstrap(serverConfig: ServerConfig) extends ClientBootstrapHelper 
   private class NetworkServerWrapper(networkServer: NetworkServer) extends JNetworkServer {
     def bind = networkServer.bind
 
+    def bind(markAvailable: Boolean) = networkServer.bind(markAvailable)
+
     def getCurrentNode = networkServer.currentNode
+
+    def markAvailable = networkServer.markAvailable
 
     def shutdown = networkServer.shutdown
   }
