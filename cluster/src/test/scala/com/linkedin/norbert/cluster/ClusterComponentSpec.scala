@@ -60,27 +60,32 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     "start" in {
       "disconnected" in {
         val cluster = new DefaultCluster
+        cluster.start
         cluster.isConnected must beFalse
       }
 
       "not shutdown" in {
         val cluster = new DefaultCluster
+        cluster.start
         cluster.isShutdown must beFalse
       }
       
       "with an empty node list" in {
         val cluster = new DefaultCluster
+        cluster.start
         cluster.nodes must haveSize(0)
       }
 
       "with no router" in {
         val cluster = new DefaultCluster
+        cluster.start
         cluster.router must beNone
       }
     }
     
     "throw ClusterShutdownException if shut down for nodes, router, *Listener, await*" in {
       val cluster = new DefaultCluster
+      cluster.start
 
       cluster.shutdown
       cluster.nodes must throwA[ClusterShutdownException]
@@ -94,6 +99,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
 
     "throw ClusterDisconnectedException if disconnected for addNode, removeNode, markNodeAvailable, nodeWith" in {
       val cluster = new DefaultCluster
+      cluster.start
 
       cluster.addNode(1, new InetSocketAddress("localhost", 31313), Array(0, 1)) must throwA[ClusterDisconnectedException]
       cluster.removeNode(1) must throwA[ClusterDisconnectedException]
@@ -114,6 +120,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     "handle cluster events" in {
       "Connected updates the current state and make the cluster connected" in {
         val cluster = new DefaultCluster
+        cluster.start
         val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false))
 
         cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
@@ -125,6 +132,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
 
       "NodesChanged updates the current state" in {
         val cluster = new DefaultCluster
+        cluster.start
         val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false))
 
         cluster.handleClusterEvent(ClusterEvents.NodesChanged(nodes, Some(mock[Router])))
@@ -136,6 +144,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
 
       "Disconnected disconnects the cluster and resets the current state" in {
         val cluster = new DefaultCluster
+        cluster.start
         val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false))
 
         cluster.handleClusterEvent(ClusterEvents.NodesChanged(nodes, Some(mock[Router])))
@@ -153,6 +162,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       zooKeeperMonitor.addNode(node.id, node.address, node.partitions) returns node
 
       val cluster = new DefaultCluster
+      cluster.start
       cluster.handleClusterEvent(ClusterEvents.Connected(Array(node), Some(mock[Router])))
       cluster.addNode(node.id, node.address, node.partitions) must be_==(node)
 
@@ -165,6 +175,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       doNothing.when(zooKeeperMonitor).removeNode(node.id)
 
       val cluster = new DefaultCluster
+      cluster.start
       cluster.handleClusterEvent(ClusterEvents.Connected(Array(node), Some(mock[Router])))
       cluster.removeNode(node.id)
 
@@ -177,6 +188,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       doNothing.when(zooKeeperMonitor).markNodeAvailable(node.id)
 
       val cluster = new DefaultCluster
+      cluster.start
       cluster.handleClusterEvent(ClusterEvents.Connected(Array(node), Some(mock[Router])))
       cluster.markNodeAvailable(node.id)
 
@@ -190,6 +202,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
           Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
 
         val cluster = new DefaultCluster
+        cluster.start
         cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
         cluster.nodeWithId(2) must beSome[Node].which(_ must be_==(nodes(1)))
       }
@@ -200,6 +213,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
           Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
 
         val cluster = new DefaultCluster
+        cluster.start
         cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
         cluster.nodeWithId(4) must beNone
       }
@@ -212,6 +226,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
           Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
 
         val cluster = new DefaultCluster
+        cluster.start
         cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
         cluster.nodeWithAddress(new InetSocketAddress("localhost", 31314)) must beSome[Node].which(_ must be_==(nodes(1)))
       }
@@ -222,6 +237,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
           Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
 
         val cluster = new DefaultCluster
+        cluster.start
         cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
         cluster.nodeWithAddress(new InetSocketAddress(31315)) must beSome[Node].which(_ must be_==(nodes(2)))
       }
@@ -232,6 +248,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
           Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
 
         val cluster = new DefaultCluster
+        cluster.start
         cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
         cluster.nodeWithAddress(new InetSocketAddress(31316)) must beNone
       }
@@ -244,6 +261,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       val count = clusterManager.addListenerCount
 
       val cluster = new DefaultCluster
+      cluster.start
       cluster.addListener(listener)
 
       waitFor(10.ms)
@@ -258,6 +276,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       val count = clusterManager.removeListenerCount
 
       val cluster = new DefaultCluster
+      cluster.start
       cluster.removeListener(listener)
 
       waitFor(10.ms)
@@ -270,6 +289,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       val count = clusterManager.shutdownCount
 
       val cluster = new DefaultCluster
+      cluster.start
       cluster.shutdown
 
       waitFor(10.ms)

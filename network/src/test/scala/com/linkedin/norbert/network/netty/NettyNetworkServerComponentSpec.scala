@@ -45,6 +45,7 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
   "NettyNetworkServer" should {
     "when instantiated with a node id" in {
       "connect to the cluster and listen to cluster events" in {
+        doNothing.when(cluster).start
         doNothing.when(cluster).awaitConnectionUninterruptibly
         doNothing.when(cluster).addListener(isA(classOf[ClusterListener]))
         bootstrapFactory.newServerBootstrap returns mock[ServerBootstrap]
@@ -53,6 +54,7 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
         val server = new NettyNetworkServer(1)
         server.bind
 
+        cluster.start was called
         cluster.awaitConnectionUninterruptibly was called
         cluster.addListener(isA(classOf[ClusterListener])) was called
       }
@@ -186,16 +188,19 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
     }
 
     "when instantiated with an InetSocketAddress" in {
+      val isa = new InetSocketAddress(13131)
+
       "connect to the cluster and listen to cluster events" in {
+        doNothing.when(cluster).start
         doNothing.when(cluster).awaitConnectionUninterruptibly
         doNothing.when(cluster).addListener(isA(classOf[ClusterListener]))
         bootstrapFactory.newServerBootstrap returns mock[ServerBootstrap]
-        val isa = new InetSocketAddress(13131)
         cluster.nodeWithAddress(isa) returns Some(Node(1, "some.host.com", 31313, Array(0, 1, 2), true))
 
         val server = new NettyNetworkServer(isa)
         server.bind
 
+        cluster.start was called
         cluster.awaitConnectionUninterruptibly was called
         cluster.addListener(isA(classOf[ClusterListener])) was called
       }
@@ -203,7 +208,6 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
       "look up the specified node and bind to the specified address" in {
         val bootstrap = mock[ServerBootstrap]
         bootstrapFactory.newServerBootstrap returns bootstrap
-        val isa = new InetSocketAddress(13131)
         cluster.nodeWithAddress(isa) returns Some(Node(1, "some.host.com", 31313, Array(0, 1, 2), true))
         bootstrap.bind(isa) returns mock[Channel]
 
@@ -217,7 +221,6 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
       "correctly configures the ServerBootstrap" in {
         val bootstrap = mock[ServerBootstrap]
         bootstrapFactory.newServerBootstrap returns bootstrap
-        val isa = new InetSocketAddress(31313)
         doNothing.when(bootstrap).setPipelineFactory(isA(classOf[ChannelPipelineFactory]))
         doNothing.when(bootstrap).setOption("child.tcpNoDelay", true)
         doNothing.when(bootstrap).setOption("child.reuseAddress", true)
@@ -237,7 +240,6 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
         val bootstrap = mock[ServerBootstrap]
         bootstrapFactory.newServerBootstrap returns bootstrap
         doNothing.when(cluster).awaitConnectionUninterruptibly
-        val isa = new InetSocketAddress(31313)
         cluster.nodeWithAddress(isa) returns None
 
         val server = new NettyNetworkServer(isa)
@@ -249,7 +251,6 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
       "makes the node available via currentNode" in {
         val bootstrap = mock[ServerBootstrap]
         bootstrapFactory.newServerBootstrap returns bootstrap
-        val isa = new InetSocketAddress(13131)
         val node = Node(1, "some.host.com", 31313, Array(0, 1, 2), true)
         cluster.nodeWithAddress(isa) returns Some(node)
         bootstrap.bind(isa) returns mock[Channel]
@@ -258,6 +259,63 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
         server.bind
 
         server.currentNode must be(node)
+      }
+
+      "marks the node available in the cluster" in {
+        val bootstrap = mock[ServerBootstrap]
+        bootstrapFactory.newServerBootstrap returns bootstrap
+        val node = Node(1, "localhost", 31313, Array(0, 1, 2), true)
+        cluster.nodeWithAddress(isa) returns Some(Node(1, "some.host.com", 31313, Array(0, 1, 2), true))
+        doNothing.when(cluster).markNodeAvailable(1)
+
+        bootstrap.bind(new InetSocketAddress("localhost", 31313)) returns mock[Channel]
+
+        val server = new NettyNetworkServer(isa)
+        server.bind
+        server.handleClusterEvent(ClusterEvents.Connected(null, null))
+
+        cluster.markNodeAvailable(1) was called
+      }
+
+      "doesn't mark the node available in the cluster" in {
+        val bootstrap = mock[ServerBootstrap]
+        bootstrapFactory.newServerBootstrap returns bootstrap
+        val node = Node(1, "localhost", 31313, Array(0, 1, 2), true)
+        cluster.nodeWithAddress(isa) returns Some(Node(1, "some.host.com", 31313, Array(0, 1, 2), true))
+        doNothing.when(cluster).markNodeAvailable(1)
+
+        bootstrap.bind(new InetSocketAddress("localhost", 31313)) returns mock[Channel]
+
+        val server = new NettyNetworkServer(isa)
+        server.bind(false)
+        server.handleClusterEvent(ClusterEvents.Connected(null, null))
+
+        cluster.markNodeAvailable(1) wasnt called
+      }
+
+      "marks the node available after calling markNodeAvailable" in {
+        val bootstrap = mock[ServerBootstrap]
+        bootstrapFactory.newServerBootstrap returns bootstrap
+        val node = Node(1, "localhost", 31313, Array(0, 1, 2), true)
+        cluster.nodeWithAddress(isa) returns Some(Node(1, "some.host.com", 31313, Array(0, 1, 2), true))
+        doNothing.when(cluster).markNodeAvailable(1)
+
+        bootstrap.bind(new InetSocketAddress("localhost", 31313)) returns mock[Channel]
+
+        val server = new NettyNetworkServer(isa)
+        server.bind(false)
+        server.markAvailable
+        server.handleClusterEvent(ClusterEvents.Connected(null, null))
+
+        cluster.markNodeAvailable(1) was called.twice
+      }
+
+      "throw a NetworkingException if markAvailable is called before calling bind" in {
+        val bootstrap = mock[ServerBootstrap]
+        bootstrapFactory.newServerBootstrap returns bootstrap
+
+        val server = new NettyNetworkServer(isa)
+        server.markAvailable must throwA[NetworkingException]
       }
     }
   }

@@ -58,7 +58,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
     }
 
     def shutdown: Unit = {
-      log.info("Shutting down ChannelPool")
+      log.info("Shutting down ClusterIoClient")
 
       channelGroup.close
       bootstrap.releaseExternalResources

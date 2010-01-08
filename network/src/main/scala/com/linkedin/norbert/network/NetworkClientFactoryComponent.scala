@@ -138,6 +138,10 @@ trait NetworkClientFactoryComponent {
      * @return a new <code>NetworkClient</code>
      */
     def newNetworkClient: NetworkClient = {
+      log.ifDebug("Starting cluster...")
+      cluster.start
+
+      log.ifDebug("Waiting for cluster connection to complete...")
       cluster.awaitConnectionUninterruptibly
 
       val client = new NetworkClient with ClusterListener {

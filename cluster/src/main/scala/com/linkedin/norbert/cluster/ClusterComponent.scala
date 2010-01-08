@@ -76,6 +76,11 @@ trait ClusterComponent {
    */
   trait Cluster {
     /**
+     * Starts the cluster.  This method must be called before calling any other methods on the cluster.
+     */
+    def start: Unit
+
+    /**
      * Retrieves the current list of nodes registered with the cluster.  The return value may be a
      * <code>Seq</code> with 0 elements if the cluster is not connected.
      *
@@ -217,19 +222,6 @@ trait ClusterComponent {
   }
 
   /**
-   * Factory for creating <code>Cluster</code> instances. Users are discouraged from using directly, instead
-   * mix in the <code>DefaultClusterComponent</code> when creating your component registry.
-   */
-  object Cluster {
-    def apply(): Cluster = {
-      val cluster = new DefaultCluster
-      cluster.start
-      cluster.addListener(cluster)
-      cluster
-    }
-  }
-
-  /**
    * The default <code>Cluster</code> implementation. Instances should not be created directly, instead
    * call <code>Cluster()</code>.
    */
@@ -243,13 +235,18 @@ trait ClusterComponent {
     @volatile private var currentState = CurrentState.empty
     @volatile private var connectedLatch = new CountDownLatch(1)
     private val shutdownSwitch = new AtomicBoolean
+    private val started = new AtomicBoolean
 
     def start: Unit = {
-      log.info("Starting ClusterManager...")
-      clusterManager.start
+      if (started.compareAndSet(false, true)) {
+        log.info("Starting ClusterManager...")
+        clusterManager.start
 
-      log.info("Starting ZooKeeperMonitor...")
-      zooKeeperMonitor.start
+        log.info("Starting ZooKeeperMonitor...")
+        zooKeeperMonitor.start
+
+        cluster.addListener(this)
+      }
     }
 
     def nodes: Seq[Node] = doIfNotShutdown(currentState.nodes)
@@ -304,7 +301,7 @@ trait ClusterComponent {
       }
     }
 
-    def shutdown: Unit = {
+    def shutdown: Unit = doIfStarted {
       if (shutdownSwitch.compareAndSet(false, true)) {
         clusterManager ! ClusterMessages.Shutdown
         clusterWatcher.shutdown
@@ -344,11 +341,15 @@ trait ClusterComponent {
       }
     }
 
-    private def doIfConnected[T](block: => T): T = {
+    private def doIfStarted[T](block: => T): T = {
+      if (!started.get) throw new ClusterNotStartedException else block
+    }
+
+    private def doIfConnected[T](block: => T): T = doIfStarted {
       if (!isConnected) throw new ClusterDisconnectedException("Cluster is disconnected, unable to call") else block
     }
 
-    private def doIfNotShutdown[T](block: => T): T = {
+    private def doIfNotShutdown[T](block: => T): T = doIfStarted {
       if (isShutdown) throw new ClusterShutdownException else block
     }
 

@@ -45,6 +45,9 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
     @volatile private var markAvailableWhenConnected = true
 
     def bind {
+      log.ifDebug("Starting cluster...")
+      cluster.start
+      
       log.ifDebug("Waiting for cluster connection to complete...")
       cluster.awaitConnectionUninterruptibly
 

@@ -47,5 +47,5 @@ trait DefaultClusterComponent extends ClusterComponent with ClusterManagerCompon
   val clusterManager = new ClusterManager
   val clusterWatcher = new ClusterWatcher(clusterDisconnectTimeout)
   val zooKeeperMonitor = new ZooKeeperMonitor(zooKeeperUrls, zooKeeperSessionTimeout, clusterName)
-  val cluster = Cluster()
+  val cluster = new DefaultCluster
 }

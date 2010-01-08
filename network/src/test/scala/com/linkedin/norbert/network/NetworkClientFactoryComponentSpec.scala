@@ -44,11 +44,13 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
 
   "NetworkClientFactory" should {
     "when calling newNetworkClient" in {
-      "wait for the cluster to be available" in {
+      "start the cluster and wait for the cluster to be available" in {
+        doNothing.when(cluster).start
         doNothing.when(cluster).awaitConnectionUninterruptibly
 
         new NetworkClientFactory().newNetworkClient
 
+        cluster.start was called
         cluster.awaitConnectionUninterruptibly was called
       }
 

@@ -32,6 +32,11 @@ class ClusterException(message: String, cause: Throwable) extends NorbertExcepti
 class ClusterDisconnectedException(message: String) extends ClusterException(message)
 
 /**
+ * Exception that indicates that an operation was attempted before <code>start</code> was called on the cluster.
+ */
+class ClusterNotStartedException extends ClusterException
+
+/**
  * Exception that indicates that an operation was attempted after <code>shutdown</code> was called on the cluster.
  */
 class ClusterShutdownException extends ClusterException
