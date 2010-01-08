@@ -18,9 +18,16 @@ package com.linkedin.norbert.cluster.router
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
 
 /**
- * A mixin trait that provides functionality to help implement a consistent hash based <code>RouterFactory</code>.
+ * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
  */
-trait ConsistentHashRouterFactoryHelper {
+trait ConsistentHashRouterHelper {
+  private val random = new scala.util.Random()
+
+  /**
+   * A mapping from partition id to the <code>Node</code>s which can service that partition.
+   */
+  protected val partitionToNodeMap: Map[Int, Seq[Node]]  
+
   /**
    * Given the currently available <code>Node</code>s and the total number of partitions in the cluster, this method
    * generates a <code>Map</code> of partition id to the <code>Node</code>s which service that partition.
@@ -42,18 +49,6 @@ trait ConsistentHashRouterFactoryHelper {
 
     partitionToNodeMap
   }
-}
-
-/**
- * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
- */
-trait ConsistentHashRouterHelper {
-  private val random = new scala.util.Random()
-
-  /**
-   * A mapping from partition id to the <code>Node</code>s which can service that partition.
-   */
-  protected val partitionToNodeMap: Map[Int, Seq[Node]]  
 
   /**
    * Calculates a <code>Node</code> which can service a request for the specified partition id.

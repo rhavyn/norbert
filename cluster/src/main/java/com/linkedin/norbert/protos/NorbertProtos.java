@@ -677,7 +677,7 @@ public final class NorbertProtos {
     public static Builder newBuilder(com.linkedin.norbert.protos.NorbertProtos.Ping prototype) {
       return newBuilder().mergeFrom(prototype);
     }
-    public Builder toBuilder() { return newBuilder(this); }
+    public Ping.Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
         com.google.protobuf.GeneratedMessage.Builder<Builder> {

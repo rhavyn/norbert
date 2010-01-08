@@ -27,7 +27,7 @@ trait ConsistentHashRouterFactoryComponent extends RouterFactoryComponent {
    * A <code>RouterFactory</code> implementation that provides a consistent hash routing strategy. Users must
    * implement the <code>calculateHash</code> method.
    */
-  abstract class ConsistentHashRouterFactory(np: Int) extends RouterFactory with ConsistentHashRouterFactoryHelper {
+  abstract class ConsistentHashRouterFactory(np: Int) extends RouterFactory {
     def newRouter(nodes: Seq[Node]): Router = new Router with ConsistentHashRouterHelper {
       protected val partitionToNodeMap = generatePartitionToNodeMap(nodes, np)
 

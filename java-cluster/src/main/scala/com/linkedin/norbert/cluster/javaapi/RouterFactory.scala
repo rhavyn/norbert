@@ -16,7 +16,7 @@
 package com.linkedin.norbert.cluster.javaapi
 
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
-import com.linkedin.norbert.cluster.router.{ConsistentHashRouterHelper, ConsistentHashRouterFactoryHelper, HashFunctions}
+import com.linkedin.norbert.cluster.router.{ConsistentHashRouterHelper, HashFunctions}
 
 /**
  * A factory which can generate <code>Router</code>s.
@@ -52,7 +52,7 @@ trait Router {
 /**
  * A <code>RouterFactory</code> implementation that provides a consistent hash routing strategy.
  */
-class ConsistentHashRouterFactory(numPartitions: Int) extends RouterFactory with ConsistentHashRouterFactoryHelper {
+class ConsistentHashRouterFactory(numPartitions: Int) extends RouterFactory {
   def newRouter(nodes: Array[Node]) = new Router with ConsistentHashRouterHelper {
     protected val partitionToNodeMap = generatePartitionToNodeMap(nodes, numPartitions)
 
