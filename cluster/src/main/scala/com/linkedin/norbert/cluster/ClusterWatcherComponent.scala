@@ -29,6 +29,7 @@ trait ClusterWatcherComponent {
   val clusterWatcher: ClusterWatcher
   
   class ClusterWatcher(clusterDisconnectTimeout: Int) extends Watcher with Logging {
+    @volatile private var initiallyConnected = false
     @volatile private var shutdownSwitch = false
     @volatile private var disconnectFuture: Option[ScheduledFuture[_]] = None
     private val wasDisconnected = new AtomicBoolean(true)
@@ -52,8 +53,12 @@ trait ClusterWatcherComponent {
                   if (cancelled) "Reconnected to ZooKeeper" else "Connected to ZooKeeper"
                 }
                 zooKeeperMonitor.verifyStructure
-                if (!disconnected) clusterManager ! ClusterMessages.NodesChanged(zooKeeperMonitor.currentNodes)
-                else clusterManager ! ClusterMessages.Connected(zooKeeperMonitor.currentNodes)
+                if (initiallyConnected && !disconnected) {
+                  clusterManager ! ClusterMessages.NodesChanged(zooKeeperMonitor.currentNodes)
+                } else {
+                  clusterManager ! ClusterMessages.Connected(zooKeeperMonitor.currentNodes)
+                  initiallyConnected = true
+                }
 
               case KeeperState.Disconnected =>
                 log.warn("Disconnected from ZooKeeper, starting %d second timer until cluster disconnect", clusterDisconnectTimeout)
