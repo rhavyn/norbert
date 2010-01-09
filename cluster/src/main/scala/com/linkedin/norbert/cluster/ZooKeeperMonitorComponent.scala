@@ -35,7 +35,7 @@ trait ZooKeeperMonitorComponent {
     @volatile private var zookeeper: Option[ZooKeeper] = None
 
     def start(): Unit = {
-      log.ifInfo("ZooKeeperMonitor started, connecting to ZooKeeper at %s with a session timeout of %ds...", zooKeeperUrls, sessionTimeout)
+      log.ifInfo("ZooKeeperMonitor started, connecting to ZooKeeper at %s with a session timeout of %dms...", zooKeeperUrls, sessionTimeout)
       zookeeper = Some(zooKeeperFactory(zooKeeperUrls, sessionTimeout, clusterWatcher))
     }
     
