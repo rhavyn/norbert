@@ -75,6 +75,18 @@ class MessageRegistryComponentSpec extends SpecificationWithJUnit with Mockito w
           messageRegistry.defaultInstanceAndHandlerForClassName("Doesn't Exist") must beNone
         }
       }
+
+      "for handlerForClassName" in {
+        "return the correct handler given a class name that exists" in {
+          messageRegistry.handlerForClassName(ping.getClass.getName) must beSome[(Message) => Option[Message]].which { handler =>
+            handler(mock[Message]) must beNone
+          }
+        }
+
+        "return none given a class name that doesn't exist" in {
+          messageRegistry.defaultInstanceAndHandlerForClassName("Doesn't Exist") must beNone
+        }
+      }
     }
   }
 

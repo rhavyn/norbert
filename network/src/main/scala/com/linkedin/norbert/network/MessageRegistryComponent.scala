@@ -16,6 +16,7 @@
 package com.linkedin.norbert.network
 
 import com.google.protobuf.Message
+import java.lang.String
 
 /**
  * A component which provides a registry for the messages sent to a server or received by a client.
@@ -29,6 +30,7 @@ trait MessageRegistryComponent {
    */
   trait MessageRegistry {
     def defaultInstanceForClassName(className: String): Option[Message]
+    def handlerForClassName(className: String): Option[(Message) => Option[Message]]
     def defaultInstanceAndHandlerForClassName(className: String): Option[(Message, (Message) => Option[Message])]
   }
 
@@ -78,6 +80,8 @@ trait MessageRegistryComponent {
     }
 
     def defaultInstanceAndHandlerForClassName(className: String) = handledMessageMap.get(className)
+
+    def handlerForClassName(className: String) = handledMessageMap.get(className) map { case (message, handler) => handler }
 
     def defaultInstanceForClassName(className: String) = unhandledMessageMap.get(className).
             orElse(handledMessageMap.get(className) map { case (message, handler) => message })
