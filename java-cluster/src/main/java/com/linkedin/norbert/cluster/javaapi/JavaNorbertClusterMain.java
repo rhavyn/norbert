@@ -33,7 +33,7 @@ public class JavaNorbertClusterMain {
       }
       cluster.shutdown();
     } catch (ClusterException ex) {
-      System.out.println("Caugh exception: " + ex);
+      System.out.println("Caught exception: " + ex);
     }
   }
 }

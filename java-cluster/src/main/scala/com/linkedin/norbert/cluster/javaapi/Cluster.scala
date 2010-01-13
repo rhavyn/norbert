@@ -253,5 +253,8 @@ class ClusterBootstrap(clusterConfig: ClusterConfig) {
    * connecting to the cluster. Calling one of the await methods is highly recommended before
    * attempting to interact with the instance.
    */
-  def getCluster: Cluster = cluster
+  def getCluster: Cluster = {
+    componentRegistry.cluster.start
+    cluster
+  }
 }
