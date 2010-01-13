@@ -29,10 +29,11 @@ import com.linkedin.norbert.cluster.Node
 import com.linkedin.norbert.network.{NetworkDefaults, Request, MessageRegistryComponent}
 
 class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with NettyClusterIoClientComponent
-        with BootstrapFactoryComponent with RequestHandlerComponent with MessageRegistryComponent {
+        with BootstrapFactoryComponent with NettyResponseHandlerComponent with MessageRegistryComponent {
   val clusterIoClient = mock[ClusterIoClient]
   val bootstrapFactory = mock[BootstrapFactory]
   val messageRegistry = null
+  val responseHandler = null
   
   "NettyClusterIoClient" should {
     "correctly configure the ClientBootstrap" in {

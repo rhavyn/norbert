@@ -28,7 +28,7 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
         with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
         with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent
         with ChannelHandlerActorComponent with MessageHandlerComponent with MessageRegistryComponent
-        with NetworkClientFactoryComponent with ClusterIoClientComponent with RequestHandlerComponent {
+        with NetworkClientFactoryComponent with ClusterIoClientComponent with ResponseHandlerComponent {
 
   val clusterWatcher = null
   val zooKeeperMonitor = null
@@ -37,6 +37,7 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
   val messageHandler = null
   val messageRegistry = null
   val clusterIoClient = null
+  val responseHandler = null
   val networkClientFactory = mock[NetworkClientFactory]
   val cluster = mock[Cluster]
   val bootstrapFactory = mock[BootstrapFactory]

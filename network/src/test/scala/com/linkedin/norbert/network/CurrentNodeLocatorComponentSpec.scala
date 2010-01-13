@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.network
 
-import netty.{BootstrapFactoryComponent, RequestHandlerComponent, ChannelHandlerActorComponent}
+import com.linkedin.norbert.network.netty.{BootstrapFactoryComponent, ChannelHandlerActorComponent}
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.linkedin.norbert.cluster._
@@ -24,7 +24,7 @@ class CurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with Mockit
         with NetworkServerComponent with BootstrapFactoryComponent with ClusterComponent with ChannelHandlerActorComponent
         with NetworkClientFactoryComponent with ClusterManagerComponent with ClusterWatcherComponent with ZooKeeperMonitorComponent
         with RouterFactoryComponent with MessageHandlerComponent with ClusterIoClientComponent with MessageRegistryComponent
-        with RequestHandlerComponent {
+        with ResponseHandlerComponent {
   val clusterWatcher = null
   val cluster = null
   val networkClientFactory = null
@@ -35,6 +35,7 @@ class CurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with Mockit
   val messageHandler = null
   val clusterIoClient = null
   val messageRegistry = null
+  val responseHandler = null
   
   val currentNodeLocator = mock[CurrentNodeLocator]
   val networkServer = mock[NetworkServer]  

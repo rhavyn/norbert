@@ -23,14 +23,16 @@ import com.linkedin.norbert.util.Logging
 import com.linkedin.norbert.network._
 import com.linkedin.norbert.protos.NorbertProtos
 
-trait RequestHandlerComponent {
+trait NettyResponseHandlerComponent extends ResponseHandlerComponent {
   this: MessageRegistryComponent =>
+  
+  def requestCleanupFrequency = NetworkDefaults.REQUEST_CLEANUP_FREQUENCY
+  def requestTimeout = NetworkDefaults.REQUEST_TIMEOUT
 
-  val requestCleanupFrequency = NetworkDefaults.REQUEST_CLEANUP_FREQUENCY
-  val requestTimeout = NetworkDefaults.REQUEST_TIMEOUT
+  override val responseHandler: NettyResponseHandler
 
   @ChannelPipelineCoverage("all")
-  class RequestHandler extends SimpleChannelHandler with Logging {
+  class NettyResponseHandler extends SimpleChannelHandler with ResponseHandler with Logging {
     private val requestMap = new ConcurrentHashMap[UUID, (Request, AtomicInteger)]
     private val cleanupThread = new RequestCleanupThread(requestMap)
     cleanupThread.setDaemon(true)
@@ -55,39 +57,12 @@ trait RequestHandlerComponent {
       log.ifDebug("Received message: %s", norbertMessage)
       val requestId = new UUID(norbertMessage.getRequestIdMsb, norbertMessage.getRequestIdLsb)
 
-      if (norbertMessage.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
-        handleSuccessResponse(requestId, norbertMessage, e.getChannel)
-      } else {
-        handleErrorResponse(requestId, norbertMessage, e.getChannel)
+      doWithRequest(requestId, norbertMessage, e.getChannel) { request =>
+        handleResponse(request, norbertMessage)
       }
     }
 
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.error(e.getCause, "Caught exception in networking code")
-
-    private def handleSuccessResponse(requestId: UUID, norbertMessage: NorbertProtos.NorbertMessage, channel: Channel) {
-      doWithRequest(requestId, norbertMessage, channel) { request =>
-        if (!norbertMessage.hasMessage()) {
-          request.offerResponse(Left(new InvalidResponseException("Received a response from %s without a message payload".format(channel))))
-        } else {
-          messageRegistry.defaultInstanceForClassName(norbertMessage.getMessageName) match {
-            case Some(defaultInstance) =>
-              val proto = defaultInstance.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
-              request.offerResponse(Right(proto))
-
-            case None =>
-              request.offerResponse(Left(new InvalidResponseException("Received a response from %s without a registered message type: %s".format(channel,
-                norbertMessage.getMessageName))))
-          }
-        }
-      }
-    }
-
-    private def handleErrorResponse(requestId: UUID, norbertMessage: NorbertProtos.NorbertMessage, channel: Channel) {
-      doWithRequest(requestId, norbertMessage, channel) { request =>
-        val errorMsg = if (norbertMessage.hasErrorMessage()) norbertMessage.getErrorMessage else "<null>"
-        request.offerResponse(Left(new RemoteException(norbertMessage.getMessageName, errorMsg)))
-      }
-    }
 
     private def doWithRequest(requestId: UUID, norbertMessage: NorbertProtos.NorbertMessage, channel: Channel)(block: (Request) => Unit) {
       requestMap.get(requestId) match {

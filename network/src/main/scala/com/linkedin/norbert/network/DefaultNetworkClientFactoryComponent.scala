@@ -19,13 +19,14 @@ import com.linkedin.norbert.cluster.{RouterFactoryComponent, DefaultClusterCompo
 import netty._
 
 trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with NettyClusterIoClientComponent
-        with BootstrapFactoryComponent with DefaultClusterComponent with RequestHandlerComponent
+        with BootstrapFactoryComponent with DefaultClusterComponent with NettyResponseHandlerComponent
         with MessageRegistryComponent {
   this: RouterFactoryComponent =>
 
   val maxConnectionsPerNode: Int
   val writeTimeout: Int
 
+  val responseHandler = new NettyResponseHandler
   val bootstrapFactory = new BootstrapFactory
   val clusterIoClient = new NettyClusterIoClient(maxConnectionsPerNode, writeTimeout)
   val networkClientFactory = new NetworkClientFactory

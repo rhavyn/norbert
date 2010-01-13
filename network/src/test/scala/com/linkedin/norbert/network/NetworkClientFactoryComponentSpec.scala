@@ -17,7 +17,7 @@ package com.linkedin.norbert.network
 
 import java.net.InetSocketAddress
 import com.google.protobuf.Message
-import netty.{BootstrapFactoryComponent, RequestHandlerComponent}
+import netty.BootstrapFactoryComponent
 import org.specs.SpecificationWithJUnit
 import com.linkedin.norbert.cluster._
 import org.specs.mock.Mockito
@@ -28,7 +28,7 @@ import collection.Set
 
 class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
         with ClusterIoClientComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
-        with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent with RequestHandlerComponent
+        with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent with ResponseHandlerComponent
         with MessageRegistryComponent {
 
   type Id = Int
@@ -41,6 +41,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
   val networkClientFactory = mock[NetworkClientFactory]
   val clusterIoClient = mock[ClusterIoClient]
   val messageRegistry = null
+  val responseHandler = null
 
   "NetworkClientFactory" should {
     "when calling newNetworkClient" in {
@@ -291,7 +292,7 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
 
 class NetworkClientFactoryComponentMessageCustomizerSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
         with ClusterIoClientComponent with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
-        with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent with RequestHandlerComponent
+        with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent with ResponseHandlerComponent
         with MessageRegistryComponent {
 
   type Id = Int
@@ -312,6 +313,7 @@ class NetworkClientFactoryComponentMessageCustomizerSpec extends SpecificationWi
     }
   }
   val messageRegistry = null
+  val responseHandler = null
   val msg = NorbertProtos.Ping.newBuilder.setTimestamp(1234L).build
 
   "NetworkClient" should {

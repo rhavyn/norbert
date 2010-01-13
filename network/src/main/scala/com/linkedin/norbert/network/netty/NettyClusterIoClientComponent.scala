@@ -28,7 +28,7 @@ import com.linkedin.norbert.network.{Request, ClusterIoClientComponent, NetworkD
 import com.linkedin.norbert.cluster.Node
 
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
-  this: BootstrapFactoryComponent with RequestHandlerComponent =>
+  this: BootstrapFactoryComponent with NettyResponseHandlerComponent =>
 
   class NettyClusterIoClient(maxConnectionsPerNode: Int, writeTimeout: Int, channelGroup: ChannelGroup) extends ClusterIoClient with Logging {
     def this(maxConnectionsPerNode: Int, writeTimeout: Int) = this(maxConnectionsPerNode, writeTimeout, new DefaultChannelGroup("norbert-client"))
@@ -42,7 +42,6 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
 
     private val channelPool = new ConcurrentHashMap[Node, Pool]
     private val queuedWriteExecutor = Executors.newCachedThreadPool
-    private val requestHandler = new RequestHandler
 
     def sendRequest(nodes: scala.collection.Set[Node], request: Request) {
       nodes.foreach { node =>
@@ -74,7 +73,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
         p.addLast("frameEncoder", new LengthFieldPrepender(4))
         p.addLast("protobufEncoder", new ProtobufEncoder)
 
-        p.addLast("requestHandler", requestHandler)
+        p.addLast("requestHandler", responseHandler)
 
         p
       }
