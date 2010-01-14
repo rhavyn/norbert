@@ -24,5 +24,5 @@ class NetworkingException(message: String, cause: Throwable) extends NorbertExce
 }
 
 class RemoteException(className: String, errorMsg: String) extends NetworkingException("The remote end threw an exception [%s]: %s".format(className, errorMsg))
-class InvalidRequestException(errorMsg: String) extends NetworkingException(errorMsg)
+class InvalidMessageException(errorMsg: String) extends NetworkingException(errorMsg)
 class InvalidResponseException(errorMsg: String) extends NetworkingException(errorMsg)

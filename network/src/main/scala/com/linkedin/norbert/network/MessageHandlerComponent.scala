@@ -35,7 +35,7 @@ trait MessageHandlerComponent {
               .setStatus(NorbertProtos.NorbertMessage.Status.ERROR).setErrorMessage(if (ex.getMessage != null) ex.getMessage else "").build)
 
       if (norbertMessage.getStatus != NorbertProtos.NorbertMessage.Status.OK) {
-        newErrorMessage(new InvalidRequestException("Recieved a request in the error state"))
+        newErrorMessage(new InvalidMessageException("Recieved a request in the error state"))
       } else {
         messageRegistry.defaultInstanceAndHandlerForClassName(norbertMessage.getMessageName) match {
           case Some((defaultInstance, handler)) =>
@@ -52,7 +52,7 @@ trait MessageHandlerComponent {
             }
 
           case None =>
-            newErrorMessage(new InvalidRequestException("Received a request without a registered message type: %s".format(norbertMessage.getMessageName)))
+            newErrorMessage(new InvalidMessageException("Received a request without a registered message type: %s".format(norbertMessage.getMessageName)))
         }
       }
     }
