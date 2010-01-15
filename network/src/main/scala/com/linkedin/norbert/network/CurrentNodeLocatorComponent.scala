@@ -18,11 +18,23 @@ package com.linkedin.norbert.network
 import com.linkedin.norbert.cluster.Node
 
 trait CurrentNodeLocatorComponent {
+  def currentNodeLocator: CurrentNodeLocator
+
+  trait CurrentNodeLocator {
+    def currentNode: Node
+  }
+}
+
+trait ClientCurrentNodeLocatorComponent extends CurrentNodeLocatorComponent {
+  class ClientCurrentNodeLocator extends CurrentNodeLocator {
+    def currentNode: Node = null
+  }
+}
+
+trait ServerCurrentNodeLocatorComponent extends CurrentNodeLocatorComponent {
   this: NetworkServerComponent =>
 
-  val currentNodeLocator: CurrentNodeLocator
-
-  class CurrentNodeLocator {
+  class ServerCurrentNodeLocator extends CurrentNodeLocator {
     def currentNode: Node = networkServer.currentNode
   }
 }

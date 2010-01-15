@@ -20,7 +20,7 @@ import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.linkedin.norbert.cluster._
 
-class CurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with Mockito with CurrentNodeLocatorComponent
+class ServerCurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with Mockito with ServerCurrentNodeLocatorComponent
         with NetworkServerComponent with BootstrapFactoryComponent with ClusterComponent with NetworkClientFactoryComponent
         with ClusterManagerComponent with ClusterWatcherComponent with ZooKeeperMonitorComponent
         with RouterFactoryComponent with NettyRequestHandlerComponent with ClusterIoClientComponent with MessageRegistryComponent
@@ -38,15 +38,13 @@ class CurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with Mockit
   val responseHandler = null
   val messageExecutor = null
   
-  val currentNodeLocator = mock[CurrentNodeLocator]
+  val currentNodeLocator = new ServerCurrentNodeLocator
   val networkServer = mock[NetworkServer]  
 
   "CurrentNodeLocator" should {
     "return the current node from the server" in {
       val node = Node(1, "localhost", 31313, Array(0, 1), false)
       networkServer.currentNode returns node
-
-      val currentNodeLocator = new CurrentNodeLocator
 
       currentNodeLocator.currentNode must be(node)
     }
