@@ -27,17 +27,18 @@ import com.linkedin.norbert.network._
 class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockito with NettyNetworkServerComponent
         with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
         with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent
-        with ChannelHandlerActorComponent with MessageHandlerComponent with MessageRegistryComponent
-        with NetworkClientFactoryComponent with ClusterIoClientComponent with ResponseHandlerComponent {
+        with NettyRequestHandlerComponent with MessageRegistryComponent with NetworkClientFactoryComponent
+        with ClusterIoClientComponent with ResponseHandlerComponent with MessageExecutorComponent {
 
   val clusterWatcher = null
   val zooKeeperMonitor = null
   val clusterManager = null
   val routerFactory = null
-  val messageHandler = null
+  val requestHandler = null
   val messageRegistry = null
   val clusterIoClient = null
   val responseHandler = null
+  val messageExecutor = mock[MessageExecutor]
   val networkClientFactory = mock[NetworkClientFactory]
   val cluster = mock[Cluster]
   val bootstrapFactory = mock[BootstrapFactory]
@@ -103,18 +104,20 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
         bootstrap.bind(isA(classOf[InetSocketAddress])) wasnt called
       }
 
-      "shutdown properly shuts down the cluster and network client factory" in {
+      "shutdown properly shuts down the cluster, messageExecutor and network client factory" in {
         val bootstrap = mock[ServerBootstrap]
         bootstrapFactory.newServerBootstrap returns bootstrap
         doNothing.when(cluster).awaitConnectionUninterruptibly
         cluster.nodeWithId(1) returns None
         doNothing.when(cluster).shutdown
         doNothing.when(networkClientFactory).shutdown
+        doNothing.when(messageExecutor).shutdown
 
         new NettyNetworkServer(1).shutdown
 
         cluster.shutdown was called
         networkClientFactory.shutdown was called
+        messageExecutor.shutdown was called
       }
 
       "makes the node available via currentNode" in {

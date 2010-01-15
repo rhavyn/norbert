@@ -37,16 +37,6 @@ class MessageRegistryComponentSpec extends SpecificationWithJUnit with Mockito w
           messageRegistry.defaultInstanceForClassName("Doesn't Exist") must beNone
         }
       }
-
-      "for defaultInstanceAndHandlerForClassName" in {
-        "throw UnsupportedOperationException for class name that exists" in {
-          messageRegistry.defaultInstanceAndHandlerForClassName(ping.getClass.getName) must beNone
-        }
-
-        "throw UnsupportedOperationException for a class that doesn't exist" in {
-          messageRegistry.defaultInstanceAndHandlerForClassName("Doesn't Exist") must beNone
-        }
-      }
     }
 
     "if only handled messages are provided" in {
@@ -62,20 +52,6 @@ class MessageRegistryComponentSpec extends SpecificationWithJUnit with Mockito w
         }
       }
 
-      "for defaultInstanceAndHandlerForClassName" in {
-        "return the correct message instance and handler given a class name that exists" in {
-          messageRegistry.defaultInstanceAndHandlerForClassName(ping.getClass.getName) must beSome[(Message, (Message) => Option[Message])].which {
-            case(message, handler) =>
-              message must be_==(ping)
-              handler(message) must beNone
-          }
-        }
-
-        "return none given a class that doesn't exist" in {
-          messageRegistry.defaultInstanceAndHandlerForClassName("Doesn't Exist") must beNone
-        }
-      }
-
       "for handlerForClassName" in {
         "return the correct handler given a class name that exists" in {
           messageRegistry.handlerForClassName(ping.getClass.getName) must beSome[(Message) => Option[Message]].which { handler =>
@@ -84,7 +60,7 @@ class MessageRegistryComponentSpec extends SpecificationWithJUnit with Mockito w
         }
 
         "return none given a class name that doesn't exist" in {
-          messageRegistry.defaultInstanceAndHandlerForClassName("Doesn't Exist") must beNone
+          messageRegistry.handlerForClassName("Doesn't Exist") must beNone
         }
       }
     }

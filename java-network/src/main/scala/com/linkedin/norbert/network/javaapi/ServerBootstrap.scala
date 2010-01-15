@@ -15,18 +15,22 @@
  */
 package com.linkedin.norbert.network.javaapi
 
-import com.linkedin.norbert.network.DefaultNetworkServerComponent
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.javaapi.JavaRouterHelper
 import com.linkedin.norbert.network.javaapi.{NetworkServer => JNetworkServer}
 import java.net.InetSocketAddress
 import scala.reflect.BeanProperty
 import com.linkedin.norbert.NorbertException
+import com.linkedin.norbert.network.{NetworkDefaults, DefaultNetworkServerComponent}
 
 class ServerConfig extends ClientConfig {
   @BeanProperty var messageHandlers: Array[MessageHandler] = _
   @BeanProperty var nodeId: Int = -1
   @BeanProperty var bindAddress: InetSocketAddress = _
+
+  @BeanProperty var requestThreadTimeout = NetworkDefaults.REQUEST_THREAD_TIMEOUT
+  @BeanProperty var coreRequestThreadPoolSize = NetworkDefaults.CORE_REQUEST_THREAD_POOL_SIZE
+  @BeanProperty var maxRequestThreadPoolSize = NetworkDefaults.MAX_REQUEST_THREAD_POOL_SIZE
 
   override def validate() = {
     if (clusterName == null || zooKeeperUrls == null || messageHandlers == null ||
@@ -45,6 +49,9 @@ class ServerBootstrap(serverConfig: ServerConfig) extends ClientBootstrapHelper 
     val zooKeeperSessionTimeout = serverConfig.zooKeeperSessionTimeout
     val writeTimeout = serverConfig.writeTimeout
     val maxConnectionsPerNode = serverConfig.maxConnectionsPerNode
+    val requestThreadTimeout = serverConfig.requestThreadTimeout
+    val maxRequestThreadPoolSize = serverConfig.maxRequestThreadPoolSize
+    val coreRequestThreadPoolSize = serverConfig.coreRequestThreadPoolSize
   } with DefaultNetworkServerComponent with JavaRouterHelper {
     val messageRegistry = new DefaultMessageRegistry(serverConfig.responseMessages, for {
       mh <- serverConfig.messageHandlers

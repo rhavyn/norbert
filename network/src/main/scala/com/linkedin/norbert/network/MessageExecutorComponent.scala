@@ -17,13 +17,14 @@ package com.linkedin.norbert.network
 
 import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
+import com.linkedin.norbert.util.Logging
 
 trait MessageExecutorComponent {
   this: MessageRegistryComponent =>
 
   val messageExecutor: MessageExecutor
 
-  class MessageExecutor(corePoolSize: Int, maxPoolSize: Int, keepAliveTime: Int) {
+  class MessageExecutor(corePoolSize: Int, maxPoolSize: Int, keepAliveTime: Int) extends Logging {
     private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue)
 
     def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
@@ -46,6 +47,7 @@ trait MessageExecutorComponent {
     }
 
     def shutdown {
+      log.ifDebug("Shutting down MessageExecutor")
       threadPool.shutdown
     }
   }

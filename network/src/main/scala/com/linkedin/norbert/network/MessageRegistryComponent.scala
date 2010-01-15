@@ -31,7 +31,6 @@ trait MessageRegistryComponent {
   trait MessageRegistry {
     def defaultInstanceForClassName(className: String): Option[Message]
     def handlerForClassName(className: String): Option[(Message) => Option[Message]]
-    def defaultInstanceAndHandlerForClassName(className: String): Option[(Message, (Message) => Option[Message])]
   }
 
   /**
@@ -78,8 +77,6 @@ trait MessageRegistryComponent {
     }).foldLeft(Map.empty[String, Message]) { case (map, message) =>
       map + (message.getClass.getName -> message.getDefaultInstanceForType)
     }
-
-    def defaultInstanceAndHandlerForClassName(className: String) = handledMessageMap.get(className)
 
     def handlerForClassName(className: String) = handledMessageMap.get(className) map { case (message, handler) => handler }
 

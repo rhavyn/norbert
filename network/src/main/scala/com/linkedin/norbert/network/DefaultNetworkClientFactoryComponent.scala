@@ -33,9 +33,14 @@ trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent
 }
 
 trait DefaultNetworkServerComponent extends DefaultNetworkClientFactoryComponent with NettyNetworkServerComponent
-        with ChannelHandlerActorComponent with MessageHandlerComponent with CurrentNodeLocatorComponent {
+        with NettyRequestHandlerComponent with CurrentNodeLocatorComponent with MessageExecutorComponent {
   this: RouterFactoryComponent =>
-  
-  val messageHandler = new MessageHandler
+
+  val coreRequestThreadPoolSize: Int
+  val maxRequestThreadPoolSize: Int
+  val requestThreadTimeout: Int
+
+  val messageExecutor = new MessageExecutor(coreRequestThreadPoolSize, maxRequestThreadPoolSize, requestThreadTimeout)
+  val requestHandler = new NettyRequestHandler
   val currentNodeLocator = new CurrentNodeLocator
 }

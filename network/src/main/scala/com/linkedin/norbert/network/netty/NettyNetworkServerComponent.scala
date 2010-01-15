@@ -18,15 +18,15 @@ package com.linkedin.norbert.network.netty
 import java.net.InetSocketAddress
 import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.util.Logging
-import com.linkedin.norbert.network.{NetworkClientFactoryComponent, NetworkingException, NetworkServerComponent}
 import com.linkedin.norbert.cluster.{ClusterComponent, InvalidNodeException, Node}
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
-import org.jboss.netty.channel.{Channel, ChannelException, ChannelPipelineFactory, Channels}
 import org.jboss.netty.channel.group.DefaultChannelGroup
+import org.jboss.netty.channel.{ChannelException, Channel, ChannelPipelineFactory, Channels}
+import com.linkedin.norbert.network._
 
 trait NettyNetworkServerComponent extends NetworkServerComponent {
-  this: BootstrapFactoryComponent with ClusterComponent with ChannelHandlerActorComponent with NetworkClientFactoryComponent =>
+  this: BootstrapFactoryComponent with ClusterComponent with NettyRequestHandlerComponent with NetworkClientFactoryComponent with MessageExecutorComponent =>
 
   class NettyNetworkServer private (nodeIdOption: Option[Int], bindAddressOption: Option[InetSocketAddress]) extends NetworkServer with ClusterListener with Logging {
     def this(nodeId: Int) = this(Some(nodeId), None)
@@ -93,6 +93,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
         serverChannel.close
         serverChannel.getCloseFuture.awaitUninterruptibly
       }
+      messageExecutor.shutdown
       val future = channelGroup.close
       future.awaitUninterruptibly
       bootstrap.releaseExternalResources
@@ -117,7 +118,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
         p.addLast("frameEncoder", new LengthFieldPrepender(4))
         p.addLast("protobufEncoder", new ProtobufEncoder)
 
-        p.addLast("channelHandler", new ChannelHandlerActorAdapter(channelGroup, channel => new ChannelHandlerActor(channel)))
+        p.addLast("requestHandler", requestHandler)
 
         p
       }

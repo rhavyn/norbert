@@ -39,6 +39,9 @@ object NorbertNetworkServerMain {
       val writeTimeout = NetworkDefaults.WRITE_TIMEOUT
       val clusterName = Main.this.clusterName
       val zooKeeperUrls = Main.this.zooKeeperUrls
+      val requestThreadTimeout = NetworkDefaults.REQUEST_THREAD_TIMEOUT
+      val maxRequestThreadPoolSize = NetworkDefaults.MAX_REQUEST_THREAD_POOL_SIZE
+      val coreRequestThreadPoolSize = NetworkDefaults.CORE_REQUEST_THREAD_POOL_SIZE
     } with NullRouterFactory with DefaultNetworkServerComponent {
       val messageRegistry = new DefaultMessageRegistry(Array((NorbertProtos.Ping.getDefaultInstance, pingHandler _)))
       val networkServer = new NettyNetworkServer(nodeId)
@@ -63,6 +66,7 @@ object NorbertNetworkServerMain {
     }
 
     private def shutdown {
+      println("Shutting down")
       networkServer.shutdown
     }
 
