@@ -229,7 +229,10 @@ trait NetworkClientFactoryComponent {
      * sockets and shutting down the underlying <code>Cluster</code> instance.
      */
     def shutdown: Unit = {
+      log.ifDebug("Shutting down ClusterIoClient...")
       clusterIoClient.shutdown
+
+      log.ifDebug("Shutting down cluster...")
       cluster.shutdown
     }
   }

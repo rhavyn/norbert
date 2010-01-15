@@ -40,13 +40,14 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
     bootstrap.setOption("reuseAddress", true)
 
     private var serverChannel: Channel = _
-    private val channelGroup = new DefaultChannelGroup("norbert-server")
 
     @volatile private var markAvailableWhenConnected = true
 
     def bind {
+      log.ifInfo("Starting network server...")
       log.ifDebug("Starting cluster...")
       cluster.start
+      log.ifDebug("Cluster started")
       
       log.ifDebug("Waiting for cluster connection to complete...")
       cluster.awaitConnectionUninterruptibly
@@ -69,7 +70,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
         case ex: ChannelException => throw new NetworkingException("Unable to bind to port", ex)
       }
 
-      log.info("Listening at %s", bindAddress)
+      log.ifInfo("Network server started and listening at %s", bindAddress)
 
       cluster.addListener(this)
     }
@@ -86,21 +87,27 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
     }
 
     def shutdown {
+      log.info("Shutting down network server...")
+      log.ifDebug("Shutting down cluster...")
       cluster.shutdown
 
       if (serverChannel != null) {
-        log.info("Shutting down network server listening at %s...", serverChannel.getLocalAddress)
-        serverChannel.close
-        serverChannel.getCloseFuture.awaitUninterruptibly
+        log.ifDebug("Unbinding from %s...", serverChannel.getLocalAddress)
+        val future = serverChannel.close
+        future.awaitUninterruptibly
       }
+
+      log.ifDebug("Shutting down MessageExecutor...")
       messageExecutor.shutdown
-      val future = channelGroup.close
-      future.awaitUninterruptibly
+
+      log.ifDebug("Shutting down NettyRequestHandler...")
+      requestHandler.shutdown
       bootstrap.releaseExternalResources
 
+      log.ifDebug("Shutting down NetworkClientFactory...")
       networkClientFactory.shutdown
 
-      log.info("Shutdown complete")
+      log.info("Network server shut down")
     }
 
     def handleClusterEvent(event: ClusterEvent) = event match {
@@ -126,7 +133,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
 
     private def doMarkNodeAvailable {
       if (markAvailableWhenConnected) {
-        log.info("Marking node with id %d available", myNode.id)
+        log.ifDebug("Marking node with id %d available", myNode.id)
         cluster.markNodeAvailable(myNode.id)
       }
     }

@@ -35,17 +35,17 @@ trait ZooKeeperMonitorComponent {
     @volatile private var zookeeper: Option[ZooKeeper] = None
 
     def start(): Unit = {
-      log.ifInfo("ZooKeeperMonitor started, connecting to ZooKeeper at %s with a session timeout of %dms...", zooKeeperUrls, sessionTimeout)
+      log.ifDebug("ZooKeeperMonitor started, connecting to ZooKeeper at %s with a session timeout of %dms...", zooKeeperUrls, sessionTimeout)
       zookeeper = Some(zooKeeperFactory(zooKeeperUrls, sessionTimeout, clusterWatcher))
     }
     
     def verifyStructure: Unit = doWithZooKeeper { zk =>
-      log.info("Verifying ZooKeeper structure...")
+      log.ifDebug("Verifying ZooKeeper structure...")
 
       List(CLUSTER_NODE, AVAILABILITY_NODE, MEMBERSHIP_NODE).foreach { path =>
-        log.info("Ensuring %s exists", path)
+        log.ifDebug("Ensuring %s exists", path)
         if (zk.exists(path, false) == null) {
-          log.info("%s doesn't exist, creating", path)
+          log.ifDebug("%s doesn't exist, creating", path)
           zk.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
         }
       }
@@ -98,8 +98,8 @@ trait ZooKeeperMonitorComponent {
     }
 
     def shutdown(): Unit = doWithZooKeeper { zk =>
-      log.info("Shutting down ZooKeeperMonitor")
       close(zk)
+      log.ifDebug("ZooKeeperMonitor shut down")
     }
     
     def reconnect: Unit = {

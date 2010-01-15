@@ -32,6 +32,7 @@ trait MessageExecutorComponent {
         def run {
           messageRegistry.handlerForClassName(message.getClass.getName) match {
             case Some(handler) => try {
+              log.ifDebug("Executing message: %s[%s]", message.getClass.getName, message)
               handler(message) match {
                 case Some(m) => responseHandler(Right(m))
                 case None => // do nothing
@@ -47,8 +48,8 @@ trait MessageExecutorComponent {
     }
 
     def shutdown {
-      log.ifDebug("Shutting down MessageExecutor")
       threadPool.shutdown
+      log.ifDebug("MessageExecutor shut down")
     }
   }
 }

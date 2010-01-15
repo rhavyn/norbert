@@ -239,10 +239,10 @@ trait ClusterComponent {
 
     def start: Unit = {
       if (started.compareAndSet(false, true)) {
-        log.info("Starting ClusterManager...")
+        log.ifDebug("Starting ClusterManager...")
         clusterManager.start
 
-        log.info("Starting ZooKeeperMonitor...")
+        log.ifDebug("Starting ZooKeeperMonitor...")
         zooKeeperMonitor.start
 
         cluster.addListener(this)
@@ -303,9 +303,18 @@ trait ClusterComponent {
 
     def shutdown: Unit = doIfStarted {
       if (shutdownSwitch.compareAndSet(false, true)) {
+        log.ifDebug("Shutting down ClusterManager...")
         clusterManager ! ClusterMessages.Shutdown
+
+        log.ifDebug("Shutting down ClusterWatcher...")
         clusterWatcher.shutdown
+
+        log.ifDebug("Shutting down ZooKeeperMonitor")
         zooKeeperMonitor.shutdown
+
+        log.ifDebug("Cluster shut down")
+      } else {
+        log.ifDebug("Cluster already shut down")
       }
     }
 
@@ -322,21 +331,21 @@ trait ClusterComponent {
 
       event match {
         case Connected(nodes, router) =>
-          log.ifDebug("Received Connected event with nodes: [%s] and router [%s]", nodes, router)
+          log.ifTrace("Received Connected event with nodes: [%s] and router [%s]", nodes, router)
           currentState = CurrentState(nodes, router)
           connectedLatch.countDown
 
         case NodesChanged(nodes, router) =>
-          log.ifDebug("Received NodesChanged event with nodes: [%s] and router [%s]", nodes, router)
+          log.ifTrace("Received NodesChanged event with nodes: [%s] and router [%s]", nodes, router)
           currentState = CurrentState(nodes, router)
 
         case Disconnected =>
-          log.ifDebug("Recieved Disconnected event")
+          log.ifTrace("Recieved Disconnected event")
           connectedLatch = new CountDownLatch(1)
           currentState = CurrentState.empty
 
         case Shutdown =>
-          log.ifDebug("Received Shutdown event")
+          log.ifTrace("Received Shutdown event")
           currentState = CurrentState.empty
       }
     }

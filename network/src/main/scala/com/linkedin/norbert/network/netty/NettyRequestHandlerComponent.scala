@@ -20,6 +20,7 @@ import com.linkedin.norbert.util.Logging
 import org.jboss.netty.channel._
 import com.google.protobuf.Message
 import com.linkedin.norbert.network.{InvalidMessageException, MessageRegistryComponent, MessageExecutorComponent}
+import group.DefaultChannelGroup
 
 trait NettyRequestHandlerComponent {
   this: MessageExecutorComponent with MessageRegistryComponent =>
@@ -28,8 +29,15 @@ trait NettyRequestHandlerComponent {
 
   @ChannelPipelineCoverage("all")
   class NettyRequestHandler extends SimpleChannelHandler with Logging {
+    private val channelGroup = new DefaultChannelGroup("norber-server")
+
+    override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent): Unit = {
+      log.ifTrace("ChannelOpen: %s", e.getChannel)
+      channelGroup.add(e.getChannel)
+    }
+
     override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
-      log.ifDebug("MessageReceived (%s): %s", e.getChannel, e.getMessage)
+      log.ifTrace("MessageReceived (%s): %s", e.getChannel, e.getMessage)
 
       val channel = e.getChannel
       val norbertMessage = e.getMessage.asInstanceOf[NorbertProtos.NorbertMessage]
@@ -62,6 +70,12 @@ trait NettyRequestHandlerComponent {
       log.ifDebug("Sending response: %s", message)
 
       channel.write(message)
+    }
+
+    def shutdown {
+      val future = channelGroup.close
+      future.awaitUninterruptibly
+      log.ifDebug("NettyRequestHandler shut down")
     }
 
     private def newBuilder(norbertMessage: NorbertProtos.NorbertMessage) = {

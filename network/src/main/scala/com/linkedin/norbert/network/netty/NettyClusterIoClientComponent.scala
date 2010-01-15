@@ -57,11 +57,12 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
     }
 
     def shutdown: Unit = {
-      log.info("Shutting down ClusterIoClient")
-
-      channelGroup.close
+      val future = channelGroup.close
+      future.awaitUninterruptibly
       bootstrap.releaseExternalResources
       queuedWriteExecutor.shutdown
+
+      log.ifDebug("ClusterIoClient shut down")
     }
 
     protected def pipelineFactory: ChannelPipelineFactory = new ChannelPipelineFactory {

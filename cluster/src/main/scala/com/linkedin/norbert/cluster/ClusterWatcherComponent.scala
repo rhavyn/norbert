@@ -35,7 +35,10 @@ trait ClusterWatcherComponent {
     private val wasDisconnected = new AtomicBoolean(true)
     private val scheduler = new ScheduledThreadPoolExecutor(1)
 
-    def shutdown(): Unit = shutdownSwitch = true
+    def shutdown(): Unit = {
+      log.ifDebug("ClusterWatcher shut down")
+      shutdownSwitch = true
+    }
     
     def process(event: WatchedEvent) {
       import Watcher.Event.{EventType, KeeperState}
@@ -67,7 +70,7 @@ trait ClusterWatcherComponent {
                     log.ifInfo("Unable to reconnect to ZooKeeper, retrying...")
                   } else {
                     wasDisconnected.set(true)
-                    log.error("Unable to communicate with ZooKeeper for %d seconds, disconnecting cluster", clusterDisconnectTimeout)
+                    log.warn("Unable to communicate with ZooKeeper for %d seconds, disconnecting cluster", clusterDisconnectTimeout)
                     clusterManager ! ClusterMessages.Disconnected
                   }
                 }, clusterDisconnectTimeout, 30000, TimeUnit.MILLISECONDS)

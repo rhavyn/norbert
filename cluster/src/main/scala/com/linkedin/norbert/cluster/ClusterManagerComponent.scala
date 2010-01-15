@@ -54,7 +54,7 @@ trait ClusterManagerComponent {
     private var listeners: List[ClusterListener] = Nil
 
     def act() = {
-      log.info("ClusterManager started")
+      log.ifDebug("ClusterManager started")
 
       import ClusterMessages._
 
@@ -86,9 +86,9 @@ trait ClusterManagerComponent {
           case RemoveListener(listener) => listeners = listeners.filter(_ ne listener)
 
           case Shutdown =>
-            log.info("Shutting down ClusterManager")
             notifyListeners(listeners, ClusterEvents.Shutdown)
             listenerUpdater.shutdown
+            log.ifDebug("ClusterManager shut down")
             exit
           
           case msg => log.warn("%s sent unknown message: %s", sender, msg)

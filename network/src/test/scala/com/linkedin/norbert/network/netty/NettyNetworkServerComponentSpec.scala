@@ -34,7 +34,7 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
   val zooKeeperMonitor = null
   val clusterManager = null
   val routerFactory = null
-  val requestHandler = null
+  val requestHandler = mock[NettyRequestHandler]
   val messageRegistry = null
   val clusterIoClient = null
   val responseHandler = null
@@ -104,7 +104,7 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
         bootstrap.bind(isA(classOf[InetSocketAddress])) wasnt called
       }
 
-      "shutdown properly shuts down the cluster, messageExecutor and network client factory" in {
+      "shutdown properly shuts down the cluster, messageExecutor, requestHandler and network client factory" in {
         val bootstrap = mock[ServerBootstrap]
         bootstrapFactory.newServerBootstrap returns bootstrap
         doNothing.when(cluster).awaitConnectionUninterruptibly
@@ -112,12 +112,14 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
         doNothing.when(cluster).shutdown
         doNothing.when(networkClientFactory).shutdown
         doNothing.when(messageExecutor).shutdown
+        doNothing.when(requestHandler).shutdown
 
         new NettyNetworkServer(1).shutdown
 
         cluster.shutdown was called
         networkClientFactory.shutdown was called
         messageExecutor.shutdown was called
+        requestHandler.shutdown was called
       }
 
       "makes the node available via currentNode" in {
