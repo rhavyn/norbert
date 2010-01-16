@@ -20,13 +20,14 @@ import netty._
 
 trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with NettyClusterIoClientComponent
         with BootstrapFactoryComponent with DefaultClusterComponent with NettyResponseHandlerComponent
-        with MessageRegistryComponent with ClientCurrentNodeLocatorComponent {
+        with MessageRegistryComponent with ClientCurrentNodeLocatorComponent with MessageExecutorComponent {
   this: RouterFactoryComponent =>
 
   val maxConnectionsPerNode: Int
   val writeTimeout: Int
 
   def currentNodeLocator: CurrentNodeLocator = new ClientCurrentNodeLocator
+  def messageExecutor: MessageExecutor = new DoNothingMessageExecutor
   val responseHandler = new NettyResponseHandler
   val bootstrapFactory = new BootstrapFactory
   val clusterIoClient = new NettyClusterIoClient(maxConnectionsPerNode, writeTimeout)
@@ -42,6 +43,6 @@ trait DefaultNetworkServerComponent extends DefaultNetworkClientFactoryComponent
   val requestThreadTimeout: Int
 
   override def currentNodeLocator = new ServerCurrentNodeLocator
-  val messageExecutor = new MessageExecutor(coreRequestThreadPoolSize, maxRequestThreadPoolSize, requestThreadTimeout)
+  override def messageExecutor = new ThreadPoolMessageExecutor(coreRequestThreadPoolSize, maxRequestThreadPoolSize, requestThreadTimeout)
   val requestHandler = new NettyRequestHandler
 }

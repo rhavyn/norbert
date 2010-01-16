@@ -8,7 +8,7 @@ import org.specs.util.WaitFor
 
 class MessageExecutorComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with MessageExecutorComponent with MessageRegistryComponent {
   val messageRegistry = mock[MessageRegistry]
-  val messageExecutor = new MessageExecutor(1, 1, 1)
+  val messageExecutor = new ThreadPoolMessageExecutor(1, 1, 1)
 
   "MessageExecutor" should {
     val message = NorbertProtos.Ping.getDefaultInstance

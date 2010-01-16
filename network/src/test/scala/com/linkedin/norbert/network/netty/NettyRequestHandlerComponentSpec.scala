@@ -23,16 +23,16 @@ import com.linkedin.norbert.network.{InvalidMessageException, MessageExecutorCom
 import java.net.SocketAddress
 import org.jboss.netty.channel._
 import java.util.UUID
-import org.mockito.Matchers._
 import com.google.protobuf.Message
-import java.lang.{Exception, Integer}
 
 class NettyRequestHandlerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor
         with NettyRequestHandlerComponent with MessageRegistryComponent with MessageExecutorComponent {
   val messageRegistry = mock[MessageRegistry]
-  val messageExecutor = new MessageExecutor(1, 1, 1) {
+  val messageExecutor = new MessageExecutor {
     var called = false
-    override def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = called = true
+    
+    def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = called = true
+    def shutdown: Unit = null
   }
   val requestHandler = new NettyRequestHandler
 
@@ -213,42 +213,6 @@ class NettyRequestHandlerComponentSpec extends SpecificationWithJUnit with Mocki
 
     def getFactory: ChannelFactory = null
 
-    def getId: Integer = null
+    def getId: java.lang.Integer = null
   }
-//  "ChannelHandlerActor" should {
-//    "for MessageReceived" in {
-//      "invoke the message handler and, if there is a response message, send it to the client" in {
-//        val message = NorbertProtos.NorbertMessage.getDefaultInstance
-//        requestHandler.handleMessage(message) returns Some(message)
-//        val channel =  mock[Channel]
-//        channel.write(message) returns mock[ChannelFuture]
-//        val event = mock[MessageEvent]
-//        event.getMessage returns message
-//
-//        val actor = new ChannelHandlerActor(channel)
-//        actor.start
-//        actor ! NettyMessages.MessageReceived(null, event)
-//        waitFor(10.ms)
-//
-//        requestHandler.handleMessage(message) was called
-//        channel.write(message) was called
-//      }
-//
-//      "invoke the message handler and, if there isn't a response message, do nothing" in {
-//        val message = NorbertProtos.NorbertMessage.getDefaultInstance
-//        requestHandler.handleMessage(message) returns None
-//        val channel =  mock[Channel]
-//        val event = mock[MessageEvent]
-//        event.getMessage returns message
-//
-//        val actor = new ChannelHandlerActor(channel)
-//        actor.start
-//        actor ! NettyMessages.MessageReceived(null, event)
-//        waitFor(10.ms)
-//
-//        requestHandler.handleMessage(message) was called
-//        channel.write(isA(classOf[NorbertProtos.NorbertMessage])) wasnt called
-//      }
-//    }
-//  }
 }

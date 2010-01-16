@@ -24,11 +24,12 @@ import org.jboss.netty.channel._
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 import java.net.InetSocketAddress
-import com.linkedin.norbert.network.{Request, ClusterIoClientComponent, NetworkDefaults}
 import com.linkedin.norbert.cluster.Node
+import com.linkedin.norbert.network._
 
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
-  this: BootstrapFactoryComponent with NettyResponseHandlerComponent =>
+  this: BootstrapFactoryComponent with NettyResponseHandlerComponent with CurrentNodeLocatorComponent
+          with MessageExecutorComponent =>
 
   class NettyClusterIoClient(maxConnectionsPerNode: Int, writeTimeout: Int, channelGroup: ChannelGroup) extends ClusterIoClient with Logging {
     def this(maxConnectionsPerNode: Int, writeTimeout: Int) = this(maxConnectionsPerNode, writeTimeout, new DefaultChannelGroup("norbert-client"))
@@ -44,15 +45,22 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
     private val queuedWriteExecutor = Executors.newCachedThreadPool
 
     def sendRequest(nodes: scala.collection.Set[Node], request: Request) {
+      val currentNode = currentNodeLocator.currentNode
+      
       nodes.foreach { node =>
-        var pool = channelPool.get(node)
-        if (pool == null) {
-          pool = new Pool(node.address)
-          channelPool.putIfAbsent(node, pool)
-          pool = channelPool.get(node)
-        }
+        if (currentNode == node) {
+          log.ifDebug("Queuing message to local executor: %s", request.message)
+          messageExecutor.executeMessage(request.message, either => request.offerResponse(either))
+        } else {
+          var pool = channelPool.get(node)
+          if (pool == null) {
+            pool = new Pool(node.address)
+            channelPool.putIfAbsent(node, pool)
+            pool = channelPool.get(node)
+          }
 
-        pool.sendRequest(request)
+          pool.sendRequest(request)
+        }
       }
     }
 

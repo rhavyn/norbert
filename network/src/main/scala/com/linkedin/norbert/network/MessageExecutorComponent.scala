@@ -22,9 +22,19 @@ import com.linkedin.norbert.util.Logging
 trait MessageExecutorComponent {
   this: MessageRegistryComponent =>
 
-  val messageExecutor: MessageExecutor
+  def messageExecutor: MessageExecutor
 
-  class MessageExecutor(corePoolSize: Int, maxPoolSize: Int, keepAliveTime: Int) extends Logging {
+  trait MessageExecutor {
+    def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit
+    def shutdown: Unit
+  }
+
+  class DoNothingMessageExecutor extends MessageExecutor {
+    def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = null
+    def shutdown: Unit = null
+  }
+
+  class ThreadPoolMessageExecutor(corePoolSize: Int, maxPoolSize: Int, keepAliveTime: Int) extends MessageExecutor with Logging {
     private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue)
 
     def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {

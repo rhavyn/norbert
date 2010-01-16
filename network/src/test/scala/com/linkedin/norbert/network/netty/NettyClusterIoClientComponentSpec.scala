@@ -26,10 +26,25 @@ import org.specs.SpecificationWithJUnit
 import org.specs.util.WaitFor
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.Node
-import com.linkedin.norbert.network.{NetworkDefaults, Request, MessageRegistryComponent}
+import com.linkedin.norbert.network._
 
 class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with NettyClusterIoClientComponent
-        with BootstrapFactoryComponent with NettyResponseHandlerComponent with MessageRegistryComponent {
+        with BootstrapFactoryComponent with NettyResponseHandlerComponent with MessageRegistryComponent
+        with CurrentNodeLocatorComponent with MessageExecutorComponent {
+  val messageExecutor = new MessageExecutor {
+    var msg: Message = _
+    var handler: (Either[Exception, Message]) => Unit = _
+    var called = false
+
+    def shutdown = null
+
+    def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit) = {
+      called = true
+      msg = message
+      handler = responseHandler
+    }
+  }
+  val currentNodeLocator = mock[CurrentNodeLocator]
   val clusterIoClient = mock[ClusterIoClient]
   val bootstrapFactory = mock[BootstrapFactory]
   val messageRegistry = null
@@ -200,6 +215,42 @@ class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mock
 
         bootstrap.releaseExternalResources was called
         channelGroup.close was called
+      }
+    }
+
+    "when sendRequest is called and the currentNode can handle the request" in {
+      "look up the current node" in {
+        bootstrapFactory.newClientBootstrap returns mock[ClientBootstrap]
+        val node = Node(1, new InetSocketAddress("localhost", 31313), Array(0), true)
+        currentNodeLocator.currentNode returns node
+
+        new NettyClusterIoClient(1, 1).sendRequest(Set(node), Request(mock[Message], 1))
+
+        currentNodeLocator.currentNode was called
+      }
+
+      "executes the request using the MessageExecutor" in {
+        bootstrapFactory.newClientBootstrap returns mock[ClientBootstrap]
+        val node = Node(1, new InetSocketAddress("localhost", 31313), Array(0), true)
+        currentNodeLocator.currentNode returns node
+
+        new NettyClusterIoClient(1, 1).sendRequest(Set(node), Request(mock[Message], 1))
+
+        messageExecutor.called must beTrue
+      }
+
+      "the response processor properly handles the response" in {
+        bootstrapFactory.newClientBootstrap returns mock[ClientBootstrap]
+        val node = Node(1, new InetSocketAddress("localhost", 31313), Array(0), true)
+        currentNodeLocator.currentNode returns node
+
+        val request = Request(mock[Message], 1)
+
+        new NettyClusterIoClient(1, 1).sendRequest(Set(node), request)
+
+        val response: Either[Exception, Message] = Left(new Exception)
+        messageExecutor.handler(response)
+        request.responseIterator.next must beSome.which(_ must be(response))
       }
     }
   }
