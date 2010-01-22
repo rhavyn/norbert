@@ -59,7 +59,7 @@ trait ConsistentHashRouterHelper {
    * if there are no available <code>Node</code>s for the partition requested
    */
   protected def nodeForPartition(partitionId: Int): Option[Node] = partitionToNodeMap.get(partitionId).map { nodes =>
-    val i = random.nextInt % nodes.size
+    val i = random.nextInt(nodes.size)
     nodes(i)
   }
 }
