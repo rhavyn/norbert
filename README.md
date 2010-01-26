@@ -10,18 +10,18 @@ Norbert provides a simple API to interact with a cluster and to receive notifica
 
 ### What is a cluster?
 
-In Norbert, a cluster is a named set of Nodes.
+In Norbert a cluster is a named set of Nodes.
 
 A Node is Norbert's representation of a service which can handle requests.  A Node contains:
 
 1. A numerical id assigned by the client creating the Node. Norbert does not auto assign Node ids.
-2. The hostname of the machine running the service
-3. The port on the host to connect to
-4. The ids of the partitions the service can handle requests for
+2. The hostname of the machine running the service.
+3. The port on which the service listens.
+4. One or more partition ids, representing the particular partitions the services handles.
 
-The way that data/workload is partitioned is defined by the application, but each partition must be given a numerical id.  These ids are stored in the Node and are used by Norbert's id to Node mapping feature.  Norbert can work with unpartitioned services by defining each Node as having a single partition, each with the same partition id.
+The application defines how the data or workload is partitioned, but each partition must be given a numerical id. These ids are stored in the Node and are used by Norbert’s id-to-Node mapping feature. Unpartitioned services can be defined by assigning each Node in the Cluster with the same partition id.
 
-The set of member Nodes in a given cluster is centrally stored in ZooKeeper.  Additionally, a Node can advertise that it is available to process requests.  In general, a Node can be in one of three states:
+The set of member Nodes in a given cluster is reliably stored in ZooKeeper.  Additionally, a Node can advertise that it is available to process requests.  In general, a Node can be in one of three states:
 
 1. A member of the cluster, but not advertised as available.  In this state the other nodes in the cluster know the node exists, but should not attempt to send it traffic
 2. Not a member of the cluster, but available.  In this state, the node can handle requests, but it is unknown to the other nodes in the cluster.
