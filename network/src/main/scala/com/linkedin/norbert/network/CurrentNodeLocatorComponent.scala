@@ -17,20 +17,39 @@ package com.linkedin.norbert.network
 
 import com.linkedin.norbert.cluster.Node
 
+/**
+ * A component which provides a way to look up the current node.
+ */
 trait CurrentNodeLocatorComponent {
   def currentNodeLocator: CurrentNodeLocator
 
+  /**
+   * The <code>CurrentNodeLocator</code> provides a way to look up the node for which the application
+   * services requests.
+   */
   trait CurrentNodeLocator {
+    /**
+     * Looks up the node for which the application services requests.
+     *
+     * @returns The node for which the application services requests, or null if the application is
+     * not currently servicing requests, or if the application is only a client of the cluster.
+     */
     def currentNode: Node
   }
 }
 
+/**
+ * Client side specific implementation of the <code>CurrentNodeLocatorComponent</code>.
+ */
 trait ClientCurrentNodeLocatorComponent extends CurrentNodeLocatorComponent {
   class ClientCurrentNodeLocator extends CurrentNodeLocator {
     def currentNode: Node = null
   }
 }
 
+/**
+ * Server side specific implementation of the <code>CurrentNodeLocatorComponent</code>.
+ */
 trait ServerCurrentNodeLocatorComponent extends CurrentNodeLocatorComponent {
   this: NetworkServerComponent =>
 

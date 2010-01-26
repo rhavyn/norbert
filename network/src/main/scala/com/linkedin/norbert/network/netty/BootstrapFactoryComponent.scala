@@ -19,6 +19,9 @@ import java.util.concurrent.Executors
 import org.jboss.netty.bootstrap.{ClientBootstrap, ServerBootstrap}
 import org.jboss.netty.channel.socket.nio.{NioClientSocketChannelFactory, NioServerSocketChannelFactory}
 
+/**
+ * Component that builds Netty client and server bootstraps.
+ */
 trait BootstrapFactoryComponent {
   val bootstrapFactory: BootstrapFactory
 

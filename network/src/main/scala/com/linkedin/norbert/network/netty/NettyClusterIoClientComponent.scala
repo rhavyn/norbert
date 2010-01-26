@@ -27,6 +27,10 @@ import java.net.InetSocketAddress
 import com.linkedin.norbert.cluster.Node
 import com.linkedin.norbert.network._
 
+/**
+ * A component that provides a <code>ClusterIoClientComponent</code> implementation that uses Netty for
+ * network communication.
+ */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
   this: BootstrapFactoryComponent with NettyResponseHandlerComponent with CurrentNodeLocatorComponent
           with MessageExecutorComponent =>

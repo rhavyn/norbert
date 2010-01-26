@@ -17,6 +17,9 @@ package com.linkedin.norbert.network
 
 import com.linkedin.norbert.protos.NorbertProtos
 
+/**
+ * A component which handles processing incoming response messages.
+ */
 trait ResponseHandlerComponent {
   this: MessageRegistryComponent =>
 

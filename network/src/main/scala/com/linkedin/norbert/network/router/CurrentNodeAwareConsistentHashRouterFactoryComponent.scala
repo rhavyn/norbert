@@ -19,9 +19,19 @@ import com.linkedin.norbert.network.CurrentNodeLocatorComponent
 import com.linkedin.norbert.cluster.Node
 import com.linkedin.norbert.cluster.router.{ConsistentHashRouterHelper, ConsistentHashRouterFactoryComponent}
 
+/**
+ * A <code>RouterFactoryComponent</code> implementation that provides a consistent hash routing strategy which
+ * favors routing requests to the current node.  This implementation is useful for peer to peer applications
+ * because it will ensure that a request that can be processed by the current node will be processed by the
+ * current node, reducing overall network usage.
+ */
 trait CurrentNodeAwareConsistentHashRouterFactoryComponent extends ConsistentHashRouterFactoryComponent {
   this: CurrentNodeLocatorComponent =>
 
+  /**
+   * A <code>RouterFactory</code> implementation that provides a consistent hash routing strategy that favors the current
+   * node. Users must implement the <code>calculateHash</code> method.
+   */
   abstract class CurrentNodeAwareConsistentHashRouterFactory(np: Int) extends ConsistentHashRouterFactory(np) {
     override def newRouter(nodes: Seq[Node]): Router = new Router with ConsistentHashRouterHelper {
       protected val partitionToNodeMap = generatePartitionToNodeMap(nodes, np)

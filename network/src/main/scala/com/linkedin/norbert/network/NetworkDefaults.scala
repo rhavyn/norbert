@@ -15,13 +15,43 @@
  */
 package com.linkedin.norbert.network
 
+/**
+ * A container for defaults related to the networking code.
+ */
 object NetworkDefaults {
-  val MAX_CONNECTIONS_PER_NODE = 50
+
+  /**
+   * The default maximum number of connections to be opened per node.
+   */
+  val MAX_CONNECTIONS_PER_NODE = 20
+
+  /**
+   * The default write timeout in milliseconds.
+   */
   val WRITE_TIMEOUT = 150
+
+  /**
+   * The default frequency to clean up stale requests in minutes.
+   */
   val REQUEST_CLEANUP_FREQUENCY = 10
+
+  /**
+   * The default lenght of time to wait before considering a request to be stale in minutes.
+   */
   val REQUEST_TIMEOUT = 10
 
+  /**
+   * The default number of core request threads.
+   */
   val CORE_REQUEST_THREAD_POOL_SIZE = Runtime.getRuntime.availableProcessors * 2
+
+  /**
+   * The default max number of core request threads.
+   */
   val MAX_REQUEST_THREAD_POOL_SIZE = CORE_REQUEST_THREAD_POOL_SIZE * 5
+
+  /**
+   * The default request thread timeout in seconds.
+   */
   val REQUEST_THREAD_TIMEOUT = 300
 }

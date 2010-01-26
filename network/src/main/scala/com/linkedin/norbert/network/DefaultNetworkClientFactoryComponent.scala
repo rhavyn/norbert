@@ -18,12 +18,23 @@ package com.linkedin.norbert.network
 import com.linkedin.norbert.cluster.{RouterFactoryComponent, DefaultClusterComponent}
 import netty._
 
+/**
+ * The default network client implementation component mixin. Users should mix this component into their
+ * component registry instead of pulling in the individual components.
+ */
 trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with NettyClusterIoClientComponent
         with BootstrapFactoryComponent with DefaultClusterComponent with NettyResponseHandlerComponent
         with MessageRegistryComponent with ClientCurrentNodeLocatorComponent with MessageExecutorComponent {
   this: RouterFactoryComponent =>
 
+  /**
+   * The maximum number of sockets that will be opened per node.
+   */
   val maxConnectionsPerNode: Int
+
+  /**
+   * The maximum amount of time in milliseconds to allow a queued write request to sit before it should be considered timed out.
+   */
   val writeTimeout: Int
 
   def currentNodeLocator: CurrentNodeLocator = new ClientCurrentNodeLocator
@@ -34,12 +45,29 @@ trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent
   val networkClientFactory = new NetworkClientFactory
 }
 
+/**
+ * The default network server implementation component mixin. Users should mix this component into their
+ * component registry instead of pulling in the individual components. This component includes the client
+ * networking subsystem as well, so users writing a peer to peer application do not need to mixin in
+ * the <code>DefaultNetworkClientFactoryComponent</code>.
+ */
 trait DefaultNetworkServerComponent extends DefaultNetworkClientFactoryComponent with NettyNetworkServerComponent
         with NettyRequestHandlerComponent with CurrentNodeLocatorComponent with MessageExecutorComponent with ServerCurrentNodeLocatorComponent {
   this: RouterFactoryComponent =>
 
+  /**
+   * The core number of threads that are dedicated to handling requests.
+   */
   val coreRequestThreadPoolSize: Int
+
+  /**
+   * The maximum number of threads that are dedicated to handling requests.
+   */
   val maxRequestThreadPoolSize: Int
+
+  /**
+   * The amount of time an idle request handling thread should live in seconds.
+   */
   val requestThreadTimeout: Int
 
   override def currentNodeLocator = new ServerCurrentNodeLocator

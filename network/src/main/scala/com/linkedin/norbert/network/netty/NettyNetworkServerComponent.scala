@@ -21,7 +21,6 @@ import com.linkedin.norbert.util.Logging
 import com.linkedin.norbert.cluster.{ClusterComponent, InvalidNodeException, Node}
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
-import org.jboss.netty.channel.group.DefaultChannelGroup
 import org.jboss.netty.channel.{ChannelException, Channel, ChannelPipelineFactory, Channels}
 import com.linkedin.norbert.network._
 
@@ -40,6 +39,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
     bootstrap.setOption("reuseAddress", true)
 
     private var serverChannel: Channel = _
+    private var myNode: Node = _
 
     @volatile private var markAvailableWhenConnected = true
 
@@ -85,6 +85,8 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
       markAvailableWhenConnected = true
       doMarkNodeAvailable
     }
+
+    def currentNode = myNode
 
     def shutdown {
       log.info("Shutting down network server...")

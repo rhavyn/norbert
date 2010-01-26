@@ -22,6 +22,9 @@ import com.google.protobuf.Message
 import com.linkedin.norbert.network.{InvalidMessageException, MessageRegistryComponent, MessageExecutorComponent}
 import group.DefaultChannelGroup
 
+/**
+ * A component that provides a Netty <code>ChannelHandler</code> for processing incoming requests.
+ */
 trait NettyRequestHandlerComponent {
   this: MessageExecutorComponent with MessageRegistryComponent =>
 

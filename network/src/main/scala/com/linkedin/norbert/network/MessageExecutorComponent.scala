@@ -19,6 +19,9 @@ import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import com.linkedin.norbert.util.Logging
 
+/**
+ * A component which submits incoming messages to their associated message handler.
+ */
 trait MessageExecutorComponent {
   this: MessageRegistryComponent =>
 

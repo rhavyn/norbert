@@ -17,6 +17,9 @@ package com.linkedin.norbert.network
 
 import com.linkedin.norbert.cluster.Node
 
+/**
+ * A component which provides the client interface for sending requests to nodes in the cluster.
+ */
 trait ClusterIoClientComponent {
   val clusterIoClient: ClusterIoClient
 

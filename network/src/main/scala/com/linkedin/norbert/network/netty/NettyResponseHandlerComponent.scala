@@ -23,10 +23,20 @@ import com.linkedin.norbert.util.Logging
 import com.linkedin.norbert.network._
 import com.linkedin.norbert.protos.NorbertProtos
 
+/**
+ * A component that provides a Netty <code>ChannelHandler</code> for processing incoming responses.
+ */
 trait NettyResponseHandlerComponent extends ResponseHandlerComponent {
   this: MessageRegistryComponent =>
-  
+
+  /**
+   * Specifies the frequency that stale requests are cleaned up in minutes.
+   */
   def requestCleanupFrequency = NetworkDefaults.REQUEST_CLEANUP_FREQUENCY
+
+  /**
+   * Specifies the duration after which requests should be considered stale in minutes.
+   */
   def requestTimeout = NetworkDefaults.REQUEST_TIMEOUT
 
   override val responseHandler: NettyResponseHandler
@@ -57,9 +67,7 @@ trait NettyResponseHandlerComponent extends ResponseHandlerComponent {
       log.ifDebug("Received message: %s", norbertMessage)
       val requestId = new UUID(norbertMessage.getRequestIdMsb, norbertMessage.getRequestIdLsb)
 
-      doWithRequest(requestId, norbertMessage, e.getChannel) { request =>
-        handleResponse(request, norbertMessage)
-      }
+      doWithRequest(requestId, norbertMessage, e.getChannel) { handleResponse(_, norbertMessage) }
     }
 
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.error(e.getCause, "Caught exception in networking code")

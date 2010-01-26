@@ -17,12 +17,27 @@ package com.linkedin.norbert.network
 
 import com.linkedin.norbert.NorbertException
 
+/**
+ * Base class from which Norbert's networking related exceptions inherit.
+ */
 class NetworkingException(message: String, cause: Throwable) extends NorbertException(message, cause) {
   def this() = this(null, null)
   def this(message: String) = this(message, null)
   def this(cause: Throwable) = this(cause.getMessage, cause)
 }
 
+/**
+ * Exception that indicates that an exception occurred remotely while processing a request.
+ */
+
 class RemoteException(className: String, errorMsg: String) extends NetworkingException("The remote end threw an exception [%s]: %s".format(className, errorMsg))
+
+/**
+ * Exception that indicates that a message was received which was not registered with the <code>MessageRegistry</code>.
+ */
 class InvalidMessageException(errorMsg: String) extends NetworkingException(errorMsg)
+
+/**
+ * Exception that indicates that a malformed response was received. 
+ */
 class InvalidResponseException(errorMsg: String) extends NetworkingException(errorMsg)
