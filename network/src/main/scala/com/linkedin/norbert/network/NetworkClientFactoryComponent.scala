@@ -34,7 +34,7 @@ trait NetworkClientFactoryComponent {
     /**
      * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
      * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
-     * must be sent to.
+     * must be sent to.  This method is asynchronous and will return immediately.
      *
      * @param ids the <code>Id</code>s to which the message is addressed
      * @param message the message to send
@@ -48,7 +48,7 @@ trait NetworkClientFactoryComponent {
     /**
      * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
      * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
-     * must be sent to.
+     * must be sent to.  This method is asynchronous and will return immediately.
      *
      * @param ids the <code>Id</code>s to which the message is addressed
      * @param message the message to send
@@ -66,7 +66,7 @@ trait NetworkClientFactoryComponent {
     /**
      * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
      * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
-     * must be sent to.
+     * must be sent to.  This method is synchronous and will return once the responseAggregator has returned a value.
      *
      * @param ids the <code>Id</code>s to which the message is addressed
      * @param message the message to send
@@ -76,13 +76,14 @@ trait NetworkClientFactoryComponent {
      *
      * @return the return value of the <code>responseAggregator</code>
      * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
+     * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
      */
     def sendMessage[A](ids: Seq[Id], message: Message, responseAggregator: (Message, ResponseIterator) => A): A
 
     /**
      * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
      * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
-     * must be sent to.
+     * must be sent to.  This method is synchronous and will return once the responseAggregator has returned a value.
      *
      * @param ids the <code>Id</code>s to which the message is addressed
      * @param message the message to send
@@ -96,6 +97,7 @@ trait NetworkClientFactoryComponent {
      *
      * @return the return value of the <code>responseAggregator</code>
      * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
+     * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
      */
     def sendMessage[A](ids: Seq[Id], message: Message, messageCustomizer: (Message, Node, Seq[Id]) => Message,
                 responseAggregator: (Message, ResponseIterator) => A): A

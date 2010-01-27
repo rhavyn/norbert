@@ -23,21 +23,61 @@ import scala.reflect.BeanProperty
 import com.linkedin.norbert.NorbertException
 import com.linkedin.norbert.network.{NetworkDefaults, DefaultNetworkServerComponent}
 
+/**
+ * JavaBean which provides configuration properties exposed by <code>ServerBootstrap</code>.
+ */
 class ServerConfig extends ClientConfig {
+
+  /**
+   * The <code>MessageHandler</code>s to use to process incoming requests.
+   */
   @BeanProperty var messageHandlers: Array[MessageHandler] = _
+
+  /**
+   * The id of the node for which the <code>NetworkServer</code> is handling requests. The <code>NetworkServer</code>
+   * will look up the node in ZooKeeper and attempt to bind to the host/port registered for that node.  Only one
+   * of nodeId and bindAddress should be specified.
+   */
   @BeanProperty var nodeId: Int = -1
+
+  /**
+   * The address to which the <code>NetworkServer</code> to bind.  The <code>NetworkServer</code> will attempt
+   * to find a node with the same address as this (using the method Cluster.getNodeWithAddress) and will
+   * consider that node as the current node. Only one of nodeId and bindAddress should be specified.
+   */
   @BeanProperty var bindAddress: InetSocketAddress = _
 
+  /**
+   * The amount of time a idle request thread should be allowed to live in seconds.  Default is 300s.
+   */
   @BeanProperty var requestThreadTimeout = NetworkDefaults.REQUEST_THREAD_TIMEOUT
+
+  /**
+   * The core number of request threads to maintain. Default is 2 * the number of processors.
+   */
   @BeanProperty var coreRequestThreadPoolSize = NetworkDefaults.CORE_REQUEST_THREAD_POOL_SIZE
+
+  /**
+   * The maximum number of request threads to create. Default is 5 * coreRequestThreadPoolSize.
+   */
   @BeanProperty var maxRequestThreadPoolSize = NetworkDefaults.MAX_REQUEST_THREAD_POOL_SIZE
 
+  @throws(classOf[NorbertException])
   override def validate() = {
     if (clusterName == null || zooKeeperUrls == null || messageHandlers == null ||
             (nodeId == -1 && bindAddress == null)) throw new NorbertException("clusterName, zooKeeperUrls, requestMessages and either nodeId or bindAddress must be specified")
   }
 }
 
+/**
+ * A bootstrap for creating a <code>NetworkServer</code> instance.  Additionally, for peer to peer
+ * systems, <code>NetworkClient</code> instances can also be created.
+ *
+ * @param serverConfig the <code>ServerConfig</code> to use to configure the new instance
+ *
+ * @throws NorbertException thrown if the <code>ServerConfig</code> provided is not valid
+ */
+@throws(classOf[NorbertException])
 class ServerBootstrap(serverConfig: ServerConfig) extends ClientBootstrapHelper {
   serverConfig.validate
   
@@ -69,7 +109,12 @@ class ServerBootstrap(serverConfig: ServerConfig) extends ClientBootstrapHelper 
   }
 
   import componentRegistry.NetworkServer
-  
+
+  /**
+   * Retrieves the <code>NetworkServer</code> instance created by the bootstrap.
+   *
+   * @return a <code>NetworkServer</code> instance
+   */
   def getNetworkServer: JNetworkServer = new NetworkServerWrapper(componentRegistry.networkServer)
 
   private class NetworkServerWrapper(networkServer: NetworkServer) extends JNetworkServer {

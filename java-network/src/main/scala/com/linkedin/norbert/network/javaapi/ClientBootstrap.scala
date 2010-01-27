@@ -16,22 +16,47 @@
 package com.linkedin.norbert.network.javaapi
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.javaapi.{ClusterConfig, JavaRouterHelper, RouterFactory}
+import com.linkedin.norbert.cluster.javaapi.{ClusterConfig, JavaRouterHelper}
 import scala.reflect.BeanProperty
 import com.linkedin.norbert.NorbertException
 import com.linkedin.norbert.network.{NetworkDefaults, DefaultNetworkClientFactoryComponent}
 
+/**
+ * JavaBean which provides configuration properties exposed by <code>ClientBootstrap</code>.
+ */
 class ClientConfig extends ClusterConfig {
+
+  /**
+   * The amount of time a write should be queued before it is considered timed out in milliseconds. Default is
+   * 150ms.
+   */
   @BeanProperty var writeTimeout = NetworkDefaults.WRITE_TIMEOUT
+
+  /**
+   * The maximum number of connections that can be opened per node. Default is 20.
+   */
   @BeanProperty var maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
+
+  /**
+   * The messages which the client expects to receive as responses to outgoing requests.
+   */
   @BeanProperty var responseMessages: Array[Message] = _
 
+  @throws(classOf[NorbertException])
   override def validate() = {
     super.validate
     if (responseMessages == null) throw new NorbertException("responseMessages must be specified")
   }
 }
 
+/**
+ * A bootstrap for creating <code>NetworkClient</code> instances.
+ *
+ * @param clientConfig the <code>ClientConfig</code> to use to configure the new instances
+ *
+ * @throws NorbertException thrown if the <code>ClusterConfig</code> provided is not valid
+ */
+@throws(classOf[NorbertException])
 class ClientBootstrap(clientConfig: ClientConfig) extends ClientBootstrapHelper {
   clientConfig.validate
   

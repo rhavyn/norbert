@@ -18,11 +18,43 @@ package com.linkedin.norbert.network.javaapi
 import com.linkedin.norbert.network.NetworkingException
 import com.linkedin.norbert.cluster.Node
 
+/**
+ * A <code>NetworkServer</code> listens for incoming messages and processes them using the <code>MessageHandler</code>
+ * registered for that message type.
+ */
 trait NetworkServer {
+
+  /**
+   * Binds the network server to a port and marks the node associated with this server available.
+   */
   @throws(classOf[NetworkingException])
   def bind: Unit
+
+  /**
+   * Binds the network server to a port and, if markAvailable is true, marks the node associated with this
+   * server available.
+   *
+   * @param markAvailable specified whether or not to mark the node associated with this server available after
+   * binding
+   */
+  @throws(classOf[NetworkingException])
   def bind(markAvailable: Boolean): Unit
+
+  /**
+   * Retrieves the node associated with this server.
+   */
   def getCurrentNode: Node
+
+  /**
+   * Marks the node associated with this server available.  If you call <code>bind(false)</code> you must, eventually,
+   * call this method before the cluster will start sending this server requests.
+   */
   def markAvailable: Unit
+
+  /**
+   * Shuts down the <code>NetworkServer</code>.  The server will disconnect from the cluster, unbind from the port,
+   * wait for all currently processing requests to finish, close the sockets that have been accepted and any opened
+   * client sockets.
+   */
   def shutdown: Unit
 }
