@@ -86,7 +86,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
         p.addLast("frameEncoder", new LengthFieldPrepender(4))
         p.addLast("protobufEncoder", new ProtobufEncoder)
 
-        p.addLast("requestHandler", responseHandler)
+        p.addLast("responseHandler", responseHandler)
 
         p
       }

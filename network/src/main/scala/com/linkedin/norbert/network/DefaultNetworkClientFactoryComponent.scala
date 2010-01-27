@@ -37,8 +37,9 @@ trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent
    */
   val writeTimeout: Int
 
+  private val clientMessageExecutor = new DoNothingMessageExecutor
   def currentNodeLocator: CurrentNodeLocator = new ClientCurrentNodeLocator
-  def messageExecutor: MessageExecutor = new DoNothingMessageExecutor
+  def messageExecutor: MessageExecutor = clientMessageExecutor
   val responseHandler = new NettyResponseHandler
   val bootstrapFactory = new BootstrapFactory
   val clusterIoClient = new NettyClusterIoClient(maxConnectionsPerNode, writeTimeout)
@@ -70,7 +71,8 @@ trait DefaultNetworkServerComponent extends DefaultNetworkClientFactoryComponent
    */
   val requestThreadTimeout: Int
 
+  private val serverMessageExecutor = new ThreadPoolMessageExecutor(coreRequestThreadPoolSize, maxRequestThreadPoolSize, requestThreadTimeout)
   override def currentNodeLocator = new ServerCurrentNodeLocator
-  override def messageExecutor = new ThreadPoolMessageExecutor(coreRequestThreadPoolSize, maxRequestThreadPoolSize, requestThreadTimeout)
+  override def messageExecutor: MessageExecutor = serverMessageExecutor
   val requestHandler = new NettyRequestHandler
 }
