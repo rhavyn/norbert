@@ -17,7 +17,7 @@ package com.linkedin.norbert.network
 
 import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -38,7 +38,8 @@ trait MessageExecutorComponent {
   }
 
   class ThreadPoolMessageExecutor(corePoolSize: Int, maxPoolSize: Int, keepAliveTime: Int) extends MessageExecutor with Logging {
-    private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue)
+    private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
+      new NamedPoolThreadFactory("message-executor"))
 
     def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
       threadPool.execute(new Runnable  {

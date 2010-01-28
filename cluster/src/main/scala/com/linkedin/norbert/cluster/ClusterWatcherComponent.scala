@@ -18,7 +18,7 @@ package com.linkedin.norbert.cluster
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{TimeUnit, ScheduledThreadPoolExecutor, ScheduledFuture}
 import org.apache.zookeeper.{WatchedEvent, Watcher}
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
 
 /**
  * A component which provides the ZooKeeper <code>Watcher</code> instance used in Norbert.
@@ -33,7 +33,7 @@ trait ClusterWatcherComponent {
     @volatile private var shutdownSwitch = false
     @volatile private var disconnectFuture: Option[ScheduledFuture[_]] = None
     private val wasDisconnected = new AtomicBoolean(true)
-    private val scheduler = new ScheduledThreadPoolExecutor(1)
+    private val scheduler = new ScheduledThreadPoolExecutor(1, new NamedPoolThreadFactory("cluster-watcher-scheduler"))
 
     def shutdown(): Unit = {
       log.ifDebug("ClusterWatcher shut down")

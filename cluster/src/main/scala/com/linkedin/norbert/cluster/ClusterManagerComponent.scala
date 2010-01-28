@@ -17,7 +17,7 @@ package com.linkedin.norbert.cluster
 
 import java.util.concurrent.Executors
 import actors.Actor
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
 
 /**
  * The component which manages the state of the cluster and notifies clients when the state changes.
@@ -46,7 +46,7 @@ trait ClusterManagerComponent {
   class ClusterManager extends Actor with Logging {
     import Actor._
     
-    private val listenerUpdater = Executors.newSingleThreadExecutor
+    private val listenerUpdater = Executors.newSingleThreadExecutor(new NamedPoolThreadFactory("cluster-listener-notification"))
 
     private var status: ClusterStatus = ClusterStatuses.DISCONNECTED
     private var nodes: Seq[Node] = Array[Node]()

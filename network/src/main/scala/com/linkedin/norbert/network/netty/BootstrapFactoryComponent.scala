@@ -18,6 +18,7 @@ package com.linkedin.norbert.network.netty
 import java.util.concurrent.Executors
 import org.jboss.netty.bootstrap.{ClientBootstrap, ServerBootstrap}
 import org.jboss.netty.channel.socket.nio.{NioClientSocketChannelFactory, NioServerSocketChannelFactory}
+import com.linkedin.norbert.util.NamedPoolThreadFactory
 
 /**
  * Component that builds Netty client and server bootstraps.
@@ -26,7 +27,7 @@ trait BootstrapFactoryComponent {
   val bootstrapFactory: BootstrapFactory
 
   class BootstrapFactory {
-    private val threadPool = Executors.newCachedThreadPool
+    private val threadPool = Executors.newCachedThreadPool(new NamedPoolThreadFactory("netty-worker"))
 
     def newServerBootstrap: ServerBootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(threadPool, threadPool))
 

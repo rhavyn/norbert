@@ -17,7 +17,6 @@ package com.linkedin.norbert.network.netty
 
 import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel.group.{DefaultChannelGroup, ChannelGroup}
-import com.linkedin.norbert.util.Logging
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import org.jboss.netty.channel._
@@ -26,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.net.InetSocketAddress
 import com.linkedin.norbert.cluster.Node
 import com.linkedin.norbert.network._
+import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
 
 /**
  * A component that provides a <code>ClusterIoClientComponent</code> implementation that uses Netty for
@@ -46,7 +46,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
     bootstrap.setOption("reuseAddress", true)
 
     private val channelPool = new ConcurrentHashMap[Node, Pool]
-    private val queuedWriteExecutor = Executors.newCachedThreadPool
+    private val queuedWriteExecutor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("queued-write"))
 
     def sendRequest(nodes: scala.collection.Set[Node], request: Request) {
       val currentNode = currentNodeLocator.currentNode
