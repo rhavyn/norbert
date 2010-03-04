@@ -35,11 +35,15 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     val mockZooKeeper = mock[ZooKeeper]
 
     var connectedCount = 0
+    var disconnectedCount = 0
     var nodesReceived: Seq[Node] = Nil
 
     val notificationActor = actor {
-      react {
-        case ClusterNotificationMessages.Connected(nodes) => connectedCount += 1; nodesReceived = nodes
+      loop {
+        react {
+          case ClusterNotificationMessages.Connected(nodes) => connectedCount += 1; nodesReceived = nodes
+          case ClusterNotificationMessages.Disconnected => disconnectedCount += 1
+        }
       }
     }
 
@@ -148,7 +152,20 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     }
 
     "when a Disconnected message is received" in {
+      "send a notification to the notification manager actor" in {
+        zooKeeperManager ! Connected
+        zooKeeperManager ! Disconnected
+        waitFor(10.ms)
 
+        disconnectedCount must be_==(1)
+      }
+
+      "do nothing if not connected" in {
+        zooKeeperManager ! Disconnected
+        waitFor(10.ms)
+
+        disconnectedCount must be_==(0)
+      }
     }
 
     "when an Expired message is received" in {

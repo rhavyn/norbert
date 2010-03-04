@@ -40,6 +40,8 @@ trait ZooKeeperManagerComponent {
     private val MEMBERSHIP_NODE = CLUSTER_NODE + "/members"
 
     private var zooKeeper: Option[ZooKeeper] = None
+    private var watcher: ClusterWatcher = _
+    private var connected = false
     private var currentNodes: Seq[Node] = Nil
 
     def act() = {
@@ -50,33 +52,59 @@ trait ZooKeeperManagerComponent {
 
         receive {
           case Connected => handleConnected
+          case Disconnected => handleDisconnected
           case m => log.error("Received unknown message: %s", m)
         }
       }
     }
 
     private def handleConnected {
-      zooKeeper match {
-        case Some(zk) =>
-          verifyZooKeeperStructure(zk)
-          lookupCurrentNodes(zk)
-          clusterNotificationManager ! ClusterNotificationMessages.Connected(currentNodes)
+      log.ifDebug("Handling a Connected message")
 
-        case None =>
-          log.error("Received a Connected message when ZooKeeper is None")
-      }      
+      if (connected) {
+        log.error("Received a Connected message when already connected")
+      } else {
+        zooKeeper match {
+          case Some(zk) =>
+            try {
+              verifyZooKeeperStructure(zk)
+              lookupCurrentNodes(zk)
+              connected = true
+              clusterNotificationManager ! ClusterNotificationMessages.Connected(currentNodes)
+            } catch {
+              case ex: Exception => log.fatal(ex, "Unable to process Connected message")
+            }
+
+          case None =>
+            // This should never happen
+            log.fatal("Received a Connected message when ZooKeeper is None")
+        }
+      }
+    }
+
+    private def handleDisconnected {
+      log.ifDebug("Handling a Disconnected message")
+
+      if (connected) {
+        connected = false
+        currentNodes = Nil
+        clusterNotificationManager ! ClusterNotificationMessages.Disconnected
+      } else {
+        log.error("Received a Disconnected message when not connected")
+      }
     }
 
     private def startZooKeeper {
       zooKeeper = try {
-        Some(zooKeeperFactory(connectString, sessionTimeout, new ClusterWatcher(self)))
+        watcher = new ClusterWatcher(self)
+        Some(zooKeeperFactory(connectString, sessionTimeout, watcher))
       } catch {
         case ex: IOException =>
           log.error(ex, "Unable to connect to ZooKeeper")
           None
 
         case ex: Exception =>
-          log.fatal(ex, "Exception while connecting to ZooKeeper")
+          log.error(ex, "Exception while connecting to ZooKeeper")
           None
       }
     }
@@ -85,10 +113,16 @@ trait ZooKeeperManagerComponent {
       log.ifDebug("Verifying ZooKeeper structure...")
 
       List(CLUSTER_NODE, AVAILABILITY_NODE, MEMBERSHIP_NODE).foreach { path =>
-        log.ifDebug("Ensuring %s exists", path)
-        if (zk.exists(path, false) == null) {
-          log.ifDebug("%s doesn't exist, creating", path)
-          zk.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+        try {
+          log.ifDebug("Ensuring %s exists", path)
+          if (zk.exists(path, false) == null) {
+            log.ifDebug("%s doesn't exist, creating", path)
+            zk.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+          }
+        } catch {
+          case ex: KeeperException => if (ex.code != KeeperException.Code.NODEEXISTS) {
+            throw ex
+          }
         }
       }      
     }
