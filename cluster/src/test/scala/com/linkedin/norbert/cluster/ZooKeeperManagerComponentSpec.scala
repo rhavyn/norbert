@@ -318,6 +318,39 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         connectedCount must be_==(0)
       }
     }
+
+    "when a RemoveNode message is received" in {
+      "throw a ClusterDisconnectedException if not connected" in {
+        zooKeeperManager !? RemoveNode(1) match {
+          case ZooKeeperManagerResponse(r) => r must beSome[Exception].which(_ must haveClass[ClusterDisconnectedException])
+        }
+      }
+
+      "throw an InvalidNodeException if the node does not exist in ZooKeeper" in {
+        mockZooKeeper.exists(membershipNode + "/1", false) returns null
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? RemoveNode(1) match {
+          case ZooKeeperManagerResponse(r) => r must beSome[Exception].which(_ must haveClass[InvalidNodeException])
+        }
+
+        mockZooKeeper.exists(membershipNode + "/1", false) was called
+      }
+
+      "remove the znode from ZooKeeper if the node exists" in {
+        val path = membershipNode + "/1"
+
+        mockZooKeeper.exists(path, false) returns mock[Stat]
+        doNothing.when(mockZooKeeper).delete(path, -1)
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? RemoveNode(1) match {
+          case ZooKeeperManagerResponse(r) => r must beNone
+        }
+
+        mockZooKeeper.delete(path, -1) was called
+      }
+    }
   }
 
   "ClusterWatcher" should {

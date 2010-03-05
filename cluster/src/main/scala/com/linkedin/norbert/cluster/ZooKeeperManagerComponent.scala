@@ -32,6 +32,12 @@ trait ZooKeeperManagerComponent {
     case object Expired extends ZooKeeperManagerMessage
     case class NodeChildrenChanged(path: String) extends ZooKeeperManagerMessage
     case object Shutdown extends ZooKeeperManagerMessage
+
+    case class RemoveNode(nodeId: Int)
+    case class MarkNodeAvailable(nodeId: Int)
+    case class MarkNodeUnavailable(nodeId: Int)
+
+    case class ZooKeeperManagerResponse(exception: Option[Exception])
   }
 
   class ZooKeeperManager(connectString: String, sessionTimeout: Int, clusterName: String, clusterNotificationManager: Actor)
@@ -66,6 +72,8 @@ trait ZooKeeperManagerComponent {
           } else {
             log.error("Received a notification for a path that shouldn't be monitored: ", path)
           }
+
+          case RemoveNode(nodeId) => handleRemoveNode(nodeId)
 
           case Shutdown => handleShutdown
 
@@ -140,6 +148,38 @@ trait ZooKeeperManagerComponent {
       }
     }
 
+    private def handleRemoveNode(nodeId: Int) {
+      import ZooKeeperManagerMessages.ZooKeeperManagerResponse
+
+      log.ifDebug("Handling a RemoveNode(%d) message", nodeId)
+
+      if (connected) {
+        doWithZooKeeper("a RemoveNode message") { zk =>
+          val path = "%s/%d".format(MEMBERSHIP_NODE, nodeId)
+
+          val response = try {
+            if (zk.exists(path, false) == null) {
+              Some(new InvalidNodeException("Node with id %d does not exist".format(nodeId)))
+            } else {
+              try {
+                zk.delete(path, -1)
+                None
+              } catch {
+                case ex: KeeperException if ex.code == KeeperException.Code.NONODE => None
+              }
+            }
+          } catch {
+            case ex: KeeperException => Some(new InvalidNodeException("Error while deleting node", ex))
+            case ex: Exception => Some(new InvalidNodeException("Unexpected exception while deleting node", ex))
+          }
+
+          reply(ZooKeeperManagerResponse(response))
+        }
+      } else {
+        reply(ZooKeeperManagerResponse(Some(new ClusterDisconnectedException("Unable to remove node while cluster is disconnected"))))
+      }
+    }
+
     private def handleShutdown {
       log.ifDebug("Handling a Shutdown message")
 
@@ -209,10 +249,12 @@ trait ZooKeeperManagerComponent {
           try {
             block(zk)
           } catch {
+            case ex: KeeperException => log.error(ex, "ZooKeeper threw an exception")
             case ex: Exception => log.error(ex, "Unhandled exception while working with ZooKeeper")
           }
 
-        case None => log.error("Received %s when ZooKeeper is None", what)
+        case None => log.fatal(new Exception,
+          "Received %s when ZooKeeper is None, this should never happen. Please report a bug including the stack trace provided.", what)
       }
     }
 
