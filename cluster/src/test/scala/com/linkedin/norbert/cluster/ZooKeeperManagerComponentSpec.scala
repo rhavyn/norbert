@@ -326,12 +326,12 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         }
       }
 
-      "throw an InvalidNodeException if the node does not exist in ZooKeeper" in {
+      "do nothing if the node does not exist in ZooKeeper" in {
         mockZooKeeper.exists(membershipNode + "/1", false) returns null
 
         zooKeeperManager ! Connected
         zooKeeperManager !? RemoveNode(1) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[Exception].which(_ must haveClass[InvalidNodeException])
+          case ZooKeeperManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.exists(membershipNode + "/1", false) was called
@@ -377,7 +377,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) was called
       }
 
-      "does nothing if the znode already exists" in {
+      "do nothing if the znode already exists" in {
         val znodes = List(rootNode, membershipNode, availabilityNode)
         znodes.foreach(mockZooKeeper.exists(_, false) returns mock[Stat])
 
@@ -393,6 +393,39 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         mockZooKeeper.exists(path, false) was called
         mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) wasnt called        
+      }
+    }
+
+    "when a MarkNodeUnavailable message is received" in {
+      "throw a ClusterDisconnectedException if not connected" in {
+        zooKeeperManager !? MarkNodeUnavailable(1) match {
+          case ZooKeeperManagerResponse(r) => r must beSome[Exception].which(_ must haveClass[ClusterDisconnectedException])
+        }
+      }
+
+      "do nothing if the node does not exist in ZooKeeper" in {
+        mockZooKeeper.exists(availabilityNode + "/1", false) returns mock[Stat]
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? MarkNodeUnavailable(1) match {
+          case ZooKeeperManagerResponse(r) => r must beNone
+        }
+
+        mockZooKeeper.exists(availabilityNode + "/1", false) was called
+      }
+
+      "remove the znode from ZooKeeper if the node exists" in {
+        val path = availabilityNode + "/1"
+
+        mockZooKeeper.exists(path, false) returns mock[Stat]
+        doNothing.when(mockZooKeeper).delete(path, -1)
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? MarkNodeUnavailable(1) match {
+          case ZooKeeperManagerResponse(r) => r must beNone
+        }
+
+        mockZooKeeper.delete(path, -1) was called
       }
     }
   }

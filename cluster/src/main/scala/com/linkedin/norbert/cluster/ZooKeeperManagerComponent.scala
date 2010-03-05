@@ -77,6 +77,8 @@ trait ZooKeeperManagerComponent {
 
           case MarkNodeAvailable(nodeId) => handleMarkNodeAvailable(nodeId)
 
+          case MarkNodeUnavailable(nodeId) => handleMarkNodeUnavailable(nodeId)
+
           case Shutdown => handleShutdown
 
           case m => log.error("Received unknown message: %s", m)
@@ -157,7 +159,7 @@ trait ZooKeeperManagerComponent {
         val path = "%s/%d".format(MEMBERSHIP_NODE, nodeId)
 
         if (zk.exists(path, false) == null) {
-          Some(new InvalidNodeException("Node with id %d does not exist".format(nodeId)))
+          None
         } else {
           try {
             zk.delete(path, -1)
@@ -184,6 +186,25 @@ trait ZooKeeperManagerComponent {
           }
         } else {
           None
+        }
+      }
+    }
+
+    private def handleMarkNodeUnavailable(nodeId: Int) {
+      log.ifDebug("Handling a MarkNodeUnavailable(%d) message", nodeId)
+
+      doIfConnectedWithZooKeeperWithResponse("a MarkNodeUnavailable message", "marking node unavailable") { zk =>
+        val path = "%s/%d".format(AVAILABILITY_NODE, nodeId)
+
+        if (zk.exists(path, false) == null) {
+          None
+        } else {
+          try {
+            zk.delete(path, -1)
+            None
+          } catch {
+            case ex: KeeperException if ex.code == KeeperException.Code.NONODE => None
+          }
         }
       }
     }
