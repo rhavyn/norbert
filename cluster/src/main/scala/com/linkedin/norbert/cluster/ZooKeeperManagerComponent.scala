@@ -21,6 +21,7 @@ import Actor._
 import java.io.IOException
 import org.apache.zookeeper._
 import collection.immutable.IntMap
+import scala.util.Sorting
 
 trait ZooKeeperManagerComponent {
   this: ClusterNotificationManagerComponent =>
@@ -130,12 +131,25 @@ trait ZooKeeperManagerComponent {
       doIfConnectedWithZooKeeper("an availability changed event") { zk =>
         import scala.collection.jcl.Conversions._
 
-        val available = zk.getChildren(AVAILABILITY_NODE, true)
-        currentNodes = available.foldLeft(currentNodes) { case (map, id) =>
-          map.get(id.toInt) match {
-            case Some(n) if n.available => map
-            case Some(n) => map.update(n.id, Node(n.id, n.address, n.partitions, true))
-            case None => map
+        val available = zk.getChildren(AVAILABILITY_NODE, true).map(_.toInt).toArray
+        Sorting.quickSort(available)
+        val current = currentNodes.keySet.toSeq
+        var currentIndex = 0
+        var availableIndex = 0
+
+        while (currentIndex < current.length && availableIndex < available.length) {
+          val currentValue = current(currentIndex)
+          val availableValue = available(availableIndex)
+
+          if (currentValue == availableValue) {
+            makeNodeAvailable(currentValue)
+            currentIndex += 1
+            availableIndex += 1
+          } else if (currentValue < availableValue) {
+            makeNodeUnavailable(currentValue)
+            currentIndex += 1
+          } else {
+            availableIndex += 1
           }
         }
 
@@ -158,16 +172,17 @@ trait ZooKeeperManagerComponent {
       doIfConnectedWithZooKeeperWithResponse("a RemoveNode message", "deleting node") { zk =>
         val path = "%s/%d".format(MEMBERSHIP_NODE, nodeId)
 
-        if (zk.exists(path, false) == null) {
-          None
-        } else {
+        if (zk.exists(path, false) != null) {
           try {
             zk.delete(path, -1)
-            None
           } catch {
-            case ex: KeeperException if ex.code == KeeperException.Code.NONODE => None
+            case ex: KeeperException if ex.code == KeeperException.Code.NONODE => // do nothing
           }
         }
+
+        currentNodes -= nodeId
+        clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+        None
       }
     }
 
@@ -180,13 +195,14 @@ trait ZooKeeperManagerComponent {
         if (zk.exists(path, false) == null) {
           try {
             zk.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
-            None
           } catch {
-            case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => None
+            case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => // do nothing
           }
-        } else {
-          None
         }
+
+        makeNodeAvailable(nodeId)
+        clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+        None
       }
     }
 
@@ -196,16 +212,18 @@ trait ZooKeeperManagerComponent {
       doIfConnectedWithZooKeeperWithResponse("a MarkNodeUnavailable message", "marking node unavailable") { zk =>
         val path = "%s/%d".format(AVAILABILITY_NODE, nodeId)
 
-        if (zk.exists(path, false) == null) {
-          None
-        } else {
+        if (zk.exists(path, false) != null) {
           try {
             zk.delete(path, -1)
             None
           } catch {
-            case ex: KeeperException if ex.code == KeeperException.Code.NONODE => None
+            case ex: KeeperException if ex.code == KeeperException.Code.NONODE => // do nothing
           }
         }
+
+        makeNodeUnavailable(nodeId)
+        clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+        None
       }
     }
 
@@ -265,6 +283,22 @@ trait ZooKeeperManagerComponent {
       currentNodes = members.foldLeft[Map[Int, Node]](IntMap.empty[Node]) { case (map, member) =>
         val id = member.toInt
         map + (id -> Node(id, zk.getData("%s/%s".format(MEMBERSHIP_NODE, member), false, null), available.contains(member)))
+      }
+    }
+
+    private def makeNodeAvailable(nodeId: Int) {
+      currentNodes = currentNodes.get(nodeId) match {
+        case Some(n) if n.available => currentNodes
+        case Some(n) => currentNodes.update(n.id, Node(n.id, n.address, n.partitions, true))
+        case None => currentNodes
+      }
+    }
+
+    private def makeNodeUnavailable(nodeId: Int) {
+      currentNodes = currentNodes.get(nodeId) match {
+        case Some(n) if !n.available => currentNodes
+        case Some(n) => currentNodes.update(n.id, Node(n.id, n.address, n.partitions, false))
+        case None => currentNodes
       }
     }
 

@@ -215,33 +215,40 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
           membership.add("2")
           membership.add("3")
 
-          val availability = membership.clone.asInstanceOf[ArrayList[String]]
-          availability.remove(2)
+          val availability = new ArrayList[String]
+          availability.add("2")
+
+          val newAvailability = new ArrayList[String]
+          newAvailability.add("1")
+          newAvailability.add("3")
 
           val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
             Node(2, "localhost", 31314, Array(2, 3), true), Node(3, "localhost", 31315, Array(2, 3), false))
-          val updatedNodes = Array(nodes(0), nodes(1), Node(3, "localhost", 31315, Array(2, 3), true))
 
           mockZooKeeper.getChildren(membershipNode, true) returns membership
           nodes.foreach { node =>
             mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) returns Node.nodeToByteArray(node)
           }
-          mockZooKeeper.getChildren(availabilityNode, true) returns availability thenReturns membership
+          mockZooKeeper.getChildren(availabilityNode, true) returns availability thenReturns newAvailability
 
           zooKeeperManager ! Connected
           waitFor(10.ms)
 
           nodesReceived.length must be_==(3)
           nodesReceived must containAll(nodes)
-          nodes.zip(nodesReceived.toArray).foreach { case (n1, n2) => n1.available must be_==(n2.available) }
+          nodesReceived.foreach { n =>
+            if (n.id == 2) n.available must beTrue else n.available must beFalse
+          }
 
           zooKeeperManager ! NodeChildrenChanged(availabilityNode)
           waitFor(10.ms)
 
           nodesChangedCount must be_==(1)
           nodesReceived.length must be_==(3)
-          nodesReceived must containAll(updatedNodes)
-          updatedNodes.zip(nodesReceived.toArray).foreach { case (n1, n2) => n1.available must be_==(n2.available) }
+          nodesReceived must containAll(nodes)
+          nodesReceived.foreach { n =>
+            if (n.id == 2) n.available must beFalse else n.available must beTrue
+          }
 
           mockZooKeeper.getChildren(availabilityNode, true) was called.twice
         }
@@ -350,6 +357,32 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         mockZooKeeper.delete(path, -1) was called
       }
+
+      "notify listeners that the node list changed" in {
+        val membership = new ArrayList[String]
+        membership.add("1")
+        membership.add("2")
+        membership.add("3")
+
+        val availability = membership.clone.asInstanceOf[ArrayList[String]]
+        availability.remove(2)
+
+        val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
+          Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
+
+        mockZooKeeper.getChildren(membershipNode, true) returns membership
+        nodes.foreach { node =>
+          mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) returns Node.nodeToByteArray(node)
+        }
+        mockZooKeeper.getChildren(availabilityNode, true) returns availability
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? RemoveNode(2)
+        waitFor(10.ms)
+
+        nodesReceived.length must be_==(2)
+        nodesReceived must containAll(Array(nodes(0), nodes(2)))
+      }
     }
 
     "when a MarkNodeAvailable message is received" in {
@@ -394,6 +427,35 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         mockZooKeeper.exists(path, false) was called
         mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) wasnt called        
       }
+
+      "notify listeners that the node list changed" in {
+        val membership = new ArrayList[String]
+        membership.add("1")
+        membership.add("2")
+        membership.add("3")
+
+        val availability = membership.clone.asInstanceOf[ArrayList[String]]
+        availability.remove(2)
+
+        val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
+          Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
+
+        mockZooKeeper.getChildren(membershipNode, true) returns membership
+        nodes.foreach { node =>
+          mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) returns Node.nodeToByteArray(node)
+        }
+        mockZooKeeper.getChildren(availabilityNode, true) returns availability
+
+        zooKeeperManager ! Connected
+        waitFor(10.ms)
+
+        nodesReceived(2).available must beFalse
+
+        zooKeeperManager !? MarkNodeAvailable(3)
+        waitFor(10.ms)
+
+        nodesReceived(2).available must beTrue
+      }
     }
 
     "when a MarkNodeUnavailable message is received" in {
@@ -426,6 +488,35 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         }
 
         mockZooKeeper.delete(path, -1) was called
+      }
+
+      "notify listeners that the node list changed" in {
+        val membership = new ArrayList[String]
+        membership.add("1")
+        membership.add("2")
+        membership.add("3")
+
+        val availability = membership.clone.asInstanceOf[ArrayList[String]]
+        availability.remove(2)
+
+        val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
+          Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
+
+        mockZooKeeper.getChildren(membershipNode, true) returns membership
+        nodes.foreach { node =>
+          mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) returns Node.nodeToByteArray(node)
+        }
+        mockZooKeeper.getChildren(availabilityNode, true) returns availability
+
+        zooKeeperManager ! Connected
+        waitFor(10.ms)
+
+        nodesReceived(0).available must beTrue
+
+        zooKeeperManager !? MarkNodeUnavailable(1)
+        waitFor(10.ms)
+
+        nodesReceived(0).available must beFalse
       }
     }
   }
