@@ -37,6 +37,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     var connectedCount = 0
     var disconnectedCount = 0
     var nodesChangedCount = 0
+    var shutdownCount = 0
     var nodesReceived: Seq[Node] = Nil
 
     val notificationActor = actor {
@@ -45,6 +46,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
           case ClusterNotificationMessages.Connected(nodes) => connectedCount += 1; nodesReceived = nodes
           case ClusterNotificationMessages.Disconnected => disconnectedCount += 1
           case ClusterNotificationMessages.NodesChanged(nodes) => nodesChangedCount += 1; nodesReceived = nodes
+          case ClusterNotificationMessages.Shutdown => shutdownCount += 1
         }
       }
     }
@@ -300,7 +302,21 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     }
 
     "when a Shutdown message is received" in {
-      
+      "notify listeners" in {
+        zooKeeperManager ! Shutdown
+        waitFor(10.ms)
+
+        shutdownCount must be_==(1)
+      }
+
+      "shop handling events" in {
+        zooKeeperManager ! Shutdown
+        zooKeeperManager ! Connected
+        waitFor(10.ms)
+
+        shutdownCount must be_==(1)
+        connectedCount must be_==(0)
+      }
     }
   }
 

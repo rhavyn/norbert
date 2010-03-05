@@ -54,8 +54,11 @@ trait ZooKeeperManagerComponent {
 
         receive {
           case Connected => handleConnected
+
           case Disconnected => handleDisconnected
+
           case Expired => handleExpired
+
           case NodeChildrenChanged(path) => if (path == AVAILABILITY_NODE) {
             handleAvailabilityChanged
           } else if (path == MEMBERSHIP_NODE) {
@@ -63,6 +66,8 @@ trait ZooKeeperManagerComponent {
           } else {
             log.error("Received a notification for a path that shouldn't be monitored: ", path)
           }
+
+          case Shutdown => handleShutdown
 
           case m => log.error("Received unknown message: %s", m)
         }
@@ -134,7 +139,21 @@ trait ZooKeeperManagerComponent {
         clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
       }
     }
-    
+
+    private def handleShutdown {
+      log.ifDebug("Handling a Shutdown message")
+
+      try {
+        zooKeeper.foreach(_.close)
+      } catch {
+        case ex: Exception => log.error(ex, "Exception when closing connection to ZooKeeper")
+      }
+
+      clusterNotificationManager ! ClusterNotificationMessages.Shutdown
+
+      exit
+    }
+
     private def startZooKeeper {
       zooKeeper = try {
         watcher = new ClusterWatcher(self)
