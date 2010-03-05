@@ -326,10 +326,56 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
       }
     }
 
+    "when a AddNode message is received" in {
+      val node = Node(1, "localhost", 31313, Array(1, 2), false)
+
+      "throw a ClusterDisconnectedException if not connected" in {
+
+        zooKeeperManager !? AddNode(node) match {
+          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
+        }
+      }
+
+      "throw an InvalidNodeException if the node already exists" in {
+        val path = membershipNode + "/1"
+        mockZooKeeper.exists(path, false) returns mock[Stat]
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? AddNode(node) match {
+          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[InvalidNodeException])
+        }
+
+        mockZooKeeper.exists(path, false) was called
+      }
+
+      "add the node to ZooKeeper" in {
+        val path = membershipNode + "/1"
+        mockZooKeeper.exists(path, false) returns null
+        mockZooKeeper.create(path, node, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT) returns path
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? AddNode(node) match {
+          case ZooKeeperManagerResponse(r) => r must beNone
+        }
+
+        mockZooKeeper.exists(path, false) was called
+        mockZooKeeper.create(path, node, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT) was called
+      }
+
+      "notify listeners that the node list changed" in {
+        zooKeeperManager ! Connected
+        zooKeeperManager !? AddNode(node)
+
+        nodesChangedCount must be_==(1)
+        nodesReceived.length must be_==(1)
+        nodesReceived(0) must be_==(node)
+      }
+    }
+
     "when a RemoveNode message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
         zooKeeperManager !? RemoveNode(1) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[Exception].which(_ must haveClass[ClusterDisconnectedException])
+          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
 
@@ -388,7 +434,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     "when a MarkNodeAvailable message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
         zooKeeperManager !? MarkNodeAvailable(1) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[Exception].which(_ must haveClass[ClusterDisconnectedException])
+          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
 
@@ -461,7 +507,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     "when a MarkNodeUnavailable message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
         zooKeeperManager !? MarkNodeUnavailable(1) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[Exception].which(_ must haveClass[ClusterDisconnectedException])
+          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
 

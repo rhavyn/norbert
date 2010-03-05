@@ -34,11 +34,12 @@ trait ZooKeeperManagerComponent {
     case class NodeChildrenChanged(path: String) extends ZooKeeperManagerMessage
     case object Shutdown extends ZooKeeperManagerMessage
 
+    case class AddNode(node: Node)
     case class RemoveNode(nodeId: Int)
     case class MarkNodeAvailable(nodeId: Int)
     case class MarkNodeUnavailable(nodeId: Int)
 
-    case class ZooKeeperManagerResponse(exception: Option[Exception])
+    case class ZooKeeperManagerResponse(exception: Option[ClusterException])
   }
 
   class ZooKeeperManager(connectString: String, sessionTimeout: Int, clusterName: String, clusterNotificationManager: Actor)
@@ -73,6 +74,8 @@ trait ZooKeeperManagerComponent {
           } else {
             log.error("Received a notification for a path that shouldn't be monitored: ", path)
           }
+
+          case AddNode(node) => handleAddNode(node)
 
           case RemoveNode(nodeId) => handleRemoveNode(nodeId)
 
@@ -163,6 +166,29 @@ trait ZooKeeperManagerComponent {
       doIfConnectedWithZooKeeper("a membership changed event") { zk =>
         lookupCurrentNodes(zk)
         clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+      }
+    }
+
+    private def handleAddNode(node: Node) {
+      log.ifDebug("Handling an AddNode(%s) message", node)
+
+      doIfConnectedWithZooKeeperWithResponse("an AddNode message", "adding node") { zk =>
+        val path = "%s/%d".format(MEMBERSHIP_NODE, node.id)
+
+        if (zk.exists(path, false) != null) {
+          Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))
+        } else {
+          try {
+            zk.create(path, node, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+
+            currentNodes += (node.id -> node)
+            clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+            
+            None
+          } catch {
+            case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))
+          }
+        }
       }
     }
 
@@ -327,7 +353,7 @@ trait ZooKeeperManagerComponent {
       }
     }
 
-    private def doIfConnectedWithZooKeeperWithResponse(what: String, exceptionDescription: String)(block: ZooKeeper => Option[Exception]) {
+    private def doIfConnectedWithZooKeeperWithResponse(what: String, exceptionDescription: String)(block: ZooKeeper => Option[ClusterException]) {
       import ZooKeeperManagerMessages.ZooKeeperManagerResponse
 
       if (connected) {
@@ -342,7 +368,7 @@ trait ZooKeeperManagerComponent {
           reply(ZooKeeperManagerResponse(response))
         }
       } else {
-        reply(ZooKeeperManagerResponse(Some(new ClusterDisconnectedException("Unable to %s while cluster is disconnected".format(exceptionDescription)))))
+        reply(ZooKeeperManagerResponse(Some(new ClusterDisconnectedException("Error while %s, cluster is disconnected".format(exceptionDescription)))))
       }
     }
 
