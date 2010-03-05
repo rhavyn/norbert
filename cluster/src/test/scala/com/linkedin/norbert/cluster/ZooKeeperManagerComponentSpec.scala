@@ -351,6 +351,50 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         mockZooKeeper.delete(path, -1) was called
       }
     }
+
+    "when a MarkNodeAvailable message is received" in {
+      "throw a ClusterDisconnectedException if not connected" in {
+        zooKeeperManager !? MarkNodeAvailable(1) match {
+          case ZooKeeperManagerResponse(r) => r must beSome[Exception].which(_ must haveClass[ClusterDisconnectedException])
+        }
+      }
+
+      "add the znode to ZooKeeper if it doesn't exist" in {
+        val znodes = List(rootNode, membershipNode, availabilityNode)
+        znodes.foreach(mockZooKeeper.exists(_, false) returns mock[Stat])
+
+        val path = availabilityNode + "/1"
+
+        mockZooKeeper.exists(path, false) returns null
+        mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) returns path
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? MarkNodeAvailable(1) match {
+          case ZooKeeperManagerResponse(r) => r must beNone
+        }
+
+        mockZooKeeper.exists(path, false) was called
+        mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) was called
+      }
+
+      "does nothing if the znode already exists" in {
+        val znodes = List(rootNode, membershipNode, availabilityNode)
+        znodes.foreach(mockZooKeeper.exists(_, false) returns mock[Stat])
+
+        val path = availabilityNode + "/1"
+
+        mockZooKeeper.exists(path, false) returns mock[Stat]
+        mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) returns path
+
+        zooKeeperManager ! Connected
+        zooKeeperManager !? MarkNodeAvailable(1) match {
+          case ZooKeeperManagerResponse(r) => r must beNone
+        }
+
+        mockZooKeeper.exists(path, false) was called
+        mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) wasnt called        
+      }
+    }
   }
 
   "ClusterWatcher" should {

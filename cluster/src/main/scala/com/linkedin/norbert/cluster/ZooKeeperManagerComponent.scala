@@ -75,6 +75,8 @@ trait ZooKeeperManagerComponent {
 
           case RemoveNode(nodeId) => handleRemoveNode(nodeId)
 
+          case MarkNodeAvailable(nodeId) => handleMarkNodeAvailable(nodeId)
+
           case Shutdown => handleShutdown
 
           case m => log.error("Received unknown message: %s", m)
@@ -149,34 +151,40 @@ trait ZooKeeperManagerComponent {
     }
 
     private def handleRemoveNode(nodeId: Int) {
-      import ZooKeeperManagerMessages.ZooKeeperManagerResponse
-
       log.ifDebug("Handling a RemoveNode(%d) message", nodeId)
 
-      if (connected) {
-        doWithZooKeeper("a RemoveNode message") { zk =>
-          val path = "%s/%d".format(MEMBERSHIP_NODE, nodeId)
+      doIfConnectedWithZooKeeperWithResponse("a RemoveNode message", "deleting node") { zk =>
+        val path = "%s/%d".format(MEMBERSHIP_NODE, nodeId)
 
-          val response = try {
-            if (zk.exists(path, false) == null) {
-              Some(new InvalidNodeException("Node with id %d does not exist".format(nodeId)))
-            } else {
-              try {
-                zk.delete(path, -1)
-                None
-              } catch {
-                case ex: KeeperException if ex.code == KeeperException.Code.NONODE => None
-              }
-            }
+        if (zk.exists(path, false) == null) {
+          Some(new InvalidNodeException("Node with id %d does not exist".format(nodeId)))
+        } else {
+          try {
+            zk.delete(path, -1)
+            None
           } catch {
-            case ex: KeeperException => Some(new InvalidNodeException("Error while deleting node", ex))
-            case ex: Exception => Some(new InvalidNodeException("Unexpected exception while deleting node", ex))
+            case ex: KeeperException if ex.code == KeeperException.Code.NONODE => None
           }
-
-          reply(ZooKeeperManagerResponse(response))
         }
-      } else {
-        reply(ZooKeeperManagerResponse(Some(new ClusterDisconnectedException("Unable to remove node while cluster is disconnected"))))
+      }
+    }
+
+    private def handleMarkNodeAvailable(nodeId: Int) {
+      log.ifDebug("Handling a MarkNodeAvailable(%d) message", nodeId)
+
+      doIfConnectedWithZooKeeperWithResponse("a MarkNodeAvailable message", "marking node available") { zk =>
+        val path = "%s/%d".format(AVAILABILITY_NODE, nodeId)
+
+        if (zk.exists(path, false) == null) {
+          try {
+            zk.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+            None
+          } catch {
+            case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => None
+          }
+        } else {
+          None
+        }
       }
     }
 
@@ -261,6 +269,25 @@ trait ZooKeeperManagerComponent {
     private def doIfConnectedWithZooKeeper(what: String)(block: ZooKeeper => Unit) {
       doIfConnected(what) {
         doWithZooKeeper(what)(block)
+      }
+    }
+
+    private def doIfConnectedWithZooKeeperWithResponse(what: String, exceptionDescription: String)(block: ZooKeeper => Option[Exception]) {
+      import ZooKeeperManagerMessages.ZooKeeperManagerResponse
+
+      if (connected) {
+        doWithZooKeeper(what) { zk =>
+          val response = try {
+            block(zk)
+          } catch {
+            case ex: KeeperException => Some(new InvalidNodeException("Error while %s".format(exceptionDescription), ex))
+            case ex: Exception => Some(new InvalidNodeException("Unexpected exception while %s".format(exceptionDescription), ex))
+          }
+
+          reply(ZooKeeperManagerResponse(response))
+        }
+      } else {
+        reply(ZooKeeperManagerResponse(Some(new ClusterDisconnectedException("Unable to %s while cluster is disconnected".format(exceptionDescription)))))
       }
     }
 
