@@ -36,6 +36,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
     var connectedCount = 0
     var disconnectedCount = 0
+    var nodesChangedCount = 0
     var nodesReceived: Seq[Node] = Nil
 
     val notificationActor = actor {
@@ -43,6 +44,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         react {
           case ClusterNotificationMessages.Connected(nodes) => connectedCount += 1; nodesReceived = nodes
           case ClusterNotificationMessages.Disconnected => disconnectedCount += 1
+          case ClusterNotificationMessages.NodesChanged(nodes) => nodesChangedCount += 1; nodesReceived = nodes
         }
       }
     }
@@ -132,7 +134,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         membership.add("3")
 
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
-        availability.remove(2)
+        availability.remove(1)
 
         val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
           Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
@@ -147,7 +149,9 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         waitFor(10.ms)
 
         connectedCount must be_==(1)
-        nodesReceived must haveTheSameElementsAs(nodes)
+        nodesReceived.length must be_==(3)
+        nodesReceived must containAll(nodes)
+        nodes.zip(nodesReceived.toArray).foreach { case (n1, n2) => n1.available must be_==(n2.available) }
       }
     }
 
@@ -169,11 +173,130 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     }
 
     "when an Expired message is received" in {
+      "reconnect to ZooKeeper" in {
+        var callCount = 0
+        def countedZkf(connectString: String, sessionTimeout: Int, watcher: Watcher) = {
+          callCount += 1
+          mockZooKeeper
+        }
 
+        val zkm = new ZooKeeperManager("", 0, "", notificationActor)(countedZkf _)
+        zkm.start
+        zkm ! Connected
+        zkm ! Expired
+        waitFor(10.ms)
+
+        callCount must be_==(2)        
+      }
+
+      "send a notification to the notification manager actor" in {
+        zooKeeperManager ! Connected
+        zooKeeperManager ! Expired
+        waitFor(10.ms)
+
+        disconnectedCount must be_==(1)
+      }
+
+      "do nothing if not connected" in {
+        zooKeeperManager ! Expired
+        waitFor(10.ms)
+
+        disconnectedCount must be_==(0)
+      }
     }
 
     "when a NodeChildrenChanged message is received" in {
+      "and the availability node changed" in {
+        "update the node availability and notify listeners" in {
+          val membership = new ArrayList[String]
+          membership.add("1")
+          membership.add("2")
+          membership.add("3")
 
+          val availability = membership.clone.asInstanceOf[ArrayList[String]]
+          availability.remove(2)
+
+          val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
+            Node(2, "localhost", 31314, Array(2, 3), true), Node(3, "localhost", 31315, Array(2, 3), false))
+          val updatedNodes = Array(nodes(0), nodes(1), Node(3, "localhost", 31315, Array(2, 3), true))
+
+          mockZooKeeper.getChildren(membershipNode, true) returns membership
+          nodes.foreach { node =>
+            mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) returns Node.nodeToByteArray(node)
+          }
+          mockZooKeeper.getChildren(availabilityNode, true) returns availability thenReturns membership
+
+          zooKeeperManager ! Connected
+          waitFor(10.ms)
+
+          nodesReceived.length must be_==(3)
+          nodesReceived must containAll(nodes)
+          nodes.zip(nodesReceived.toArray).foreach { case (n1, n2) => n1.available must be_==(n2.available) }
+
+          zooKeeperManager ! NodeChildrenChanged(availabilityNode)
+          waitFor(10.ms)
+
+          nodesChangedCount must be_==(1)
+          nodesReceived.length must be_==(3)
+          nodesReceived must containAll(updatedNodes)
+          updatedNodes.zip(nodesReceived.toArray).foreach { case (n1, n2) => n1.available must be_==(n2.available) }
+
+          mockZooKeeper.getChildren(availabilityNode, true) was called.twice
+        }
+
+        "do nothing if not connected" in {
+          zooKeeperManager ! NodeChildrenChanged(availabilityNode)
+          waitFor(10.ms)
+
+          nodesChangedCount must be_==(0)
+        }
+      }
+
+      "and the membership node changed" in {
+        "update the nodes and notify listeners" in {
+          val membership = new ArrayList[String]
+          membership.add("1")
+          membership.add("2")
+
+          val newMembership = new ArrayList[String]
+          newMembership.add("1")
+          newMembership.add("2")
+          newMembership.add("3")
+
+          val updatedNodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
+            Node(2, "localhost", 31314, Array(2, 3), true), Node(3, "localhost", 31315, Array(2, 3), false))
+          val nodes = updatedNodes.slice(0, 2)
+
+          mockZooKeeper.getChildren(membershipNode, true) returns membership thenReturns newMembership
+          updatedNodes.foreach { node =>
+            mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) returns Node.nodeToByteArray(node)
+          }
+          mockZooKeeper.getChildren(availabilityNode, true) returns membership
+
+          zooKeeperManager ! Connected
+          waitFor(10.ms)
+
+          nodesReceived.length must be_==(2)
+          nodesReceived must containAll(nodes)
+
+          zooKeeperManager ! NodeChildrenChanged(membershipNode)
+          waitFor(10.ms)
+
+          nodesChangedCount must be_==(1)
+          nodesReceived.length must be_==(3)
+          nodesReceived must containAll(updatedNodes)
+
+          mockZooKeeper.getChildren(availabilityNode, true) was called.twice
+          mockZooKeeper.getChildren(membershipNode, true) was called.twice          
+        }
+
+        "do nothing if not connected" in {
+          zooKeeperManager ! NodeChildrenChanged(membershipNode)
+          waitFor(10.ms)
+
+          nodesChangedCount must be_==(0)
+        }
+      }
     }
 
     "when a Shutdown message is received" in {
