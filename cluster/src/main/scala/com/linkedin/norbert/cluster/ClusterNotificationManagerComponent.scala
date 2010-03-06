@@ -68,7 +68,7 @@ trait ClusterNotificationManagerComponent {
 
   sealed trait ClusterNotificationMessage
   object ClusterNotificationMessages {
-    case class AddListener(listener: ClusterListener) extends ClusterNotificationMessage
+    case class AddListener(listener: Actor) extends ClusterNotificationMessage
     case class AddedListener(key: ClusterListenerKey) extends ClusterNotificationMessage
     case class Connected(nodes: Seq[Node]) extends ClusterNotificationMessage
     case object Disconnected extends ClusterNotificationMessage
@@ -111,23 +111,23 @@ trait ClusterNotificationManagerComponent {
       }
     }
 
-    private def handleAddListener(listener: ClusterListener) {
+    private def handleAddListener(listener: Actor) {
       log.ifDebug("Handling AddListener(%s) message", listener)
 
-      val a = actor {
-        loop {
-          self.receive {
-            case event: ClusterEvent => listener.handleClusterEvent(event)
-            case 'quit => exit
-            case m => log.error("Received invalid message: " + m)
-          }
-        }
-      }
+//      val a = actor {
+//        loop {
+//          self.receive {
+//            case event: ClusterEvent => listener.handleClusterEvent(event)
+//            case 'quit => exit
+//            case m => log.error("Received invalid message: " + m)
+//          }
+//        }
+//      }
 
       listenerId += 1
       val key = ClusterListenerKey(listenerId)
-      listeners += (key -> a)
-      if (connected) a ! ClusterEvents.Connected(currentNodes, currentRouter)
+      listeners += (key -> listener)
+      if (connected) listener ! ClusterEvents.Connected(currentNodes, currentRouter)
       reply(ClusterNotificationMessages.AddedListener(key))
     }
 
