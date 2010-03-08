@@ -21,10 +21,10 @@ import org.specs.util.WaitFor
 import actors.Actor._
 
 class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ClusterNotificationManagerComponent
-        with RouterFactoryComponent {
-  val clusterNotificationManager = new ClusterNotificationManager
+        with RouterFactoryComponent with ClusterListenerComponent with ZooKeeperManagerComponent {
   val routerFactory = mock[RouterFactory]
   type Id = Int
+  val clusterNotificationManager = new ClusterNotificationManager
 
   clusterNotificationManager.start
 

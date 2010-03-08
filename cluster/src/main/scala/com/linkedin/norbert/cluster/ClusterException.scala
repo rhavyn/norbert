@@ -29,7 +29,9 @@ class ClusterException(message: String, cause: Throwable) extends NorbertExcepti
 /**
  * Exception that indicates that an operation was attempted when the current node was not connected to the cluster.
  */
-class ClusterDisconnectedException(message: String) extends ClusterException(message)
+class ClusterDisconnectedException(message: String) extends ClusterException(message) {
+  def this() = this(null)
+}
 
 /**
  * Exception that indicates that an operation was attempted before <code>start</code> was called on the cluster.

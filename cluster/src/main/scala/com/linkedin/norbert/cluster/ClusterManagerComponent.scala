@@ -23,7 +23,7 @@ import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
  * The component which manages the state of the cluster and notifies clients when the state changes.
  */
 trait ClusterManagerComponent {
-  this: ClusterComponent with RouterFactoryComponent =>
+  this: ClusterListenerComponent with RouterFactoryComponent =>
 
   val clusterManager: Actor
 

@@ -19,5 +19,5 @@ package com.linkedin.norbert.util
  * A mixin trait which provides a <code>Logger</code> instance.
  */
 trait Logging {
-  val log: Logger = Logger(this)
+  protected val log: Logger = Logger(this)
 }

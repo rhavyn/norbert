@@ -20,8 +20,7 @@ package com.linkedin.norbert.cluster
  * component registry instead of pulling in the individual components. A <code>RouterFactory</code> implementation
  * must be provided.
  */
-trait DefaultClusterComponent extends ClusterComponent with ClusterManagerComponent
-        with ClusterWatcherComponent with ZooKeeperMonitorComponent {
+trait DefaultClusterComponent extends ClusterComponent {
   this: RouterFactoryComponent =>
 
   /**
@@ -32,20 +31,12 @@ trait DefaultClusterComponent extends ClusterComponent with ClusterManagerCompon
   /**
    * The URL string to use to connect to ZooKeeper.
    */
-  val zooKeeperUrls: String
+  val zooKeeperConnectString: String
 
   /**
    * The ZooKeeper session timeout in milliseconds.
    */
   val zooKeeperSessionTimeout: Int
 
-  /**
-   * The cluster disconnect timeout in milliseconds.
-   */
-  val clusterDisconnectTimeout: Int
-
-  val clusterManager = new ClusterManager
-  val clusterWatcher = new ClusterWatcher(clusterDisconnectTimeout)
-  val zooKeeperMonitor = new ZooKeeperMonitor(zooKeeperUrls, zooKeeperSessionTimeout, clusterName)
-  val cluster = new DefaultCluster
+  val cluster = Cluster(zooKeeperConnectString, zooKeeperSessionTimeout, clusterName)
 }

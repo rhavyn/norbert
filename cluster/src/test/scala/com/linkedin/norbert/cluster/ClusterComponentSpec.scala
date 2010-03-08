@@ -25,70 +25,134 @@ import org.specs.mock.Mockito
 import org.mockito.Matchers._
 
 class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ClusterComponent
-        with ClusterManagerComponent with ClusterWatcherComponent with ZooKeeperMonitorComponent
-        with RouterFactoryComponent {
-
-  val cluster = mock[Cluster]
-  val zooKeeperMonitor = mock[ZooKeeperMonitor]
-  val clusterWatcher = mock[ClusterWatcher]
-  val clusterManager = new Actor {
-    var shutdownCount = 0
-    var addListenerCount = 0
-    var removeListenerCount = 0
-    var currentListener: ClusterListener = null
-
-    def act() = {
-      loop {
-        react {
-          case ClusterMessages.AddListener(l) =>
-            currentListener = l
-            addListenerCount += 1
-          case ClusterMessages.RemoveListener(l) =>
-            currentListener = null
-            removeListenerCount += 1
-          case ClusterMessages.Shutdown => shutdownCount += 1
-        }
-      }
-    }
-  }
-  clusterManager.start
+        with ZooKeeperManagerComponent with ClusterNotificationManagerComponent with RouterFactoryComponent
+        with ClusterListenerComponent {
 
   type Id = Any
   val routerFactory = null
 
+  val clusterListenerKey = ClusterListenerKey(10101L)
+  val currentRouter = mock[Router]
+  val currentNodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
+          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
+          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
+  var clusterActor: Actor = _
+  var getCurrentNodesCount = 0
+  var getCurrentRouterCount = 0
+  var addListenerCount = 0
+  var currentListeners: List[Actor] = Nil
+  var removeListenerCount = 0
+  var cnmShutdownCount = 0
+
+  val clusterNotificationManager = actor {
+    loop {
+      react {
+        case ClusterNotificationMessages.Connected(nodes) =>
+        case ClusterNotificationMessages.AddListener(a) =>
+          if (clusterActor == null) clusterActor = a
+          else {
+            addListenerCount += 1
+            currentListeners = a :: currentListeners
+          }
+          reply(ClusterNotificationMessages.AddedListener(clusterListenerKey))
+
+        case ClusterNotificationMessages.RemoveListener(key) => removeListenerCount += 1
+
+        case ClusterNotificationMessages.GetCurrentNodes =>
+          getCurrentNodesCount += 1
+          reply(ClusterNotificationMessages.CurrentNodes(currentNodes))
+
+        case ClusterNotificationMessages.GetCurrentRouter =>
+          getCurrentRouterCount += 1
+          reply(ClusterNotificationMessages.CurrentRouter(Some(currentRouter)))
+
+        case ClusterNotificationMessages.Shutdown => cnmShutdownCount += 1
+      }
+    }
+  }
+
+  var addNodeCount = 0
+  var nodeAdded: Node = _
+  var removeNodeCount = 0
+  var nodeRemovedId = 0
+  var markNodeAvailableCount = 0
+  var markNodeAvailableId = 0
+  var markNodeUnavailableCount = 0
+  var markNodeUnavailableId = 0
+  var zkmShutdownCount = 0
+
+  val zooKeeperManager = actor {
+    loop {
+      react {
+        case ZooKeeperManagerMessages.AddNode(node) =>
+          addNodeCount += 1
+          nodeAdded = node
+          reply(ZooKeeperManagerMessages.ZooKeeperManagerResponse(None))
+
+        case ZooKeeperManagerMessages.RemoveNode(id) =>
+          removeNodeCount += 1
+          nodeRemovedId = id
+          reply(ZooKeeperManagerMessages.ZooKeeperManagerResponse(None))
+
+        case ZooKeeperManagerMessages.MarkNodeAvailable(id) =>
+          markNodeAvailableCount += 1
+          markNodeAvailableId = id
+          reply(ZooKeeperManagerMessages.ZooKeeperManagerResponse(None))
+
+        case ZooKeeperManagerMessages.MarkNodeUnavailable(id) =>
+          markNodeUnavailableCount += 1
+          markNodeUnavailableId = id
+          reply(ZooKeeperManagerMessages.ZooKeeperManagerResponse(None))
+
+        case ZooKeeperManagerMessages.Shutdown => zkmShutdownCount += 1
+      }
+    }
+  }
+
+  val cluster = new Cluster(clusterNotificationManager, zooKeeperManager)
+  cluster.start
+
   "ClusterComponent" should {
+    "when starting start the cluster notification and ZooKeeper manager actors" in {
+      val cNM = new Actor {
+        var started = false
+
+        def act() = {
+          started = true
+          react {
+            case ClusterNotificationMessages.AddListener(_) => reply(ClusterNotificationMessages.AddedListener(null))
+          }
+        }
+      }
+
+      val zKM = new Actor {
+        var started = false
+
+        def act() = started = true
+      }
+
+      val c = new Cluster(cNM, zKM)
+      c.start
+
+      cNM.started must beTrue
+      zKM.started must beTrue
+    }
+
     "start" in {
       "disconnected" in {
-        val cluster = new DefaultCluster
-        cluster.start
         cluster.isConnected must beFalse
       }
 
       "not shutdown" in {
-        val cluster = new DefaultCluster
-        cluster.start
         cluster.isShutdown must beFalse
       }
-      
-      "with an empty node list" in {
-        val cluster = new DefaultCluster
-        cluster.start
-        cluster.nodes must haveSize(0)
-      }
-
-      "with no router" in {
-        val cluster = new DefaultCluster
-        cluster.start
-        cluster.router must beNone
-      }
     }
-    
-    "throw ClusterShutdownException if shut down for nodes, router, *Listener, await*" in {
-      val cluster = new DefaultCluster
-      cluster.start
 
+    "throw ClusterShutdownException if shut down for nodes, nodeWith*, router, *Listener, await*" in {
       cluster.shutdown
       cluster.nodes must throwA[ClusterShutdownException]
+      cluster.nodeWithAddress(new InetSocketAddress("localhost", 31313)) must throwA[ClusterShutdownException]
+      cluster.nodeWithId(1) must throwA[ClusterShutdownException]
       cluster.router must throwA[ClusterShutdownException]
       cluster.addListener(null) must throwA[ClusterShutdownException]
       cluster.removeListener(null) must throwA[ClusterShutdownException]
@@ -97,205 +161,135 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       cluster.awaitConnectionUninterruptibly must throwA[ClusterShutdownException]
     }
 
-    "throw ClusterDisconnectedException if disconnected for addNode, removeNode, markNodeAvailable, nodeWith" in {
-      val cluster = new DefaultCluster
-      cluster.start
-
+    "throw ClusterDisconnectedException if disconnected for addNode, removeNode, markNodeAvailable" in {
       cluster.addNode(1, new InetSocketAddress("localhost", 31313), Array(0, 1)) must throwA[ClusterDisconnectedException]
       cluster.removeNode(1) must throwA[ClusterDisconnectedException]
       cluster.markNodeAvailable(1) must throwA[ClusterDisconnectedException]
-      cluster.nodeWithAddress(new InetSocketAddress("localhost", 31313)) must throwA[ClusterDisconnectedException]
-      cluster.nodeWithId(1) must throwA[ClusterDisconnectedException]
     }
 
-    "start zooKeeperMonitor when start is called" in {
-      doNothing.when(zooKeeperMonitor).start()
+    "handle a connected event" in {
+      clusterActor ! ClusterEvents.Connected(Nil, None)
+      waitFor(10.ms)
 
-      val cluster = new DefaultCluster
-      cluster.start
-
-      zooKeeperMonitor.start was called
+      cluster.isConnected must beTrue
     }
 
-    "handle cluster events" in {
-      "Connected updates the current state and make the cluster connected" in {
-        val cluster = new DefaultCluster
-        cluster.start
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false))
-
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
-
-        cluster.isConnected must beTrue
-        cluster.nodes must haveTheSameElementsAs(nodes)
-        cluster.router must beSome[Router]
-      }
-
-      "NodesChanged updates the current state" in {
-        val cluster = new DefaultCluster
-        cluster.start
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false))
-
-        cluster.handleClusterEvent(ClusterEvents.NodesChanged(nodes, Some(mock[Router])))
-
-        cluster.isConnected must beFalse // The connected state of the cluster shouldn't change
-        cluster.nodes must haveTheSameElementsAs(nodes)
-        cluster.router must beSome[Router]
-      }
-
-      "Disconnected disconnects the cluster and resets the current state" in {
-        val cluster = new DefaultCluster
-        cluster.start
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false))
-
-        cluster.handleClusterEvent(ClusterEvents.NodesChanged(nodes, Some(mock[Router])))
-        cluster.handleClusterEvent(ClusterEvents.Disconnected)
-
-        cluster.isConnected must beFalse // The connected state of the cluster shouldn't change
-        cluster.nodes must haveSize(0)
-        cluster.router must beNone
-      }
+    "handle a disconnected event" in {
+      clusterActor ! ClusterEvents.Connected(Nil, None)
+      waitFor(10.ms)
+      cluster.isConnected must beTrue
+      clusterActor ! ClusterEvents.Disconnected
+      waitFor(10.ms)
+      cluster.isConnected must beFalse
     }
 
-    "add node should add a node to ZooKeeperMonitor" in {
-      val node = Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false)
+    "addNode should add a node to ZooKeeperManager" in {
+      clusterActor ! ClusterEvents.Connected(Nil, None)
+      waitFor(10.ms)
 
-      zooKeeperMonitor.addNode(node.id, node.address, node.partitions) returns node
-
-      val cluster = new DefaultCluster
-      cluster.start
-      cluster.handleClusterEvent(ClusterEvents.Connected(Array(node), Some(mock[Router])))
-      cluster.addNode(node.id, node.address, node.partitions) must be_==(node)
-
-      zooKeeperMonitor.addNode(node.id, node.address, node.partitions) was called
+      val isa = new InetSocketAddress("localhost", 31313)
+      cluster.addNode(1, isa, Array(1, 2)) must notBeNull
+      addNodeCount must be_==(1)
+      nodeAdded.id must be_==(1)
+      nodeAdded.address must be_==(isa)
+      nodeAdded.available must be_==(false)
     }
 
-    "remove node should remove a node from ZooKeeperMonitor" in {
-      val node = Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false)
+    "removeNode should remove a node from ZooKeeperManager" in {
+      clusterActor ! ClusterEvents.Connected(Nil, None)
+      waitFor(10.ms)
 
-      doNothing.when(zooKeeperMonitor).removeNode(node.id)
-
-      val cluster = new DefaultCluster
-      cluster.start
-      cluster.handleClusterEvent(ClusterEvents.Connected(Array(node), Some(mock[Router])))
-      cluster.removeNode(node.id)
-
-      zooKeeperMonitor.removeNode(node.id) was called
+      cluster.removeNode(1)
+      removeNodeCount must be_==(1)
+      nodeRemovedId must be_==(1)
     }
 
-    "mark node available should mark a node available to ZooKeeperMonitor" in {
-      val node = Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), false)
+    "markNodeAvailable should mark a node available in ZooKeeperManager" in {
+      clusterActor ! ClusterEvents.Connected(Nil, None)
+      waitFor(10.ms)
 
-      doNothing.when(zooKeeperMonitor).markNodeAvailable(node.id)
+      cluster.markNodeAvailable(11)
+      markNodeAvailableCount must be_==(1)
+      markNodeAvailableId must be_==(11)
+    }
 
-      val cluster = new DefaultCluster
-      cluster.start
-      cluster.handleClusterEvent(ClusterEvents.Connected(Array(node), Some(mock[Router])))
-      cluster.markNodeAvailable(node.id)
+    "markNodeUnavailable should mark a node unavailable in ZooKeeperMonitor" in {
+      clusterActor ! ClusterEvents.Connected(Nil, None)
+      waitFor(10.ms)
 
-      zooKeeperMonitor.markNodeAvailable(node.id) was called
+      cluster.markNodeUnavailable(111)
+      markNodeUnavailableCount must be_==(1)
+      markNodeUnavailableId must be_==(111)
+    }
+
+    "nodes should ask the ClusterNotificationManager for the current node list" in {
+      clusterActor ! ClusterEvents.Connected(Nil, None)
+      waitFor(10.ms)
+
+      val nodes = cluster.nodes
+      nodes.length must be_==(3)
+      nodes must containAll(currentNodes)
+      getCurrentNodesCount must be_==(1)
+    }
+
+    "router should ask the ClusterNotificationManager for the current router" in {
+      clusterActor ! ClusterEvents.Connected(Nil, None)
+      waitFor(10.ms)
+
+      cluster.router must beSome[Router].which(_ must be(currentRouter))
+      getCurrentRouterCount must be_==(1)
     }
 
     "when handling nodeWithId" in {
       "return the node that matches the specified id" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        val cluster = new DefaultCluster
-        cluster.start
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
-        cluster.nodeWithId(2) must beSome[Node].which(_ must be_==(nodes(1)))
+        cluster.nodeWithId(2) must beSome[Node].which(_ must be_==(currentNodes(1)))
       }
 
-      "returns None if no matching id" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        val cluster = new DefaultCluster
-        cluster.start
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
+      "return None if no matching id" in {
         cluster.nodeWithId(4) must beNone
       }
     }
 
     "when handling nodeWithAddress" in {
       "return the node that matches the specified address and port" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        val cluster = new DefaultCluster
-        cluster.start
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
-        cluster.nodeWithAddress(new InetSocketAddress("localhost", 31314)) must beSome[Node].which(_ must be_==(nodes(1)))
+        cluster.nodeWithAddress(new InetSocketAddress("localhost", 31314)) must beSome[Node].which(_ must be_==(currentNodes(1)))
       }
 
       "return the node that matches the specified port" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        val cluster = new DefaultCluster
-        cluster.start
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
-        cluster.nodeWithAddress(new InetSocketAddress(31315)) must beSome[Node].which(_ must be_==(nodes(2)))
+        cluster.nodeWithAddress(new InetSocketAddress(31315)) must beSome[Node].which(_ must be_==(currentNodes(2)))
       }
 
       "return None if no matching address" in {
-        val nodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
-
-        val cluster = new DefaultCluster
-        cluster.start
-        cluster.handleClusterEvent(ClusterEvents.Connected(nodes, Some(mock[Router])))
         cluster.nodeWithAddress(new InetSocketAddress(31316)) must beNone
       }
     }
 
-    "send an AddListener message to ClusterManager for addListener" in {
+    "send an AddListener message to ClusterNotificationManager for addListener" in {
       val listener = new ClusterListener {
-        def handleClusterEvent(event: ClusterEvent) = null
+        var callCount = 0
+        def handleClusterEvent(event: ClusterEvent): Unit = callCount += 1
       }
-      val count = clusterManager.addListenerCount
 
-      val cluster = new DefaultCluster
-      cluster.start
-      cluster.addListener(listener)
-
+      cluster.addListener(listener) must notBeNull
+      addListenerCount must be_==(1)
+      currentListeners.head ! ClusterEvents.Disconnected
       waitFor(10.ms)
-      clusterManager.addListenerCount must be_==(count + 1)
-      clusterManager.currentListener must be_==(listener)
+      listener.callCount must be_==(1)
     }
 
-    "send a RemoveListener message to ClusterManager for removeListener" in {
-      val listener = new ClusterListener {
-        def handleClusterEvent(event: ClusterEvent) = null
-      }
-      val count = clusterManager.removeListenerCount
-
-      val cluster = new DefaultCluster
-      cluster.start
-      cluster.removeListener(listener)
-
+    "send a RemoveListener message to ClusterNotificationManager for removeListener" in {
+      cluster.removeListener(ClusterListenerKey(1L))
       waitFor(10.ms)
-      clusterManager.removeListenerCount must be_==(count + 1)
+      removeListenerCount must be_==(1)
     }
 
-    "shutdown ClusterManager, ClusterWatcher and ZooKeeperMonitor when shut down" in {
-      doNothing.when(clusterWatcher).shutdown()
-      doNothing.when(zooKeeperMonitor).shutdown()
-      val count = clusterManager.shutdownCount
-
-      val cluster = new DefaultCluster
-      cluster.start
+    "shutdown ClusterNotificationManager and ZooKeeperManager when shut down" in {
       cluster.shutdown
-
       waitFor(10.ms)
-      clusterManager.shutdownCount must be_==(count + 1)
-      clusterWatcher.shutdown was called
-      zooKeeperMonitor.shutdown was called
+
+      cnmShutdownCount must be_==(1)
+      zkmShutdownCount must be_==(1)
+
       cluster.isShutdown must beTrue
     }
   }

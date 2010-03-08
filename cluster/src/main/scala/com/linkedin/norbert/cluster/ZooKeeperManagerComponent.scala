@@ -257,12 +257,11 @@ trait ZooKeeperManagerComponent {
       log.ifDebug("Handling a Shutdown message")
 
       try {
+        watcher.shutdown
         zooKeeper.foreach(_.close)
       } catch {
         case ex: Exception => log.error(ex, "Exception when closing connection to ZooKeeper")
       }
-
-      clusterNotificationManager ! ClusterNotificationMessages.Shutdown
 
       exit
     }
@@ -375,7 +374,7 @@ trait ZooKeeperManagerComponent {
     implicit def mapIntNodeToSeqNode(map: Map[Int, Node]): Seq[Node] = map.map { case (key, node) => node }.toSeq
   }
 
-  private implicit def defaultZooKeeperFactory(connectString: String, sessionTimeout: Int, watcher: Watcher) = new ZooKeeper(connectString, sessionTimeout, watcher)
+  protected implicit def defaultZooKeeperFactory(connectString: String, sessionTimeout: Int, watcher: Watcher) = new ZooKeeper(connectString, sessionTimeout, watcher)
   
   class ClusterWatcher(zooKeeperManager: Actor) extends Watcher {
     @volatile private var shutdownSwitch = false

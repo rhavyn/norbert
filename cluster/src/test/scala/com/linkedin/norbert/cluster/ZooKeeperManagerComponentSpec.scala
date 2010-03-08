@@ -25,7 +25,7 @@ import org.apache.zookeeper._
 import java.util.ArrayList
 
 class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ZooKeeperManagerComponent
-        with ClusterNotificationManagerComponent with RouterFactoryComponent {
+        with ClusterNotificationManagerComponent with RouterFactoryComponent with ClusterListenerComponent {
   import ZooKeeperManagerMessages._
 
   type Id = Int
@@ -241,7 +241,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
           }
 
           zooKeeperManager ! NodeChildrenChanged(availabilityNode)
-          waitFor(10.ms)
+          waitFor(20.ms)
 
           nodesChangedCount must be_==(1)
           nodesReceived.length must be_==(3)
@@ -309,20 +309,22 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     }
 
     "when a Shutdown message is received" in {
-      "notify listeners" in {
-        zooKeeperManager ! Shutdown
-        waitFor(10.ms)
-
-        shutdownCount must be_==(1)
-      }
-
       "shop handling events" in {
+        doNothing.when(mockZooKeeper).close
+        var callCount = 0
+        def countedZkf(connectString: String, sessionTimeout: Int, watcher: Watcher) = {
+          callCount += 1
+          mockZooKeeper
+        }
+
+        val zkm = new ZooKeeperManager("", 0, "", notificationActor)(countedZkf _)
+        zkm.start
         zooKeeperManager ! Shutdown
         zooKeeperManager ! Connected
         waitFor(10.ms)
 
-        shutdownCount must be_==(1)
-        connectedCount must be_==(0)
+        callCount must be_==(1)
+        mockZooKeeper.close was called
       }
     }
 
