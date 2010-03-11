@@ -28,7 +28,8 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
         with BootstrapFactoryComponent with ClusterComponent with ZooKeeperMonitorComponent
         with ClusterWatcherComponent with RouterFactoryComponent with ClusterManagerComponent
         with NettyRequestHandlerComponent with MessageRegistryComponent with NetworkClientFactoryComponent
-        with ClusterIoClientComponent with ResponseHandlerComponent with MessageExecutorComponent with CurrentNodeLocatorComponent {
+        with ClusterIoClientComponent with ResponseHandlerComponent with MessageExecutorComponent
+        with CurrentNodeLocatorComponent with ClusterListenerComponent {
 
   val clusterWatcher = null
   val zooKeeperMonitor = null

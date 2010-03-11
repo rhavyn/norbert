@@ -83,7 +83,7 @@ class ServerBootstrap(serverConfig: ServerConfig) extends ClientBootstrapHelper 
   
   protected object componentRegistry extends {
     val clusterName = serverConfig.clusterName
-    val zooKeeperUrls = serverConfig.zooKeeperUrls
+    val zooKeeperConnectString = serverConfig.zooKeeperUrls
     val javaRouterFactory = serverConfig.routerFactory
     val clusterDisconnectTimeout = serverConfig.clusterDisconnectTimeout
     val zooKeeperSessionTimeout = serverConfig.zooKeeperSessionTimeout

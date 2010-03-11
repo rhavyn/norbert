@@ -29,7 +29,6 @@ class NetworkingException(message: String, cause: Throwable) extends NorbertExce
 /**
  * Exception that indicates that an exception occurred remotely while processing a request.
  */
-
 class RemoteException(className: String, errorMsg: String) extends NetworkingException("The remote end threw an exception [%s]: %s".format(className, errorMsg))
 
 /**
@@ -41,3 +40,8 @@ class InvalidMessageException(errorMsg: String) extends NetworkingException(erro
  * Exception that indicates that a malformed response was received. 
  */
 class InvalidResponseException(errorMsg: String) extends NetworkingException(errorMsg)
+
+/**
+ * Exception that indicates that a method has been called before the networking system has been started.
+ */
+class NetworkNotStartedException extends NetworkingException

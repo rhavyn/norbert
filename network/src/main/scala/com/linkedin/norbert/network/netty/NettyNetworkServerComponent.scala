@@ -18,14 +18,15 @@ package com.linkedin.norbert.network.netty
 import java.net.InetSocketAddress
 import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.util.Logging
-import com.linkedin.norbert.cluster.{ClusterComponent, InvalidNodeException, Node}
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import org.jboss.netty.channel.{ChannelException, Channel, ChannelPipelineFactory, Channels}
 import com.linkedin.norbert.network._
+import com.linkedin.norbert.cluster.{ClusterListenerComponent, ClusterComponent, InvalidNodeException, Node}
 
 trait NettyNetworkServerComponent extends NetworkServerComponent {
-  this: BootstrapFactoryComponent with ClusterComponent with NettyRequestHandlerComponent with NetworkClientFactoryComponent with MessageExecutorComponent =>
+  this: BootstrapFactoryComponent with ClusterComponent with NettyRequestHandlerComponent
+          with NetworkClientFactoryComponent with MessageExecutorComponent with ClusterListenerComponent =>
 
   class NettyNetworkServer private (nodeIdOption: Option[Int], bindAddressOption: Option[InetSocketAddress]) extends NetworkServer with ClusterListener with Logging {
     def this(nodeId: Int) = this(Some(nodeId), None)

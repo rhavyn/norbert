@@ -18,12 +18,13 @@ package com.linkedin.norbert.network
 import com.linkedin.norbert.cluster._
 import com.linkedin.norbert.util.Logging
 import com.google.protobuf.Message
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A component which provides a network client for interacting with nodes in a cluster.
  */
 trait NetworkClientFactoryComponent {
-  this: ClusterIoClientComponent with ClusterComponent with RouterFactoryComponent =>
+  this: ClusterIoClientComponent with ClusterComponent with ClusterListenerComponent with RouterFactoryComponent =>
 
   val networkClientFactory: NetworkClientFactory
 
@@ -133,6 +134,14 @@ trait NetworkClientFactoryComponent {
    * Factory for creating instances of <code>NetworkClient</code>.
    */
   class NetworkClientFactory extends Logging {
+    private val started = new AtomicBoolean
+
+    def start: Unit = {
+      if (started.compareAndSet(false, true)) {
+        log.ifDebug("Starting cluster..")
+        cluster.start
+      }
+    }
 
     /**
      * Create a new <code>NetworkClient</code>.
@@ -149,7 +158,12 @@ trait NetworkClientFactoryComponent {
       val client = new NetworkClient with ClusterListener {
         @volatile private var routerOption: Option[Router] = cluster.router
         @volatile private var shutdownSwitch = false
-    
+        private var clusterListenerKey: ClusterListenerKey = _
+
+        def start {
+          clusterListenerKey = cluster.addListener(this)
+        }
+
         def sendMessage(ids: Seq[Id], message: Message): ResponseIterator = doIfNotShutdown {
           val nodes = calculateNodesFromIds(ids)
           log.ifDebug("Sending message [%s] to nodes: %s", message, nodes)
@@ -197,7 +211,7 @@ trait NetworkClientFactoryComponent {
         def isConnected = routerOption.isDefined
 
         def close: Unit = doIfNotShutdown {
-          cluster.removeListener(this)
+          cluster.removeListener(clusterListenerKey)
         }
         
         def handleClusterEvent(event: ClusterEvent) = event match {
@@ -222,7 +236,7 @@ trait NetworkClientFactoryComponent {
         }
       }
 
-      cluster.addListener(client)
+      client.start
       client
     }
 

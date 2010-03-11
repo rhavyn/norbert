@@ -38,7 +38,7 @@ object NorbertNetworkServerMain {
       val maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
       val writeTimeout = NetworkDefaults.WRITE_TIMEOUT
       val clusterName = Main.this.clusterName
-      val zooKeeperUrls = Main.this.zooKeeperUrls
+      val zooKeeperConnectString = Main.this.zooKeeperUrls
       val requestThreadTimeout = NetworkDefaults.REQUEST_THREAD_TIMEOUT
       val maxRequestThreadPoolSize = NetworkDefaults.MAX_REQUEST_THREAD_POOL_SIZE
       val coreRequestThreadPoolSize = NetworkDefaults.CORE_REQUEST_THREAD_POOL_SIZE

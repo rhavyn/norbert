@@ -236,7 +236,7 @@ class ClusterBootstrap(clusterConfig: ClusterConfig) {
   
   protected object componentRegistry extends {
     val clusterName = clusterConfig.clusterName
-    val zooKeeperUrls = clusterConfig.zooKeeperUrls
+    val zooKeeperConnectString = clusterConfig.zooKeeperUrls
     val javaRouterFactory = clusterConfig.routerFactory
     val clusterDisconnectTimeout = clusterConfig.clusterDisconnectTimeout
     val zooKeeperSessionTimeout = clusterConfig.zooKeeperSessionTimeout

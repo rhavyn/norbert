@@ -39,7 +39,7 @@ object NorbertNetworkClientMain {
       val maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
       val writeTimeout = NetworkDefaults.WRITE_TIMEOUT
       val clusterName = Main.this.clusterName
-      val zooKeeperUrls = Main.this.zooKeeperUrls
+      val zooKeeperConnectString = Main.this.zooKeeperUrls
     } with DefaultNetworkClientFactoryComponent with NullRouterFactory {
       val messageRegistry = new DefaultMessageRegistry(Array(NorbertProtos.Ping.getDefaultInstance))
     }
