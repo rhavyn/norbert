@@ -68,7 +68,7 @@ trait ClusterNotificationManagerComponent {
       listenerId += 1
       val key = ClusterListenerKey(listenerId)
       listeners += (key -> listener)
-      if (connected) listener ! ClusterEvents.Connected(currentNodes)
+      if (connected) listener ! ClusterEvents.Connected(availableNodes)
       reply(ClusterNotificationMessages.AddedListener(key))
     }
 
@@ -81,7 +81,7 @@ trait ClusterNotificationManagerComponent {
         connected = true
         currentNodes = nodes
 
-        notifyListeners(ClusterEvents.Connected(currentNodes))
+        notifyListeners(ClusterEvents.Connected(availableNodes))
       }
     }
 
@@ -104,7 +104,7 @@ trait ClusterNotificationManagerComponent {
       if (connected) {
         currentNodes = nodes
 
-        notifyListeners(ClusterEvents.NodesChanged(currentNodes))
+        notifyListeners(ClusterEvents.NodesChanged(availableNodes))
       } else {
         log.error("Received a NodesChanged event when disconnected")
       }
@@ -131,5 +131,7 @@ trait ClusterNotificationManagerComponent {
     }
 
     private def notifyListeners(event: ClusterEvent) = listeners.values.foreach(_ ! event)
+
+    private def availableNodes = currentNodes.filter(_.available == true)
   }
 }

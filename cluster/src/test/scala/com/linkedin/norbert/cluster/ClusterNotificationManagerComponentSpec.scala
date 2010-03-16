@@ -38,15 +38,18 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         clusterNotificationManager ! Connected(nodes)
 
         var callCount = 0
+        var currentNodes: Seq[Node] = Nil
         val listener = actor {
           react {
-            case ClusterEvents.Connected(_) => callCount += 1
+            case ClusterEvents.Connected(n) => callCount += 1; currentNodes = n
           }
         }
 
         clusterNotificationManager ! AddListener(listener)
         waitFor(20.ms)
         callCount must be_==(1)
+        currentNodes.length must be_==(1)
+        currentNodes(0) must be_==(nodes(1))
       }
 
       "not send a Connected event to the listener if the cluster is not connected" in {
@@ -89,10 +92,11 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
     "when handling a Connected message" in {
       "notify listeners" in {
         var callCount = 0
+        var currentNodes: Seq[Node] = Nil
         val listener = actor {
           loop {
             react {
-              case ClusterEvents.Connected(_) => callCount += 1
+              case ClusterEvents.Connected(n) => callCount += 1; currentNodes = n
             }
           }
         }
@@ -102,6 +106,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         waitFor(20.ms)
 
         callCount must be_==(1)
+        currentNodes.length must be_==(1)
+        currentNodes(0) must be_==(nodes(1))
       }
 
       "do nothing if already connected" in {
@@ -144,7 +150,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         waitFor(20.ms)
 
         callCount must be_==(1)
-        currentNodes must be_==(currentNodes)
+        currentNodes.length must be_==(1)
+        currentNodes(0) must be_==(nodes(1))
       }
     }
 
