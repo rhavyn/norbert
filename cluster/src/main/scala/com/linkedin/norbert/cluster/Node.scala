@@ -15,7 +15,6 @@
  */
 package com.linkedin.norbert.cluster
 
-import java.net.InetSocketAddress
 import scala.reflect.BeanProperty
 import com.google.protobuf.InvalidProtocolBufferException
 import com.linkedin.norbert.protos.NorbertProtos
@@ -24,19 +23,6 @@ import com.linkedin.norbert.protos.NorbertProtos
  * The <code>Node</code> companion object. Provides factory methods and implicits.
  */
 object Node {
-  /**
-   * Create a <code>Node</code> instance.
-   *
-   * @param id the id of the node
-   * @param hostname the name of the host the node runs on
-   * @param port the port on the host to which requests should be sent
-   * @param partitions the partitions for which the node can handle requests
-   * @param available whether or not the node is currently able to process requests
-   *
-   * @return a new <code>Node</code> instance
-   */
-  def apply(id: Int, hostname: String, port: Int, partitions: Array[Int], available: Boolean): Node = Node(id, new InetSocketAddress(hostname, port), partitions, available)
-
   /**
    * Creates a <code>Node</code> instance using the serialized state of a node.
    *
@@ -52,10 +38,10 @@ object Node {
 
     try {
       val node = NorbertProtos.Node.newBuilder.mergeFrom(bytes).build
-      val partitions = new Array[Int](node.getPartitionsCount)
-      node.getPartitionsList.asInstanceOf[java.util.List[Int]].copyToArray(partitions, 0)
+      val partitions = new Array[Int](node.getPartitionCount)
+      node.getPartitionList.asInstanceOf[java.util.List[Int]].copyToArray(partitions, 0)
 
-      Node(node.getId, new InetSocketAddress(node.getHostname, node.getPort), partitions, available)
+      Node(node.getId, node.getUrl, partitions, available)
     } catch {
       case ex: InvalidProtocolBufferException => throw new InvalidNodeException("Error deserializing node", ex)
     }
@@ -70,8 +56,8 @@ object Node {
    */
   implicit def nodeToByteArray(node: Node): Array[Byte] = {
     val builder = NorbertProtos.Node.newBuilder
-    builder.setId(node.id).setHostname(node.address.getHostName).setPort(node.address.getPort)
-    node.partitions.foreach(builder.addPartitions(_))
+    builder.setId(node.id).setUrl(node.url)
+    node.partitions.foreach(builder.addPartition(_))
 
     builder.build.toByteArray
   }
@@ -85,14 +71,14 @@ object Node {
  * @param partitions the partitions for which the node can handle requests
  * @param available whether or not the node is currently able to process requests
  */
-final case class Node(@BeanProperty id: Int, @BeanProperty address: InetSocketAddress,
+final case class Node(@BeanProperty id: Int, @BeanProperty url: String,
         @BeanProperty partitions: Array[Int], @BeanProperty available: Boolean) {
   override def hashCode = id.hashCode
 
   override def equals(other: Any) = other match {
-    case that: Node => this.id == that.id && this.address == that.address
+    case that: Node => this.id == that.id && this.url == that.url
     case _ => false
   }
 
-  override def toString = "Node(%d,%s,[%s],%b)".format(id, address, partitions.mkString(","), available)
+  override def toString = "Node(%d,%s,[%s],%b)".format(id, url, partitions.mkString(","), available)
 }

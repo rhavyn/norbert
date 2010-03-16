@@ -22,20 +22,19 @@ import actors.Actor
 import Actor._
 import org.specs.util.WaitFor
 import org.specs.mock.Mockito
-import org.mockito.Matchers._
 
 class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ClusterComponent
-        with ZooKeeperManagerComponent with ClusterNotificationManagerComponent with RouterFactoryComponent
-        with ClusterListenerComponent {
+        with ClusterNotificationManagerComponent with RouterFactoryComponent with ClusterListenerComponent 
+        with ClusterManagerComponent {
 
   type Id = Any
   val routerFactory = null
 
   val clusterListenerKey = ClusterListenerKey(10101L)
   val currentRouter = mock[Router]
-  val currentNodes = Array(Node(1, new InetSocketAddress("localhost", 31313), Array(0, 1), true),
-          Node(2, new InetSocketAddress("localhost", 31314), Array(0, 1), true),
-          Node(3, new InetSocketAddress("localhost", 31315), Array(0, 1), true))
+  val currentNodes = Array(Node(1, "localhost:31313", Array(0, 1), true),
+          Node(2, "localhost:31314", Array(0, 1), true),
+          Node(3, "localhost:31315", Array(0, 1), true))
   var clusterActor: Actor = _
   var getCurrentNodesCount = 0
   var getCurrentRouterCount = 0
@@ -84,27 +83,27 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
   val zooKeeperManager = actor {
     loop {
       react {
-        case ZooKeeperManagerMessages.AddNode(node) =>
+        case ClusterManagerMessages.AddNode(node) =>
           addNodeCount += 1
           nodeAdded = node
-          reply(ZooKeeperManagerMessages.ZooKeeperManagerResponse(None))
+          reply(ClusterManagerMessages.ClusterManagerResponse(None))
 
-        case ZooKeeperManagerMessages.RemoveNode(id) =>
+        case ClusterManagerMessages.RemoveNode(id) =>
           removeNodeCount += 1
           nodeRemovedId = id
-          reply(ZooKeeperManagerMessages.ZooKeeperManagerResponse(None))
+          reply(ClusterManagerMessages.ClusterManagerResponse(None))
 
-        case ZooKeeperManagerMessages.MarkNodeAvailable(id) =>
+        case ClusterManagerMessages.MarkNodeAvailable(id) =>
           markNodeAvailableCount += 1
           markNodeAvailableId = id
-          reply(ZooKeeperManagerMessages.ZooKeeperManagerResponse(None))
+          reply(ClusterManagerMessages.ClusterManagerResponse(None))
 
-        case ZooKeeperManagerMessages.MarkNodeUnavailable(id) =>
+        case ClusterManagerMessages.MarkNodeUnavailable(id) =>
           markNodeUnavailableCount += 1
           markNodeUnavailableId = id
-          reply(ZooKeeperManagerMessages.ZooKeeperManagerResponse(None))
+          reply(ClusterManagerMessages.ClusterManagerResponse(None))
 
-        case ZooKeeperManagerMessages.Shutdown => zkmShutdownCount += 1
+        case ClusterManagerMessages.Shutdown => zkmShutdownCount += 1
       }
     }
   }
@@ -151,7 +150,6 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     "throw ClusterShutdownException if shut down for nodes, nodeWith*, router, *Listener, await*" in {
       cluster.shutdown
       cluster.nodes must throwA[ClusterShutdownException]
-      cluster.nodeWithAddress(new InetSocketAddress("localhost", 31313)) must throwA[ClusterShutdownException]
       cluster.nodeWithId(1) must throwA[ClusterShutdownException]
       cluster.router must throwA[ClusterShutdownException]
       cluster.addListener(null) must throwA[ClusterShutdownException]
@@ -162,7 +160,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     }
 
     "throw ClusterDisconnectedException if disconnected for addNode, removeNode, markNodeAvailable" in {
-      cluster.addNode(1, new InetSocketAddress("localhost", 31313), Array(0, 1)) must throwA[ClusterDisconnectedException]
+      cluster.addNode(1, "localhost:31313", Array(0, 1)) must throwA[ClusterDisconnectedException]
       cluster.removeNode(1) must throwA[ClusterDisconnectedException]
       cluster.markNodeAvailable(1) must throwA[ClusterDisconnectedException]
     }
@@ -187,11 +185,10 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       clusterActor ! ClusterEvents.Connected(Nil, None)
       waitFor(10.ms)
 
-      val isa = new InetSocketAddress("localhost", 31313)
-      cluster.addNode(1, isa, Array(1, 2)) must notBeNull
+      cluster.addNode(1, "localhost:31313", Array(1, 2)) must notBeNull
       addNodeCount must be_==(1)
       nodeAdded.id must be_==(1)
-      nodeAdded.address must be_==(isa)
+      nodeAdded.url must be_==("localhost:31313")
       nodeAdded.available must be_==(false)
     }
 
@@ -247,20 +244,6 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
 
       "return None if no matching id" in {
         cluster.nodeWithId(4) must beNone
-      }
-    }
-
-    "when handling nodeWithAddress" in {
-      "return the node that matches the specified address and port" in {
-        cluster.nodeWithAddress(new InetSocketAddress("localhost", 31314)) must beSome[Node].which(_ must be_==(currentNodes(1)))
-      }
-
-      "return the node that matches the specified port" in {
-        cluster.nodeWithAddress(new InetSocketAddress(31315)) must beSome[Node].which(_ must be_==(currentNodes(2)))
-      }
-
-      "return None if no matching address" in {
-        cluster.nodeWithAddress(new InetSocketAddress(31316)) must beNone
       }
     }
 

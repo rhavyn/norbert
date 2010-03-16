@@ -25,7 +25,6 @@ message Ping {
 
 message Node {
   required int32 id = 1;
-  required string hostname = 2;
-  required int32 port = 3;
-  repeated int32 partitions = 4;
+  required string url = 2;
+  repeated int32 partition = 3;
 }

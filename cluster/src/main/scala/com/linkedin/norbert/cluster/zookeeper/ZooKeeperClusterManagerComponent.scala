@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert.cluster.zookeeper
 
 import com.linkedin.norbert.util.Logging
 import actors.Actor
@@ -22,27 +22,20 @@ import java.io.IOException
 import org.apache.zookeeper._
 import collection.immutable.IntMap
 import scala.util.Sorting
+import com.linkedin.norbert.cluster._
 
-trait ZooKeeperManagerComponent {
+trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
   this: ClusterNotificationManagerComponent =>
 
-  sealed trait ZooKeeperManagerMessage
-  object ZooKeeperManagerMessages {
-    case object Connected extends ZooKeeperManagerMessage
-    case object Disconnected extends ZooKeeperManagerMessage
-    case object Expired extends ZooKeeperManagerMessage
-    case class NodeChildrenChanged(path: String) extends ZooKeeperManagerMessage
-    case object Shutdown extends ZooKeeperManagerMessage
-
-    case class AddNode(node: Node)
-    case class RemoveNode(nodeId: Int)
-    case class MarkNodeAvailable(nodeId: Int)
-    case class MarkNodeUnavailable(nodeId: Int)
-
-    case class ZooKeeperManagerResponse(exception: Option[ClusterException])
+  sealed trait ZooKeeperMessage
+  object ZooKeeperMessages {
+    case object Connected extends ZooKeeperMessage
+    case object Disconnected extends ZooKeeperMessage
+    case object Expired extends ZooKeeperMessage
+    case class NodeChildrenChanged(path: String) extends ZooKeeperMessage
   }
 
-  class ZooKeeperManager(connectString: String, sessionTimeout: Int, clusterName: String, clusterNotificationManager: Actor)
+  class ZooKeeperClusterManager(connectString: String, sessionTimeout: Int, clusterName: String, clusterNotificationManager: Actor)
           (implicit zooKeeperFactory: (String, Int, Watcher) => ZooKeeper) extends Actor with Logging {
     private val CLUSTER_NODE = "/" + clusterName
     private val AVAILABILITY_NODE = CLUSTER_NODE + "/available"
@@ -58,7 +51,8 @@ trait ZooKeeperManagerComponent {
       startZooKeeper
       
       while(true) {
-        import ZooKeeperManagerMessages._
+        import ZooKeeperMessages._
+        import ClusterManagerMessages._
 
         receive {
           case Connected => handleConnected
@@ -314,7 +308,7 @@ trait ZooKeeperManagerComponent {
     private def makeNodeAvailable(nodeId: Int) {
       currentNodes = currentNodes.get(nodeId) match {
         case Some(n) if n.available => currentNodes
-        case Some(n) => currentNodes.update(n.id, Node(n.id, n.address, n.partitions, true))
+        case Some(n) => currentNodes.update(n.id, Node(n.id, n.url, n.partitions, true))
         case None => currentNodes
       }
     }
@@ -322,7 +316,7 @@ trait ZooKeeperManagerComponent {
     private def makeNodeUnavailable(nodeId: Int) {
       currentNodes = currentNodes.get(nodeId) match {
         case Some(n) if !n.available => currentNodes
-        case Some(n) => currentNodes.update(n.id, Node(n.id, n.address, n.partitions, false))
+        case Some(n) => currentNodes.update(n.id, Node(n.id, n.url, n.partitions, false))
         case None => currentNodes
       }
     }
@@ -353,7 +347,7 @@ trait ZooKeeperManagerComponent {
     }
 
     private def doIfConnectedWithZooKeeperWithResponse(what: String, exceptionDescription: String)(block: ZooKeeper => Option[ClusterException]) {
-      import ZooKeeperManagerMessages.ZooKeeperManagerResponse
+      import ClusterManagerMessages.ClusterManagerResponse
 
       if (connected) {
         doWithZooKeeper(what) { zk =>
@@ -364,10 +358,10 @@ trait ZooKeeperManagerComponent {
             case ex: Exception => Some(new InvalidNodeException("Unexpected exception while %s".format(exceptionDescription), ex))
           }
 
-          reply(ZooKeeperManagerResponse(response))
+          reply(ClusterManagerResponse(response))
         }
       } else {
-        reply(ZooKeeperManagerResponse(Some(new ClusterDisconnectedException("Error while %s, cluster is disconnected".format(exceptionDescription)))))
+        reply(ClusterManagerResponse(Some(new ClusterDisconnectedException("Error while %s, cluster is disconnected".format(exceptionDescription)))))
       }
     }
 
@@ -381,7 +375,7 @@ trait ZooKeeperManagerComponent {
 
     def process(event: WatchedEvent) {
       import org.apache.zookeeper.Watcher.Event.{EventType, KeeperState}
-      import ZooKeeperManagerMessages._
+      import ZooKeeperMessages._
 
       if (shutdownSwitch) return
 

@@ -21,16 +21,16 @@ import org.specs.util.WaitFor
 import actors.Actor._
 
 class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ClusterNotificationManagerComponent
-        with RouterFactoryComponent with ClusterListenerComponent with ZooKeeperManagerComponent {
+        with RouterFactoryComponent with ClusterListenerComponent {
   val routerFactory = mock[RouterFactory]
   type Id = Int
   val clusterNotificationManager = new ClusterNotificationManager
 
   clusterNotificationManager.start
 
-  val nodes = List(Node(1, "localhost", 31313, Array(1, 2), false),
-    Node(2, "localhost", 31314, Array(3, 4), true),
-    Node(3, "localhost", 31315, Array(5, 6), false))
+  val nodes = List(Node(1, "localhost:31313", Array(1, 2), false),
+    Node(2, "localhost:31314", Array(3, 4), true),
+    Node(3, "localhost:31315", Array(5, 6), false))
   
   "ClusterNotificationManager" should {
     import ClusterNotificationMessages._

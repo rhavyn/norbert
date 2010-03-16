@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert.cluster.zookeeper
 
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
@@ -23,10 +23,12 @@ import org.specs.util.WaitFor
 import org.apache.zookeeper.data.Stat
 import org.apache.zookeeper._
 import java.util.ArrayList
+import com.linkedin.norbert.cluster._
 
-class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ZooKeeperManagerComponent
+class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ZooKeeperClusterManagerComponent
         with ClusterNotificationManagerComponent with RouterFactoryComponent with ClusterListenerComponent {
-  import ZooKeeperManagerMessages._
+  import ZooKeeperMessages._
+  import ClusterManagerMessages._
 
   type Id = Int
   val routerFactory = null
@@ -52,7 +54,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     }
 
     def zkf(connectString: String, sessionTimeout: Int, watcher: Watcher) = mockZooKeeper
-    val zooKeeperManager = new ZooKeeperManager("", 0, "test", notificationActor)(zkf _)
+    val zooKeeperManager = new ZooKeeperClusterManager("", 0, "test", notificationActor)(zkf _)
     zooKeeperManager.start
 
     val rootNode = "/test"
@@ -66,7 +68,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         mockZooKeeper
       }
 
-      val zkm = new ZooKeeperManager("", 0, "", notificationActor)(countedZkf _)
+      val zkm = new ZooKeeperClusterManager("", 0, "", notificationActor)(countedZkf _)
       zkm.start
       waitFor(10.ms)
 
@@ -110,8 +112,8 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(2)
 
-        val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
-          Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", Array(1, 2), true),
+          Node(2, "localhost:31314", Array(2, 3), false), Node(3, "localhost:31315", Array(2, 3), true))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>
@@ -138,8 +140,8 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(1)
 
-        val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
-          Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", Array(1, 2), true),
+          Node(2, "localhost:31314", Array(2, 3), false), Node(3, "localhost:31315", Array(2, 3), true))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>
@@ -182,7 +184,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
           mockZooKeeper
         }
 
-        val zkm = new ZooKeeperManager("", 0, "", notificationActor)(countedZkf _)
+        val zkm = new ZooKeeperClusterManager("", 0, "", notificationActor)(countedZkf _)
         zkm.start
         zkm ! Connected
         zkm ! Expired
@@ -222,8 +224,8 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
           newAvailability.add("1")
           newAvailability.add("3")
 
-          val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
-            Node(2, "localhost", 31314, Array(2, 3), true), Node(3, "localhost", 31315, Array(2, 3), false))
+          val nodes = Array(Node(1, "localhost:31313", Array(1, 2), true),
+            Node(2, "localhost:31314", Array(2, 3), true), Node(3, "localhost:31315", Array(2, 3), false))
 
           mockZooKeeper.getChildren(membershipNode, true) returns membership
           nodes.foreach { node =>
@@ -272,8 +274,8 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
           newMembership.add("2")
           newMembership.add("3")
 
-          val updatedNodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
-            Node(2, "localhost", 31314, Array(2, 3), true), Node(3, "localhost", 31315, Array(2, 3), false))
+          val updatedNodes = Array(Node(1, "localhost:31313", Array(1, 2), true),
+            Node(2, "localhost:31314", Array(2, 3), true), Node(3, "localhost:31315", Array(2, 3), false))
           val nodes = updatedNodes.slice(0, 2)
 
           mockZooKeeper.getChildren(membershipNode, true) returns membership thenReturns newMembership
@@ -317,7 +319,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
           mockZooKeeper
         }
 
-        val zkm = new ZooKeeperManager("", 0, "", notificationActor)(countedZkf _)
+        val zkm = new ZooKeeperClusterManager("", 0, "", notificationActor)(countedZkf _)
         zkm.start
         zooKeeperManager ! Shutdown
         zooKeeperManager ! Connected
@@ -329,12 +331,12 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     }
 
     "when a AddNode message is received" in {
-      val node = Node(1, "localhost", 31313, Array(1, 2), false)
+      val node = Node(1, "localhost:31313", Array(1, 2), false)
 
       "throw a ClusterDisconnectedException if not connected" in {
 
         zooKeeperManager !? AddNode(node) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
+          case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
 
@@ -344,7 +346,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         zooKeeperManager ! Connected
         zooKeeperManager !? AddNode(node) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[InvalidNodeException])
+          case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[InvalidNodeException])
         }
 
         mockZooKeeper.exists(path, false) was called
@@ -357,7 +359,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         zooKeeperManager ! Connected
         zooKeeperManager !? AddNode(node) match {
-          case ZooKeeperManagerResponse(r) => r must beNone
+          case ClusterManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.exists(path, false) was called
@@ -377,7 +379,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     "when a RemoveNode message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
         zooKeeperManager !? RemoveNode(1) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
+          case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
 
@@ -386,7 +388,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         zooKeeperManager ! Connected
         zooKeeperManager !? RemoveNode(1) match {
-          case ZooKeeperManagerResponse(r) => r must beNone
+          case ClusterManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.exists(membershipNode + "/1", false) was called
@@ -400,7 +402,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         zooKeeperManager ! Connected
         zooKeeperManager !? RemoveNode(1) match {
-          case ZooKeeperManagerResponse(r) => r must beNone
+          case ClusterManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.delete(path, -1) was called
@@ -415,8 +417,8 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(2)
 
-        val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
-          Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", Array(1, 2), true),
+          Node(2, "localhost:31314", Array(2, 3), false), Node(3, "localhost:31315", Array(2, 3), true))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>
@@ -436,7 +438,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     "when a MarkNodeAvailable message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
         zooKeeperManager !? MarkNodeAvailable(1) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
+          case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
 
@@ -451,7 +453,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         zooKeeperManager ! Connected
         zooKeeperManager !? MarkNodeAvailable(1) match {
-          case ZooKeeperManagerResponse(r) => r must beNone
+          case ClusterManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.exists(path, false) was called
@@ -469,7 +471,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         zooKeeperManager ! Connected
         zooKeeperManager !? MarkNodeAvailable(1) match {
-          case ZooKeeperManagerResponse(r) => r must beNone
+          case ClusterManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.exists(path, false) was called
@@ -485,8 +487,8 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(2)
 
-        val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
-          Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", Array(1, 2), true),
+          Node(2, "localhost:31314", Array(2, 3), false), Node(3, "localhost:31315", Array(2, 3), true))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>
@@ -509,7 +511,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
     "when a MarkNodeUnavailable message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
         zooKeeperManager !? MarkNodeUnavailable(1) match {
-          case ZooKeeperManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
+          case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
 
@@ -518,7 +520,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         zooKeeperManager ! Connected
         zooKeeperManager !? MarkNodeUnavailable(1) match {
-          case ZooKeeperManagerResponse(r) => r must beNone
+          case ClusterManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.exists(availabilityNode + "/1", false) was called
@@ -532,7 +534,7 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
 
         zooKeeperManager ! Connected
         zooKeeperManager !? MarkNodeUnavailable(1) match {
-          case ZooKeeperManagerResponse(r) => r must beNone
+          case ClusterManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.delete(path, -1) was called
@@ -547,8 +549,8 @@ class ZooKeeperManagerComponentSpec extends SpecificationWithJUnit with Mockito 
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(2)
 
-        val nodes = Array(Node(1, "localhost", 31313, Array(1, 2), true),
-          Node(2, "localhost", 31314, Array(2, 3), false), Node(3, "localhost", 31315, Array(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", Array(1, 2), true),
+          Node(2, "localhost:31314", Array(2, 3), false), Node(3, "localhost:31315", Array(2, 3), true))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>

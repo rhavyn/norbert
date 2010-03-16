@@ -677,7 +677,7 @@ public final class NorbertProtos {
     public static Builder newBuilder(com.linkedin.norbert.protos.NorbertProtos.Ping prototype) {
       return newBuilder().mergeFrom(prototype);
     }
-    public Ping.Builder toBuilder() { return newBuilder(this); }
+    public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
         com.google.protobuf.GeneratedMessage.Builder<Builder> {
@@ -854,36 +854,28 @@ public final class NorbertProtos {
     public boolean hasId() { return hasId; }
     public int getId() { return id_; }
     
-    // required string hostname = 2;
-    public static final int HOSTNAME_FIELD_NUMBER = 2;
-    private boolean hasHostname;
-    private java.lang.String hostname_ = "";
-    public boolean hasHostname() { return hasHostname; }
-    public java.lang.String getHostname() { return hostname_; }
+    // required string url = 2;
+    public static final int URL_FIELD_NUMBER = 2;
+    private boolean hasUrl;
+    private java.lang.String url_ = "";
+    public boolean hasUrl() { return hasUrl; }
+    public java.lang.String getUrl() { return url_; }
     
-    // required int32 port = 3;
-    public static final int PORT_FIELD_NUMBER = 3;
-    private boolean hasPort;
-    private int port_ = 0;
-    public boolean hasPort() { return hasPort; }
-    public int getPort() { return port_; }
-    
-    // repeated int32 partitions = 4;
-    public static final int PARTITIONS_FIELD_NUMBER = 4;
-    private java.util.List<java.lang.Integer> partitions_ =
+    // repeated int32 partition = 3;
+    public static final int PARTITION_FIELD_NUMBER = 3;
+    private java.util.List<java.lang.Integer> partition_ =
       java.util.Collections.emptyList();
-    public java.util.List<java.lang.Integer> getPartitionsList() {
-      return partitions_;
+    public java.util.List<java.lang.Integer> getPartitionList() {
+      return partition_;
     }
-    public int getPartitionsCount() { return partitions_.size(); }
-    public int getPartitions(int index) {
-      return partitions_.get(index);
+    public int getPartitionCount() { return partition_.size(); }
+    public int getPartition(int index) {
+      return partition_.get(index);
     }
     
     public final boolean isInitialized() {
       if (!hasId) return false;
-      if (!hasHostname) return false;
-      if (!hasPort) return false;
+      if (!hasUrl) return false;
       return true;
     }
     
@@ -892,14 +884,11 @@ public final class NorbertProtos {
       if (hasId()) {
         output.writeInt32(1, getId());
       }
-      if (hasHostname()) {
-        output.writeString(2, getHostname());
+      if (hasUrl()) {
+        output.writeString(2, getUrl());
       }
-      if (hasPort()) {
-        output.writeInt32(3, getPort());
-      }
-      for (int element : getPartitionsList()) {
-        output.writeInt32(4, element);
+      for (int element : getPartitionList()) {
+        output.writeInt32(3, element);
       }
       getUnknownFields().writeTo(output);
     }
@@ -914,22 +903,18 @@ public final class NorbertProtos {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(1, getId());
       }
-      if (hasHostname()) {
+      if (hasUrl()) {
         size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(2, getHostname());
-      }
-      if (hasPort()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(3, getPort());
+          .computeStringSize(2, getUrl());
       }
       {
         int dataSize = 0;
-        for (int element : getPartitionsList()) {
+        for (int element : getPartitionList()) {
           dataSize += com.google.protobuf.CodedOutputStream
             .computeInt32SizeNoTag(element);
         }
         size += dataSize;
-        size += 1 * getPartitionsList().size();
+        size += 1 * getPartitionList().size();
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -1064,9 +1049,9 @@ public final class NorbertProtos {
           throw new IllegalStateException(
             "build() has already been called on this Builder.");
         }
-        if (result.partitions_ != java.util.Collections.EMPTY_LIST) {
-          result.partitions_ =
-            java.util.Collections.unmodifiableList(result.partitions_);
+        if (result.partition_ != java.util.Collections.EMPTY_LIST) {
+          result.partition_ =
+            java.util.Collections.unmodifiableList(result.partition_);
         }
         com.linkedin.norbert.protos.NorbertProtos.Node returnMe = result;
         result = null;
@@ -1087,17 +1072,14 @@ public final class NorbertProtos {
         if (other.hasId()) {
           setId(other.getId());
         }
-        if (other.hasHostname()) {
-          setHostname(other.getHostname());
+        if (other.hasUrl()) {
+          setUrl(other.getUrl());
         }
-        if (other.hasPort()) {
-          setPort(other.getPort());
-        }
-        if (!other.partitions_.isEmpty()) {
-          if (result.partitions_.isEmpty()) {
-            result.partitions_ = new java.util.ArrayList<java.lang.Integer>();
+        if (!other.partition_.isEmpty()) {
+          if (result.partition_.isEmpty()) {
+            result.partition_ = new java.util.ArrayList<java.lang.Integer>();
           }
-          result.partitions_.addAll(other.partitions_);
+          result.partition_.addAll(other.partition_);
         }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
@@ -1129,15 +1111,11 @@ public final class NorbertProtos {
               break;
             }
             case 18: {
-              setHostname(input.readString());
+              setUrl(input.readString());
               break;
             }
             case 24: {
-              setPort(input.readInt32());
-              break;
-            }
-            case 32: {
-              addPartitions(input.readInt32());
+              addPartition(input.readInt32());
               break;
             }
           }
@@ -1163,76 +1141,58 @@ public final class NorbertProtos {
         return this;
       }
       
-      // required string hostname = 2;
-      public boolean hasHostname() {
-        return result.hasHostname();
+      // required string url = 2;
+      public boolean hasUrl() {
+        return result.hasUrl();
       }
-      public java.lang.String getHostname() {
-        return result.getHostname();
+      public java.lang.String getUrl() {
+        return result.getUrl();
       }
-      public Builder setHostname(java.lang.String value) {
+      public Builder setUrl(java.lang.String value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  result.hasHostname = true;
-        result.hostname_ = value;
+  result.hasUrl = true;
+        result.url_ = value;
         return this;
       }
-      public Builder clearHostname() {
-        result.hasHostname = false;
-        result.hostname_ = getDefaultInstance().getHostname();
-        return this;
-      }
-      
-      // required int32 port = 3;
-      public boolean hasPort() {
-        return result.hasPort();
-      }
-      public int getPort() {
-        return result.getPort();
-      }
-      public Builder setPort(int value) {
-        result.hasPort = true;
-        result.port_ = value;
-        return this;
-      }
-      public Builder clearPort() {
-        result.hasPort = false;
-        result.port_ = 0;
+      public Builder clearUrl() {
+        result.hasUrl = false;
+        result.url_ = getDefaultInstance().getUrl();
         return this;
       }
       
-      // repeated int32 partitions = 4;
-      public java.util.List<java.lang.Integer> getPartitionsList() {
-        return java.util.Collections.unmodifiableList(result.partitions_);
+      // repeated int32 partition = 3;
+      public java.util.List<java.lang.Integer> getPartitionList() {
+        return java.util.Collections.unmodifiableList(result.partition_);
       }
-      public int getPartitionsCount() {
-        return result.getPartitionsCount();
+      public int getPartitionCount() {
+        return result.getPartitionCount();
       }
-      public int getPartitions(int index) {
-        return result.getPartitions(index);
+      public int getPartition(int index) {
+        return result.getPartition(index);
       }
-      public Builder setPartitions(int index, int value) {
-        result.partitions_.set(index, value);
+      public Builder setPartition(int index, int value) {
+        result.partition_.set(index, value);
         return this;
       }
-      public Builder addPartitions(int value) {
-        if (result.partitions_.isEmpty()) {
-          result.partitions_ = new java.util.ArrayList<java.lang.Integer>();
+      public Builder addPartition(int value) {
+        if (result.partition_.isEmpty()) {
+          result.partition_ = new java.util.ArrayList<java.lang.Integer>();
         }
-        result.partitions_.add(value);
+        result.partition_.add(value);
         return this;
       }
-      public Builder addAllPartitions(
+      public Builder addAllPartition(
           java.lang.Iterable<? extends java.lang.Integer> values) {
-        if (result.partitions_.isEmpty()) {
-          result.partitions_ = new java.util.ArrayList<java.lang.Integer>();
+        if (result.partition_.isEmpty()) {
+          result.partition_ = new java.util.ArrayList<java.lang.Integer>();
         }
-        super.addAll(values, result.partitions_);
+        super.addAll(values, result.partition_);
         return this;
       }
-      public Builder clearPartitions() {
-        result.partitions_ = java.util.Collections.emptyList();
+      public Builder clearPartition() {
+        result.partition_ = java.util.Collections.emptyList();
         return this;
       }
     }
@@ -1270,16 +1230,16 @@ public final class NorbertProtos {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\rnorbert.proto\022\007norbert\"\317\001\n\016NorbertMess" +
-      "age\022\026\n\016request_id_msb\030\001 \002(\020\022\026\n\016request_i" +
-      "d_lsb\030\002 \002(\020\0222\n\006status\030\n \001(\0162\036.norbert.No" +
-      "rbertMessage.Status:\002OK\022\024\n\014message_name\030" +
-      "\013 \002(\t\022\017\n\007message\030\014 \001(\014\022\025\n\rerror_message\030" +
-      "\r \001(\t\"\033\n\006Status\022\006\n\002OK\020\000\022\t\n\005ERROR\020\001\"\031\n\004Pi" +
-      "ng\022\021\n\ttimestamp\030\001 \002(\003\"F\n\004Node\022\n\n\002id\030\001 \002(" +
-      "\005\022\020\n\010hostname\030\002 \002(\t\022\014\n\004port\030\003 \002(\005\022\022\n\npar" +
-      "titions\030\004 \003(\005B.\n\033com.linkedin.norbert.pr" +
-      "otosB\rNorbertProtosH\001"
+      "\n\026protobuf/norbert.proto\022\007norbert\"\317\001\n\016No" +
+      "rbertMessage\022\026\n\016request_id_msb\030\001 \002(\020\022\026\n\016" +
+      "request_id_lsb\030\002 \002(\020\0222\n\006status\030\n \001(\0162\036.n" +
+      "orbert.NorbertMessage.Status:\002OK\022\024\n\014mess" +
+      "age_name\030\013 \002(\t\022\017\n\007message\030\014 \001(\014\022\025\n\rerror" +
+      "_message\030\r \001(\t\"\033\n\006Status\022\006\n\002OK\020\000\022\t\n\005ERRO" +
+      "R\020\001\"\031\n\004Ping\022\021\n\ttimestamp\030\001 \002(\003\"2\n\004Node\022\n" +
+      "\n\002id\030\001 \002(\005\022\013\n\003url\030\002 \002(\t\022\021\n\tpartition\030\003 \003" +
+      "(\005B.\n\033com.linkedin.norbert.protosB\rNorbe" +
+      "rtProtosH\001"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -1307,7 +1267,7 @@ public final class NorbertProtos {
           internal_static_norbert_Node_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_norbert_Node_descriptor,
-              new java.lang.String[] { "Id", "Hostname", "Port", "Partitions", },
+              new java.lang.String[] { "Id", "Url", "Partition", },
               com.linkedin.norbert.protos.NorbertProtos.Node.class,
               com.linkedin.norbert.protos.NorbertProtos.Node.Builder.class);
           return null;

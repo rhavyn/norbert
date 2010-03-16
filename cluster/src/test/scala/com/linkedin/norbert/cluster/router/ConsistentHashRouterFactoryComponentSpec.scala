@@ -17,7 +17,6 @@ package com.linkedin.norbert.cluster.router
 
 import org.specs.SpecificationWithJUnit
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
-import java.net.InetSocketAddress
 
 class ConsistentHashRouterFactoryComponentSpec extends SpecificationWithJUnit
         with ConsistentHashRouterFactoryComponent {
@@ -40,11 +39,11 @@ class ConsistentHashRouterFactoryComponentSpec extends SpecificationWithJUnit
   "Router" should {
     "route returns the correct node for 1210" in {
       val nodes = Array(
-        Node(0, new InetSocketAddress("localhost", 1), Array(0, 1), true),
-        Node(1, new InetSocketAddress("localhost", 1), Array(1, 2), true),
-        Node(2, new InetSocketAddress("localhost", 1), Array(2, 3), true),
-        Node(3, new InetSocketAddress("localhost", 1), Array(3, 4), true),
-        Node(4, new InetSocketAddress("localhost", 1), Array(0, 4), true))
+        Node(0, "localhost:31313", Array(0, 1), true),
+        Node(1, "localhost:31313", Array(1, 2), true),
+        Node(2, "localhost:31313", Array(2, 3), true),
+        Node(3, "localhost:31313", Array(3, 4), true),
+        Node(4, "localhost:31313", Array(0, 4), true))
 
       val route = routerFactory.newRouter(nodes)
       route(EId(1210)) must beSome[Node].which(Array(nodes(0), nodes(4)) must contain(_))
@@ -52,11 +51,11 @@ class ConsistentHashRouterFactoryComponentSpec extends SpecificationWithJUnit
 
     "throw InvalidClusterException if a partition is not assigned to a node" in {
       val nodes = Array(
-        Node(0, new InetSocketAddress("localhost", 1), Array(0, 9), true),
-        Node(1, new InetSocketAddress("localhost", 1), Array(1), true),
-        Node(2, new InetSocketAddress("localhost", 1), Array(2, 7), true),
-        Node(3, new InetSocketAddress("localhost", 1), Array(3, 6), true),
-        Node(4, new InetSocketAddress("localhost", 1), Array(4, 5, 1), true))
+        Node(0, "localhost:31313", Array(0, 9), true),
+        Node(1, "localhost:31313", Array(1), true),
+        Node(2, "localhost:31313", Array(2, 7), true),
+        Node(3, "localhost:31313", Array(3, 6), true),
+        Node(4, "localhost:31313", Array(4, 5, 1), true))
 
       new EIdConsistentHashRouterFactory(10).newRouter(nodes) must throwA[InvalidClusterException]
     }

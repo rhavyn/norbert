@@ -15,12 +15,14 @@
  */
 package com.linkedin.norbert.cluster
 
+import zookeeper.ZooKeeperClusterManagerComponent
+
 /**
  * The default cluster implementation component mixin. Users should mix this component into their
  * component registry instead of pulling in the individual components. A <code>RouterFactory</code> implementation
  * must be provided.
  */
-trait DefaultClusterComponent extends ClusterComponent {
+trait ZooKeeperClusterComponent extends ClusterComponent with ZooKeeperClusterManagerComponent {
   this: RouterFactoryComponent =>
 
   /**
@@ -38,5 +40,11 @@ trait DefaultClusterComponent extends ClusterComponent {
    */
   val zooKeeperSessionTimeout: Int
 
-  val cluster = Cluster(zooKeeperConnectString, zooKeeperSessionTimeout, clusterName)
+  val cluster = newCluster
+
+  private def newCluster: Cluster = {
+    val cnm = new ClusterNotificationManager
+    val zkm = new ZooKeeperClusterManager(zooKeeperConnectString, zooKeeperSessionTimeout, clusterName, cnm)
+    new Cluster(cnm, zkm)
+  }
 }

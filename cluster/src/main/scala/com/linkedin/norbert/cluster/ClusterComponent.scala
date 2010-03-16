@@ -15,7 +15,6 @@
  */
 package com.linkedin.norbert.cluster
 
-import java.net.{NetworkInterface, InetSocketAddress}
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import com.linkedin.norbert.util.Logging
 import actors.Actor
@@ -25,23 +24,22 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * A component which provides the client interface for interacting with a cluster.
  */
-trait ClusterComponent extends ClusterListenerComponent with ClusterNotificationManagerComponent with ZooKeeperManagerComponent {
-  this: RouterFactoryComponent =>
+trait ClusterComponent extends ClusterListenerComponent with ClusterNotificationManagerComponent {
+  this: RouterFactoryComponent with ClusterManagerComponent =>
   
   val cluster: Cluster
 
   object Cluster {
-    def apply(connectString: String, sessionTimeout: Int, clusterName: String): Cluster = {
+    def apply(clusterManager: Actor): Cluster = {
       val clusterNotificationManager = new ClusterNotificationManager
-      val zooKeeperManager = new ZooKeeperManager(connectString, sessionTimeout, clusterName, clusterNotificationManager)
-      new Cluster(clusterNotificationManager, zooKeeperManager)
+      new Cluster(clusterNotificationManager, clusterManager)
     }
   }
   
   /**
    *  The client interface for interacting with a cluster.
    */
-  class Cluster(clusterNotificationManager: Actor, zooKeeperManager: Actor) extends Logging {
+  class Cluster private[cluster] (clusterNotificationManager: Actor, clusterManager: Actor) extends Logging {
     @volatile private var connectedLatch = new CountDownLatch(1)
     private val shutdownSwitch = new AtomicBoolean
     private val started = new AtomicBoolean
@@ -54,8 +52,8 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
         log.ifDebug("Starting ClusterNotificationManager...")
         clusterNotificationManager.start
 
-        log.ifDebug("Starting ZooKeeperManager...")
-        zooKeeperManager.start
+        log.ifDebug("Starting ClusterManager...")
+        clusterManager.start
 
         val a = actor {
           loop {
@@ -68,6 +66,8 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
         }
 
         clusterNotificationManager !? ClusterNotificationMessages.AddListener(a)
+
+        log.ifDebug("Cluster started")
       }
     }
 
@@ -91,37 +91,6 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
      * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
      */
     def nodeWithId(nodeId: Int): Option[Node] = nodeWith(_.id == nodeId)
-
-    /**
-     * Looks up the node with the specified <code>InetSocketAddress</code>.
-     *
-     * If the <code>InetSocketAddress</code> specified is a wildcard address, a node is considered a match
-     * if it has the same port as specified in the <code>InetSocketAddress</code> and the IP address of the
-     * node matches any of the IP addresses assigned to the local machine.  If the <code>InetSocketAddress</code>
-     * is not a wildcard address, a node is considered a match if it has exactly the same address and port
-     * as specified.
-     *
-     * @return <code>Some</code> with the node if found, otherwise <code>None</code>
-     * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
-     */
-    def nodeWithAddress(address: InetSocketAddress): Option[Node] = if (address.getAddress.isAnyLocalAddress) {
-      nodeWith { node =>
-        implicit def enumeration2Iterator[T](e: java.util.Enumeration[T]): Iterator[T] = new Iterator[T] {
-          def next = e.nextElement
-          def hasNext = e.hasMoreElements
-        }
-
-        val n = for {
-          ni <- NetworkInterface.getNetworkInterfaces
-          addr <- ni.getInetAddresses
-          if (new InetSocketAddress(addr, address.getPort) == node.address)
-        } yield node
-
-        n.hasNext
-      }
-    } else {
-      nodeWith(_.address == address)
-    }
 
     /**
      * Retrieves the current router instance for the cluster.
@@ -148,11 +117,13 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
      * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
      * @throws InvalidNodeException thrown if there is an error adding the new node to the cluster metadata
      */
-    def addNode(nodeId: Int, address: InetSocketAddress, partitions: Array[Int]): Node = doIfConnected {
-      val node = Node(nodeId, address, partitions, false)
-      zooKeeperManager !? ZooKeeperManagerMessages.AddNode(node) match {
-        case ZooKeeperManagerMessages.ZooKeeperManagerResponse(Some(ex)) => throw ex
-        case ZooKeeperManagerMessages.ZooKeeperManagerResponse(None) => node
+    def addNode(nodeId: Int, url: String, partitions: Array[Int]): Node = doIfConnected {
+      if (url == null) throw new NullPointerException
+
+      val node = Node(nodeId, url, partitions, false)
+      clusterManager !? ClusterManagerMessages.AddNode(node) match {
+        case ClusterManagerMessages.ClusterManagerResponse(Some(ex)) => throw ex
+        case ClusterManagerMessages.ClusterManagerResponse(None) => node
       }
     }
 
@@ -164,8 +135,8 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
      * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
      * @throws InvalidNodeException thrown if there is an error removing the new node from the cluster metadata
      */
-    def removeNode(nodeId: Int): Unit = handleZooKeeperManagerResponse {
-      zooKeeperManager !? ZooKeeperManagerMessages.RemoveNode(nodeId)
+    def removeNode(nodeId: Int): Unit = handleClusterManagerResponse {
+      clusterManager !? ClusterManagerMessages.RemoveNode(nodeId)
     }
 
     /**
@@ -175,8 +146,8 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
      *
      * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
      */
-    def markNodeAvailable(nodeId: Int): Unit = handleZooKeeperManagerResponse {
-      zooKeeperManager !? ZooKeeperManagerMessages.MarkNodeAvailable(nodeId)
+    def markNodeAvailable(nodeId: Int): Unit = handleClusterManagerResponse {
+      clusterManager !? ClusterManagerMessages.MarkNodeAvailable(nodeId)
     }
 
     /**
@@ -186,8 +157,8 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
      *
      * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
      */
-    def markNodeUnavailable(nodeId: Int): Unit = handleZooKeeperManagerResponse {
-      zooKeeperManager !? ZooKeeperManagerMessages.MarkNodeUnavailable(nodeId)
+    def markNodeUnavailable(nodeId: Int): Unit = handleClusterManagerResponse {
+      clusterManager !? ClusterManagerMessages.MarkNodeUnavailable(nodeId)
     }
 
     /**
@@ -198,6 +169,8 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
      * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
      */
     def addListener(listener: ClusterListener): ClusterListenerKey = doIfNotShutdown {
+      if (listener == null) throw new NullPointerException
+
       val a = actor {
         loop {
           receive {
@@ -221,7 +194,11 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
      *
      * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
      */
-    def removeListener(key: ClusterListenerKey): Unit = doIfNotShutdown { clusterNotificationManager ! ClusterNotificationMessages.RemoveListener(key) }
+    def removeListener(key: ClusterListenerKey): Unit = doIfNotShutdown {
+      if (key == null) throw new NullPointerException
+      
+      clusterNotificationManager ! ClusterNotificationMessages.RemoveListener(key)
+    }
 
     /**
      * Shuts down this <code>Cluster</code> instance.  Calling this method causes the <code>Cluster</code>
@@ -230,10 +207,12 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
     def shutdown: Unit = {
       if (shutdownSwitch.compareAndSet(false, true)) {
         log.ifDebug("Shutting down ZooKeeperManager...")
-        zooKeeperManager ! ZooKeeperManagerMessages.Shutdown
+        clusterManager ! ClusterManagerMessages.Shutdown
 
         log.ifDebug("Shutting down ClusterNotificationManager...")
         clusterNotificationManager ! ClusterNotificationMessages.Shutdown
+
+        log.ifDebug("Cluster shut down")
       }
     }
 
@@ -296,19 +275,13 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
 
     private def doIfNotShutdown[T](block: => T): T = doIfStarted { if (isShutdown) throw new ClusterShutdownException else block }
 
-    private def handleZooKeeperManagerResponse(block: => Any): Unit = doIfConnected {
+    private def handleClusterManagerResponse(block: => Any): Unit = doIfConnected {
       block match {
-        case ZooKeeperManagerMessages.ZooKeeperManagerResponse(Some(ex)) => throw ex
-        case ZooKeeperManagerMessages.ZooKeeperManagerResponse(None) => // do nothing
+        case ClusterManagerMessages.ClusterManagerResponse(Some(ex)) => throw ex
+        case ClusterManagerMessages.ClusterManagerResponse(None) => // do nothing
       }
     }
 
     private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfNotShutdown(nodes.filter(predicate).firstOption)
   }
-
-  /**
-   * The default <code>Cluster</code> implementation. Instances should not be created directly, instead
-   * call <code>Cluster()</code>.
-   */
-  class DefaultCluster extends Cluster(null, null)
 }
