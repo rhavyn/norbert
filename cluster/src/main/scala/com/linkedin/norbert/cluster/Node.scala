@@ -23,6 +23,19 @@ import com.linkedin.norbert.protos.NorbertProtos
  * The <code>Node</code> companion object. Provides factory methods and implicits.
  */
 object Node {
+  
+  /**
+   * Creates a <code>Node</code> instance with no partitions assigned to it.
+   *
+   * @param id the id of the node
+   * @param address the <code>InetSocketAddress</code> on which requests can be sent to the node
+   * @param partitions the partitions for which the node can handle requests
+   * @param available whether or not the node is currently able to process requests
+   *
+   * @return a new <code>Node</code> instance
+   */
+  def apply(id: Int, url: String, available: Boolean): Node = apply(id, url, new Array[Int](0), available)
+
   /**
    * Creates a <code>Node</code> instance using the serialized state of a node.
    *

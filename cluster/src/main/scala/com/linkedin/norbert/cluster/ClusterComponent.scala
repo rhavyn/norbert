@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A component which provides the client interface for interacting with a cluster.
  */
 trait ClusterComponent extends ClusterListenerComponent with ClusterNotificationManagerComponent {
-  this: RouterFactoryComponent with ClusterManagerComponent =>
+  this: ClusterManagerComponent =>
   
   val cluster: Cluster
 
@@ -58,7 +58,7 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
         val a = actor {
           loop {
             react {
-              case ClusterEvents.Connected(_, _) => connectedLatch.countDown
+              case ClusterEvents.Connected(__) => connectedLatch.countDown
               case ClusterEvents.Disconnected => connectedLatch = new CountDownLatch(1)
               case _ => // do nothing
             }
@@ -91,20 +91,6 @@ trait ClusterComponent extends ClusterListenerComponent with ClusterNotification
      * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
      */
     def nodeWithId(nodeId: Int): Option[Node] = nodeWith(_.id == nodeId)
-
-    /**
-     * Retrieves the current router instance for the cluster.
-     *
-     * The router returned is valid for the state of the cluster at the point when the method is called.
-     *
-     * @return <code>Some</code> with the router if the cluster is connected, otherwise <code>None</code>
-     * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
-     */
-    def router: Option[Router] = doIfNotShutdown {
-      clusterNotificationManager !? ClusterNotificationMessages.GetCurrentRouter match {
-        case ClusterNotificationMessages.CurrentRouter(router) => router
-      }
-    }
 
     /**
      * Adds a node to the cluster metadata.

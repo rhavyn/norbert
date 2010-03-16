@@ -15,7 +15,6 @@
  */
 package com.linkedin.norbert.cluster
 
-import java.net.InetSocketAddress
 import java.util.concurrent.TimeUnit
 import org.specs.SpecificationWithJUnit
 import actors.Actor
@@ -24,20 +23,15 @@ import org.specs.util.WaitFor
 import org.specs.mock.Mockito
 
 class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ClusterComponent
-        with ClusterNotificationManagerComponent with RouterFactoryComponent with ClusterListenerComponent 
+        with ClusterNotificationManagerComponent with ClusterListenerComponent
         with ClusterManagerComponent {
 
-  type Id = Any
-  val routerFactory = null
-
   val clusterListenerKey = ClusterListenerKey(10101L)
-  val currentRouter = mock[Router]
   val currentNodes = Array(Node(1, "localhost:31313", Array(0, 1), true),
           Node(2, "localhost:31314", Array(0, 1), true),
           Node(3, "localhost:31315", Array(0, 1), true))
   var clusterActor: Actor = _
   var getCurrentNodesCount = 0
-  var getCurrentRouterCount = 0
   var addListenerCount = 0
   var currentListeners: List[Actor] = Nil
   var removeListenerCount = 0
@@ -60,10 +54,6 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
         case ClusterNotificationMessages.GetCurrentNodes =>
           getCurrentNodesCount += 1
           reply(ClusterNotificationMessages.CurrentNodes(currentNodes))
-
-        case ClusterNotificationMessages.GetCurrentRouter =>
-          getCurrentRouterCount += 1
-          reply(ClusterNotificationMessages.CurrentRouter(Some(currentRouter)))
 
         case ClusterNotificationMessages.Shutdown => cnmShutdownCount += 1
       }
@@ -147,11 +137,10 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
       }
     }
 
-    "throw ClusterShutdownException if shut down for nodes, nodeWith*, router, *Listener, await*" in {
+    "throw ClusterShutdownException if shut down for nodes, nodeWith*, *Listener, await*" in {
       cluster.shutdown
       cluster.nodes must throwA[ClusterShutdownException]
       cluster.nodeWithId(1) must throwA[ClusterShutdownException]
-      cluster.router must throwA[ClusterShutdownException]
       cluster.addListener(null) must throwA[ClusterShutdownException]
       cluster.removeListener(null) must throwA[ClusterShutdownException]
       cluster.awaitConnection must throwA[ClusterShutdownException]
@@ -166,14 +155,14 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     }
 
     "handle a connected event" in {
-      clusterActor ! ClusterEvents.Connected(Nil, None)
+      clusterActor ! ClusterEvents.Connected(Nil)
       waitFor(10.ms)
 
       cluster.isConnected must beTrue
     }
 
     "handle a disconnected event" in {
-      clusterActor ! ClusterEvents.Connected(Nil, None)
+      clusterActor ! ClusterEvents.Connected(Nil)
       waitFor(10.ms)
       cluster.isConnected must beTrue
       clusterActor ! ClusterEvents.Disconnected
@@ -182,7 +171,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     }
 
     "addNode should add a node to ZooKeeperManager" in {
-      clusterActor ! ClusterEvents.Connected(Nil, None)
+      clusterActor ! ClusterEvents.Connected(Nil)
       waitFor(10.ms)
 
       cluster.addNode(1, "localhost:31313", Array(1, 2)) must notBeNull
@@ -193,7 +182,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     }
 
     "removeNode should remove a node from ZooKeeperManager" in {
-      clusterActor ! ClusterEvents.Connected(Nil, None)
+      clusterActor ! ClusterEvents.Connected(Nil)
       waitFor(10.ms)
 
       cluster.removeNode(1)
@@ -202,7 +191,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     }
 
     "markNodeAvailable should mark a node available in ZooKeeperManager" in {
-      clusterActor ! ClusterEvents.Connected(Nil, None)
+      clusterActor ! ClusterEvents.Connected(Nil)
       waitFor(10.ms)
 
       cluster.markNodeAvailable(11)
@@ -211,7 +200,7 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     }
 
     "markNodeUnavailable should mark a node unavailable in ZooKeeperMonitor" in {
-      clusterActor ! ClusterEvents.Connected(Nil, None)
+      clusterActor ! ClusterEvents.Connected(Nil)
       waitFor(10.ms)
 
       cluster.markNodeUnavailable(111)
@@ -220,21 +209,13 @@ class ClusterComponentSpec extends SpecificationWithJUnit with Mockito with Wait
     }
 
     "nodes should ask the ClusterNotificationManager for the current node list" in {
-      clusterActor ! ClusterEvents.Connected(Nil, None)
+      clusterActor ! ClusterEvents.Connected(Nil)
       waitFor(10.ms)
 
       val nodes = cluster.nodes
       nodes.length must be_==(3)
       nodes must containAll(currentNodes)
       getCurrentNodesCount must be_==(1)
-    }
-
-    "router should ask the ClusterNotificationManager for the current router" in {
-      clusterActor ! ClusterEvents.Connected(Nil, None)
-      waitFor(10.ms)
-
-      cluster.router must beSome[Router].which(_ must be(currentRouter))
-      getCurrentRouterCount must be_==(1)
     }
 
     "when handling nodeWithId" in {

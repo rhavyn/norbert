@@ -19,7 +19,7 @@ import com.linkedin.norbert.util.Logging
 import actors.Actor
 
 trait ClusterNotificationManagerComponent {
-  this: RouterFactoryComponent with ClusterListenerComponent =>
+  this: ClusterListenerComponent =>
 
   sealed trait ClusterNotificationMessage
   object ClusterNotificationMessages {
@@ -31,15 +31,12 @@ trait ClusterNotificationManagerComponent {
     case class RemoveListener(key: ClusterListenerKey) extends ClusterNotificationMessage
     case object Shutdown extends ClusterNotificationMessage
 
-    case object GetCurrentRouter extends ClusterNotificationMessage
-    case class CurrentRouter(router: Option[Router]) extends ClusterNotificationMessage
     case object GetCurrentNodes extends ClusterNotificationMessage
     case class CurrentNodes(nodes: Seq[Node]) extends ClusterNotificationMessage
   }
 
   class ClusterNotificationManager extends Actor with Logging {
     private var currentNodes: Seq[Node] = Nil
-    private var currentRouter: Option[Router] = None
     private var listeners = Map[ClusterListenerKey, Actor]()
     private var connected = false
     private var listenerId: Long = 0
@@ -59,7 +56,6 @@ trait ClusterNotificationManagerComponent {
           case NodesChanged(nodes) => handleNodesChanged(nodes)
           case RemoveListener(key) => handleRemoveListener(key)
           case Shutdown => handleShutdown
-          case GetCurrentRouter => reply(CurrentRouter(currentRouter))
           case GetCurrentNodes => reply(CurrentNodes(currentNodes))
           case m => log.error("Received unknown message: %s", m)
         }
@@ -72,7 +68,7 @@ trait ClusterNotificationManagerComponent {
       listenerId += 1
       val key = ClusterListenerKey(listenerId)
       listeners += (key -> listener)
-      if (connected) listener ! ClusterEvents.Connected(currentNodes, currentRouter)
+      if (connected) listener ! ClusterEvents.Connected(currentNodes)
       reply(ClusterNotificationMessages.AddedListener(key))
     }
 
@@ -84,9 +80,8 @@ trait ClusterNotificationManagerComponent {
       } else {
         connected = true
         currentNodes = nodes
-        currentRouter = generateRouter
 
-        notifyListeners(ClusterEvents.Connected(currentNodes, currentRouter))
+        notifyListeners(ClusterEvents.Connected(currentNodes))
       }
     }
 
@@ -96,7 +91,6 @@ trait ClusterNotificationManagerComponent {
       if (connected) {
         connected = false
         currentNodes = Nil
-        currentRouter = None
 
         notifyListeners(ClusterEvents.Disconnected)
       } else {
@@ -109,9 +103,8 @@ trait ClusterNotificationManagerComponent {
 
       if (connected) {
         currentNodes = nodes
-        currentRouter = generateRouter
 
-        notifyListeners(ClusterEvents.NodesChanged(currentNodes, currentRouter))
+        notifyListeners(ClusterEvents.NodesChanged(currentNodes))
       } else {
         log.error("Received a NodesChanged event when disconnected")
       }
@@ -134,23 +127,7 @@ trait ClusterNotificationManagerComponent {
       notifyListeners(ClusterEvents.Shutdown)
       listeners.values.foreach(_ ! 'quit)
       currentNodes = Nil
-      currentRouter = None
       exit
-    }
-
-    private def generateRouter = try {
-      routerFactory.newRouter(currentNodes.filter(_.available == true)) match {
-        case null => None
-        case r => Some(r)
-      }
-    } catch {
-      case ex: InvalidClusterException =>
-        log.ifInfo(ex, "Unable to create new router instance")
-        None
-
-      case ex: Exception =>
-        log.error(ex, "Exception while creating new router instance")
-        None
     }
 
     private def notifyListeners(event: ClusterEvent) = listeners.values.foreach(_ ! event)

@@ -26,12 +26,9 @@ import java.util.ArrayList
 import com.linkedin.norbert.cluster._
 
 class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ZooKeeperClusterManagerComponent
-        with ClusterNotificationManagerComponent with RouterFactoryComponent with ClusterListenerComponent {
+        with ClusterNotificationManagerComponent with ClusterListenerComponent {
   import ZooKeeperMessages._
   import ClusterManagerMessages._
-
-  type Id = Int
-  val routerFactory = null
 
   "ZooKeeperManager" should {
     val mockZooKeeper = mock[ZooKeeper]

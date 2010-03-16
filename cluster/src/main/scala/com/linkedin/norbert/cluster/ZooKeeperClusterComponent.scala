@@ -23,7 +23,6 @@ import zookeeper.ZooKeeperClusterManagerComponent
  * must be provided.
  */
 trait ZooKeeperClusterComponent extends ClusterComponent with ZooKeeperClusterManagerComponent {
-  this: RouterFactoryComponent =>
 
   /**
    * The name of the cluster.

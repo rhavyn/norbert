@@ -2,8 +2,6 @@ package com.linkedin.norbert.cluster
 
 
 trait ClusterListenerComponent {
-  this: RouterFactoryComponent =>
-
   sealed trait ClusterEvent
   object ClusterEvents {
     /**
@@ -12,7 +10,7 @@ trait ClusterListenerComponent {
      * @param nodes the current list of <code>Node</code>s stored in the cluster metadata
      * @param router a <code>Router</code> which is valid for the current state of the cluster
      */
-    case class Connected(nodes: Seq[Node], router: Option[Router]) extends ClusterEvent
+    case class Connected(nodes: Seq[Node]) extends ClusterEvent
 
     /**
      * <code>ClusterEvent</code> which indicates that the cluster topology has changed.
@@ -20,7 +18,7 @@ trait ClusterListenerComponent {
      * @param nodes the current list of <code>Node</code>s stored in the cluster metadata
      * @param router a <code>Router</code> which is valid for the current state of the cluster
      */
-    case class NodesChanged(nodes: Seq[Node], router: Option[Router]) extends ClusterEvent
+    case class NodesChanged(nodes: Seq[Node]) extends ClusterEvent
 
     /**
      * <code>ClusterEvent</code> which indicates that the cluster is now disconnected.

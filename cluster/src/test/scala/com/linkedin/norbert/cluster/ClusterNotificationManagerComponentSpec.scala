@@ -21,9 +21,7 @@ import org.specs.util.WaitFor
 import actors.Actor._
 
 class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ClusterNotificationManagerComponent
-        with RouterFactoryComponent with ClusterListenerComponent {
-  val routerFactory = mock[RouterFactory]
-  type Id = Int
+        with ClusterListenerComponent {
   val clusterNotificationManager = new ClusterNotificationManager
 
   clusterNotificationManager.start
@@ -42,7 +40,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         var callCount = 0
         val listener = actor {
           react {
-            case ClusterEvents.Connected(_, _) => callCount += 1
+            case ClusterEvents.Connected(_) => callCount += 1
           }
         }
 
@@ -55,7 +53,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         var callCount = 0
         val listener = actor {
           react {
-            case ClusterEvents.Connected(_, _) => callCount += 1
+            case ClusterEvents.Connected(_) => callCount += 1
           }
         }
 
@@ -66,14 +64,12 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
     }
 
     "when handling a RemoveListener message remove the listener" in {
-      routerFactory.newRouter(Array(nodes(1))) returns mock[Router]
-
       var callCount = 0
       val listener = actor {
         loop {
           react {
-            case ClusterEvents.Connected(_, _) => callCount += 1
-            case ClusterEvents.NodesChanged(_, _) => callCount += 1
+            case ClusterEvents.Connected(_) => callCount += 1
+            case ClusterEvents.NodesChanged(_) => callCount += 1
           }
         }
       }
@@ -91,42 +87,12 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
     }
 
     "when handling a Connected message" in {
-      "generate a new router instance" in {
-        val router = mock[Router]
-        routerFactory.newRouter(List(nodes(1))) returns router
-
-        clusterNotificationManager ! Connected(nodes)
-        waitFor(20.ms)
-
-        routerFactory.newRouter(List(nodes(1))) was called
-        clusterNotificationManager !? GetCurrentNodes match {
-          case CurrentNodes(nodes) => nodes must be_==(nodes)
-        }
-        clusterNotificationManager !? GetCurrentRouter match {
-          case CurrentRouter(r) => r must beSome[Router].which(_ must be_==(router))
-        }
-      }
-
-      "correctly handle an InvalidClusterException when creating a new router" in {
-        routerFactory.newRouter(List(nodes(1))) throws new InvalidClusterException("Invalid")
-
-        clusterNotificationManager ! Connected(nodes)
-        waitFor(20.ms)
-
-        routerFactory.newRouter(List(nodes(1))) was called
-        clusterNotificationManager !? GetCurrentRouter match {
-          case CurrentRouter(r) => r must beNone
-        }
-      }
-
       "notify listeners" in {
-        routerFactory.newRouter(List(nodes(1))) returns mock[Router]
-
         var callCount = 0
         val listener = actor {
           loop {
             react {
-              case ClusterEvents.Connected(_, _) => callCount += 1
+              case ClusterEvents.Connected(_) => callCount += 1
             }
           }
         }
@@ -139,13 +105,11 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
       }
 
       "do nothing if already connected" in {
-        routerFactory.newRouter(List(nodes(1))) returns mock[Router]
-
         var callCount = 0
         val listener = actor {
           loop {
             react {
-              case ClusterEvents.Connected(_, _) => callCount += 1
+              case ClusterEvents.Connected(_) => callCount += 1
               case _ =>
             }
           }
@@ -157,55 +121,19 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         waitFor(20.ms)
 
         callCount must be_==(1)
-        routerFactory.newRouter(List(nodes(1))) was called.once
       }
     }
 
     "when handling a NodesChanged message" in {
-      "generate a new router instance" in {
-        val router = mock[Router]
-        routerFactory.newRouter(List(nodes(1))) returns router
-
-        clusterNotificationManager ! Connected(nodes.dropRight(2))
-        clusterNotificationManager ! NodesChanged(nodes)
-        waitFor(20.ms)
-
-        routerFactory.newRouter(List(nodes(1))) was called
-        clusterNotificationManager !? GetCurrentNodes match {
-          case CurrentNodes(nodes) => nodes must be_==(nodes)
-        }
-        clusterNotificationManager !? GetCurrentRouter match {
-          case CurrentRouter(r) => r must beSome[Router].which(_ must be_==(router))
-        }
-      }
-
-      "correctly handle an InvalidClusterException when creating a new router" in {
-        routerFactory.newRouter(List(nodes(1))) throws new InvalidClusterException("Invalid")
-
-        clusterNotificationManager ! Connected(nodes.dropRight(2))
-        clusterNotificationManager ! NodesChanged(nodes)
-        waitFor(20.ms)
-
-        routerFactory.newRouter(List(nodes(1))) was called
-        clusterNotificationManager !? GetCurrentRouter match {
-          case CurrentRouter(r) => r must beNone
-        }
-      }
-
       "notify listeners" in {
-        val router = mock[Router]
-        routerFactory.newRouter(List(nodes(1))) returns router
-
         var callCount = 0
         var currentNodes: Seq[Node] = Nil
-        var currentRouter: Option[Router] = None
         val listener = actor {
           loop {
             react {
-              case ClusterEvents.NodesChanged(n, r) =>
+              case ClusterEvents.NodesChanged(n) =>
                 callCount += 1
                 currentNodes = n
-                currentRouter = r
             }
           }
         }
@@ -217,18 +145,15 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
 
         callCount must be_==(1)
         currentNodes must be_==(currentNodes)
-        currentRouter must beSome[Router].which(_ must be_==(router))
       }
     }
 
     "do nothing is not connected" in {
-      routerFactory.newRouter(List(nodes(1))) throws new InvalidClusterException("Invalid")
-
       var callCount = 0
       val listener = actor {
         loop {
           react {
-            case ClusterEvents.NodesChanged(n, r) => callCount += 1
+            case ClusterEvents.NodesChanged(n) => callCount += 1
             case _ =>
           }
         }
@@ -240,7 +165,6 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
       waitFor(20.ms)
 
       callCount must be_==(1)
-      routerFactory.newRouter(List(nodes(1))) was called.once
     }
 
     "when handling a Disconnected message" in {
@@ -250,9 +174,6 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
 
         clusterNotificationManager !? GetCurrentNodes match {
           case CurrentNodes(nodes) => nodes.length must be_==(0)
-        }
-        clusterNotificationManager !? GetCurrentRouter match {
-          case CurrentRouter(router) => router must beNone
         }
       }
 
@@ -300,7 +221,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
       val listener = actor {
         loop {
           react {
-            case ClusterEvents.Connected(_, _) => connectedCallCount += 1
+            case ClusterEvents.Connected(_) => connectedCallCount += 1
             case ClusterEvents.Shutdown => shutdownCallCount += 1
             case _ =>
           }
