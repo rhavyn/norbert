@@ -13,11 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert.network.netty
 
-/**
- * A component which provides the client interface for interacting with a cluster.
- */
-trait ClusterComponent {
-  val cluster: ClusterClient
+import com.google.protobuf.Message
+import java.util.UUID
+
+case class Request(message: Message, responseCallback: (Either[Throwable, Message]) => Unit) {
+  val id = UUID.randomUUID
+  val timestamp = System.currentTimeMillis
 }

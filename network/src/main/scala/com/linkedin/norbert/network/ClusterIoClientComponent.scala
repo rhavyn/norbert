@@ -16,15 +16,14 @@
 package com.linkedin.norbert.network
 
 import com.linkedin.norbert.cluster.Node
+import com.google.protobuf.Message
 
 /**
  * A component which provides the client interface for sending requests to nodes in the cluster.
  */
 trait ClusterIoClientComponent {
-  val clusterIoClient: ClusterIoClient
-
   trait ClusterIoClient {
-    def sendRequest(nodes: scala.collection.Set[Node], request: Request): Unit
+    def sendMessage(node: Node, message: Message, responseHandler: Either[Throwable, Message] => Unit): Unit
     def shutdown: Unit
   }
 }

@@ -13,13 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.router
+package com.linkedin.norbert.cluster.zookeeper
 
-import com.linkedin.norbert.cluster.RouterFactoryComponent
+import com.linkedin.norbert.cluster.{ClusterClient, ClusterNotificationManagerComponent}
 
-/**
- * A <code>RouterFactoryComponent</code> implementation which sets the <code>routerFactory</code> to null.
- */
-trait NullRouterFactory extends RouterFactoryComponent {
-  val routerFactory = null
+class ZooKeeperClusterClient(zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int, serviceName: String) extends ClusterClient
+    with ClusterNotificationManagerComponent with ZooKeeperClusterManagerComponent {
+  val clusterNotificationManager = new ClusterNotificationManager
+  val clusterManager = new ZooKeeperClusterManager(zooKeeperConnectString, zooKeeperSessionTimeoutMillis, serviceName)
 }

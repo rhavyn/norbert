@@ -51,7 +51,7 @@ trait NettyResponseHandlerComponent extends ResponseHandlerComponent {
     override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
       val request = e.getMessage.asInstanceOf[Request]
       log.ifDebug("Noting request: %s", request)
-      requestMap.put(request.id, (request, new AtomicInteger(request.numResponses)))
+//      requestMap.put(request.id, (request, new AtomicInteger(request.numResponses)))
 
       val message = NorbertProtos.NorbertMessage.newBuilder
       message.setRequestIdMsb(request.id.getMostSignificantBits)
@@ -67,7 +67,7 @@ trait NettyResponseHandlerComponent extends ResponseHandlerComponent {
       log.ifDebug("Received message: %s", norbertMessage)
       val requestId = new UUID(norbertMessage.getRequestIdMsb, norbertMessage.getRequestIdLsb)
 
-      doWithRequest(requestId, norbertMessage, e.getChannel) { handleResponse(_, norbertMessage) }
+      doWithRequest(requestId, norbertMessage, e.getChannel) { null }
     }
 
     override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.error(e.getCause, "Caught exception in networking code")
@@ -98,7 +98,7 @@ trait NettyResponseHandlerComponent extends ResponseHandlerComponent {
       import collection.jcl.Conversions._
 
       log.ifDebug("Starting request cleanup thread")
-      
+
       while (true) {
         try {
           TimeUnit.MINUTES.sleep(requestCleanupFrequency)

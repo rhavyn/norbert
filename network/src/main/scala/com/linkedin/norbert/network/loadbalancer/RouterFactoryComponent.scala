@@ -13,10 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert.network.loadbalancer
+
+import com.linkedin.norbert.cluster.{Node, InvalidClusterException}
 
 /**
- * A component which provides the machinery for the <code>Cluster</code> to route a request to the
+ * A component which provides the machinery for the <code>ClusterClient</code> to route a request to the
  * <code>Node</code> which can process the request.
  */
 trait RouterFactoryComponent {

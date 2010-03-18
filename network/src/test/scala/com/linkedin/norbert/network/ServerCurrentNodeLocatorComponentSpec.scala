@@ -19,21 +19,18 @@ import netty.{NettyRequestHandlerComponent, BootstrapFactoryComponent}
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.linkedin.norbert.cluster._
+import loadbalancer.RouterFactoryComponent
 
 class ServerCurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with Mockito with ServerCurrentNodeLocatorComponent
         with NetworkServerComponent with BootstrapFactoryComponent with ClusterComponent with NetworkClientFactoryComponent
-        with ClusterManagerComponent with ClusterWatcherComponent with ZooKeeperMonitorComponent
-        with RouterFactoryComponent with NettyRequestHandlerComponent with ClusterIoClientComponent with MessageRegistryComponent
+        with ClusterManagerComponent with RouterFactoryComponent with NettyRequestHandlerComponent
+        with ClusterIoClientComponent with MessageRegistryComponent
         with ResponseHandlerComponent with MessageExecutorComponent {
-  val clusterWatcher = null
   val cluster = null
   val networkClientFactory = null
   val bootstrapFactory = null
-  val clusterManager = null
-  val zooKeeperMonitor = null
   val routerFactory = null
   val requestHandler = null
-  val clusterIoClient = null
   val messageRegistry = null
   val responseHandler = null
   val messageExecutor = null
@@ -43,7 +40,7 @@ class ServerCurrentNodeLocatorComponentSpec extends SpecificationWithJUnit with 
 
   "CurrentNodeLocator" should {
     "return the current node from the server" in {
-      val node = Node(1, "localhost", 31313, Array(0, 1), false)
+      val node = Node(1, "localhost:31313", Array(0, 1), false)
       networkServer.currentNode returns node
 
       currentNodeLocator.currentNode must be(node)

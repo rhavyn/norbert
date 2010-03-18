@@ -26,37 +26,38 @@ import java.util.ArrayList
 import com.linkedin.norbert.cluster._
 
 class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ZooKeeperClusterManagerComponent
-        with ClusterNotificationManagerComponent with ClusterListenerComponent {
+        with ClusterNotificationManagerComponent {
   import ZooKeeperMessages._
   import ClusterManagerMessages._
 
-  "ZooKeeperManager" should {
-    val mockZooKeeper = mock[ZooKeeper]
+  val mockZooKeeper = mock[ZooKeeper]
 
-    var connectedCount = 0
-    var disconnectedCount = 0
-    var nodesChangedCount = 0
-    var shutdownCount = 0
-    var nodesReceived: Seq[Node] = Nil
+  var connectedCount = 0
+  var disconnectedCount = 0
+  var nodesChangedCount = 0
+  var shutdownCount = 0
+  var nodesReceived: Seq[Node] = Nil
 
-    val notificationActor = actor {
-      loop {
-        react {
-          case ClusterNotificationMessages.Connected(nodes) => connectedCount += 1; nodesReceived = nodes
-          case ClusterNotificationMessages.Disconnected => disconnectedCount += 1
-          case ClusterNotificationMessages.NodesChanged(nodes) => nodesChangedCount += 1; nodesReceived = nodes
-          case ClusterNotificationMessages.Shutdown => shutdownCount += 1
-        }
+  def zkf(connectString: String, sessionTimeout: Int, watcher: Watcher) = mockZooKeeper
+  val clusterManager = new ZooKeeperClusterManager("", 0, "test")(zkf _)
+  clusterManager.start
+
+  val rootNode = "/test"
+  val membershipNode = rootNode + "/members"
+  val availabilityNode = rootNode + "/available"
+
+  val clusterNotificationManager = actor {
+    loop {
+      react {
+        case ClusterNotificationMessages.Connected(nodes) => connectedCount += 1; nodesReceived = nodes
+        case ClusterNotificationMessages.Disconnected => disconnectedCount += 1
+        case ClusterNotificationMessages.NodesChanged(nodes) => nodesChangedCount += 1; nodesReceived = nodes
+        case ClusterNotificationMessages.Shutdown => shutdownCount += 1
       }
     }
+  }
 
-    def zkf(connectString: String, sessionTimeout: Int, watcher: Watcher) = mockZooKeeper
-    val zooKeeperManager = new ZooKeeperClusterManager("", 0, "test", notificationActor)(zkf _)
-    zooKeeperManager.start
-
-    val rootNode = "/test"
-    val membershipNode = rootNode + "/members"
-    val availabilityNode = rootNode + "/available"
+  "ZooKeeperManager" should {
 
     "instantiate a ZooKeeper instance when started" in {
       var callCount = 0
@@ -65,7 +66,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper
       }
 
-      val zkm = new ZooKeeperClusterManager("", 0, "", notificationActor)(countedZkf _)
+      val zkm = new ZooKeeperClusterManager("", 0, "")(countedZkf _)
       zkm.start
 
       callCount must eventually(be_==(1))
@@ -78,7 +79,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         "doing nothing if all znodes exist" in {
           znodes.foreach(mockZooKeeper.exists(_, false) returns mock[Stat])
 
-          zooKeeperManager ! Connected
+          clusterManager ! Connected
 
           znodes.foreach(mockZooKeeper.exists(_, false) was called)
         }
@@ -89,7 +90,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
             mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT) returns path
           }
 
-          zooKeeperManager ! Connected
+          clusterManager ! Connected
           waitFor(10.ms)
 
           znodes.foreach { path =>
@@ -117,14 +118,14 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         }
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
-        zooKeeperManager ! Connected
+        clusterManager ! Connected
         waitFor(10.ms)
 
         mockZooKeeper.getChildren(membershipNode, true) was called
         nodes.foreach { node =>
           mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) was called
         }
-        mockZooKeeper.getChildren(availabilityNode, true) was called          
+        mockZooKeeper.getChildren(availabilityNode, true) was called
       }
 
       "send a notification to the notification manager actor" in {
@@ -145,7 +146,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         }
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
-        zooKeeperManager ! Connected
+        clusterManager ! Connected
 
         connectedCount must eventually(be_==(1))
         nodesReceived.length must be_==(3)
@@ -156,14 +157,14 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
     "when a Disconnected message is received" in {
       "send a notification to the notification manager actor" in {
-        zooKeeperManager ! Connected
-        zooKeeperManager ! Disconnected
+        clusterManager ! Connected
+        clusterManager ! Disconnected
 
         disconnectedCount must eventually(be_==(1))
       }
 
       "do nothing if not connected" in {
-        zooKeeperManager ! Disconnected
+        clusterManager ! Disconnected
 
         disconnectedCount must eventually(be_==(0))
       }
@@ -177,7 +178,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           mockZooKeeper
         }
 
-        val zkm = new ZooKeeperClusterManager("", 0, "", notificationActor)(countedZkf _)
+        val zkm = new ZooKeeperClusterManager("", 0, "")(countedZkf _)
         zkm.start
         zkm ! Connected
         zkm ! Expired
@@ -186,14 +187,14 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
       }
 
       "send a notification to the notification manager actor" in {
-        zooKeeperManager ! Connected
-        zooKeeperManager ! Expired
+        clusterManager ! Connected
+        clusterManager ! Expired
 
         disconnectedCount must eventually(be_==(1))
       }
 
       "do nothing if not connected" in {
-        zooKeeperManager ! Expired
+        clusterManager ! Expired
 
         disconnectedCount must eventually(be_==(0))
       }
@@ -223,7 +224,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           }
           mockZooKeeper.getChildren(availabilityNode, true) returns availability thenReturns newAvailability
 
-          zooKeeperManager ! Connected
+          clusterManager ! Connected
 
           nodesReceived.length must eventually(be_==(3))
           nodesReceived must containAll(nodes)
@@ -231,7 +232,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
             if (n.id == 2) n.available must beTrue else n.available must beFalse
           }
 
-          zooKeeperManager ! NodeChildrenChanged(availabilityNode)
+          clusterManager ! NodeChildrenChanged(availabilityNode)
 
           nodesChangedCount must eventually(be_==(1))
           nodesReceived.length must be_==(3)
@@ -244,7 +245,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         }
 
         "do nothing if not connected" in {
-          zooKeeperManager ! NodeChildrenChanged(availabilityNode)
+          clusterManager ! NodeChildrenChanged(availabilityNode)
 
           nodesChangedCount must eventually(be_==(0))
         }
@@ -271,23 +272,23 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           }
           mockZooKeeper.getChildren(availabilityNode, true) returns membership
 
-          zooKeeperManager ! Connected
+          clusterManager ! Connected
 
           nodesReceived.length must eventually(be_==(2))
           nodesReceived must containAll(nodes)
 
-          zooKeeperManager ! NodeChildrenChanged(membershipNode)
+          clusterManager ! NodeChildrenChanged(membershipNode)
 
           nodesChangedCount must eventually(be_==(1))
           nodesReceived.length must be_==(3)
           nodesReceived must containAll(updatedNodes)
 
           mockZooKeeper.getChildren(availabilityNode, true) was called.twice
-          mockZooKeeper.getChildren(membershipNode, true) was called.twice          
+          mockZooKeeper.getChildren(membershipNode, true) was called.twice
         }
 
         "do nothing if not connected" in {
-          zooKeeperManager ! NodeChildrenChanged(membershipNode)
+          clusterManager ! NodeChildrenChanged(membershipNode)
 
           nodesChangedCount must eventually(be_==(0))
         }
@@ -303,10 +304,10 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           mockZooKeeper
         }
 
-        val zkm = new ZooKeeperClusterManager("", 0, "", notificationActor)(countedZkf _)
+        val zkm = new ZooKeeperClusterManager("", 0, "")(countedZkf _)
         zkm.start
-        zooKeeperManager ! Shutdown
-        zooKeeperManager ! Connected
+        clusterManager ! Shutdown
+        clusterManager ! Connected
 
         waitFor(10.ms)
         callCount must eventually(be_==(1))
@@ -319,7 +320,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
       "throw a ClusterDisconnectedException if not connected" in {
 
-        zooKeeperManager !? AddNode(node) match {
+        clusterManager !? AddNode(node) match {
           case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
@@ -328,8 +329,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         val path = membershipNode + "/1"
         mockZooKeeper.exists(path, false) returns mock[Stat]
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? AddNode(node) match {
+        clusterManager ! Connected
+        clusterManager !? AddNode(node) match {
           case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[InvalidNodeException])
         }
 
@@ -341,8 +342,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.exists(path, false) returns null
         mockZooKeeper.create(path, node, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT) returns path
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? AddNode(node) match {
+        clusterManager ! Connected
+        clusterManager !? AddNode(node) match {
           case ClusterManagerResponse(r) => r must beNone
         }
 
@@ -351,8 +352,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
       }
 
       "notify listeners that the node list changed" in {
-        zooKeeperManager ! Connected
-        zooKeeperManager !? AddNode(node)
+        clusterManager ! Connected
+        clusterManager !? AddNode(node)
 
         nodesChangedCount must be_==(1)
         nodesReceived.length must be_==(1)
@@ -362,7 +363,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
     "when a RemoveNode message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
-        zooKeeperManager !? RemoveNode(1) match {
+        clusterManager !? RemoveNode(1) match {
           case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
@@ -370,8 +371,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
       "do nothing if the node does not exist in ZooKeeper" in {
         mockZooKeeper.exists(membershipNode + "/1", false) returns null
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? RemoveNode(1) match {
+        clusterManager ! Connected
+        clusterManager !? RemoveNode(1) match {
           case ClusterManagerResponse(r) => r must beNone
         }
 
@@ -384,8 +385,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.exists(path, false) returns mock[Stat]
         doNothing.when(mockZooKeeper).delete(path, -1)
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? RemoveNode(1) match {
+        clusterManager ! Connected
+        clusterManager !? RemoveNode(1) match {
           case ClusterManagerResponse(r) => r must beNone
         }
 
@@ -410,8 +411,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         }
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? RemoveNode(2)
+        clusterManager ! Connected
+        clusterManager !? RemoveNode(2)
 
         nodesReceived.length must eventually(be_==(2))
         nodesReceived must containAll(Array(nodes(0), nodes(2)))
@@ -420,7 +421,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
     "when a MarkNodeAvailable message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
-        zooKeeperManager !? MarkNodeAvailable(1) match {
+        clusterManager !? MarkNodeAvailable(1) match {
           case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
@@ -434,8 +435,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.exists(path, false) returns null
         mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) returns path
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? MarkNodeAvailable(1) match {
+        clusterManager ! Connected
+        clusterManager !? MarkNodeAvailable(1) match {
           case ClusterManagerResponse(r) => r must beNone
         }
 
@@ -452,13 +453,13 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.exists(path, false) returns mock[Stat]
         mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) returns path
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? MarkNodeAvailable(1) match {
+        clusterManager ! Connected
+        clusterManager !? MarkNodeAvailable(1) match {
           case ClusterManagerResponse(r) => r must beNone
         }
 
         mockZooKeeper.exists(path, false) was called
-        mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) wasnt called        
+        mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) wasnt called
       }
 
       "notify listeners that the node list changed" in {
@@ -479,12 +480,12 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         }
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
-        zooKeeperManager ! Connected
+        clusterManager ! Connected
 
         nodesReceived.length must eventually(be_>(0))
         nodesReceived(2).available must beFalse
 
-        zooKeeperManager !? MarkNodeAvailable(3)
+        clusterManager !? MarkNodeAvailable(3)
 
         nodesReceived(2).available must eventually(beTrue)
       }
@@ -492,7 +493,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
     "when a MarkNodeUnavailable message is received" in {
       "throw a ClusterDisconnectedException if not connected" in {
-        zooKeeperManager !? MarkNodeUnavailable(1) match {
+        clusterManager !? MarkNodeUnavailable(1) match {
           case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[ClusterDisconnectedException])
         }
       }
@@ -500,8 +501,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
       "do nothing if the node does not exist in ZooKeeper" in {
         mockZooKeeper.exists(availabilityNode + "/1", false) returns mock[Stat]
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? MarkNodeUnavailable(1) match {
+        clusterManager ! Connected
+        clusterManager !? MarkNodeUnavailable(1) match {
           case ClusterManagerResponse(r) => r must beNone
         }
 
@@ -514,8 +515,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.exists(path, false) returns mock[Stat]
         doNothing.when(mockZooKeeper).delete(path, -1)
 
-        zooKeeperManager ! Connected
-        zooKeeperManager !? MarkNodeUnavailable(1) match {
+        clusterManager ! Connected
+        clusterManager !? MarkNodeUnavailable(1) match {
           case ClusterManagerResponse(r) => r must beNone
         }
 
@@ -540,12 +541,12 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         }
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
-        zooKeeperManager ! Connected
+        clusterManager ! Connected
 
         nodesReceived.length must eventually(be_>(0))
         nodesReceived(0).available must beTrue
 
-        zooKeeperManager !? MarkNodeUnavailable(1)
+        clusterManager !? MarkNodeUnavailable(1)
 
         nodesReceived(0).available must eventually(beFalse)
       }
@@ -571,7 +572,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
     }
 
     val clusterWatcher = new ClusterWatcher(zkm)
-    
+
     def newEvent(state: KeeperState) = {
       val event = mock[WatchedEvent]
       event.getType returns EventType.None

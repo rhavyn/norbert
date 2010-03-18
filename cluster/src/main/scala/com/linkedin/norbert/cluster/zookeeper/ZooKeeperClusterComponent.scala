@@ -13,21 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert.cluster.zookeeper
 
-import zookeeper.ZooKeeperClusterManagerComponent
+import com.linkedin.norbert.cluster.ClusterComponent
 
 /**
- * The default cluster implementation component mixin. Users should mix this component into their
- * component registry instead of pulling in the individual components. A <code>RouterFactory</code> implementation
- * must be provided.
+ * The default cluster implementation component mixin.
  */
-trait ZooKeeperClusterComponent extends ClusterComponent with ZooKeeperClusterManagerComponent {
-
+trait ZooKeeperClusterComponent extends ClusterComponent {
   /**
-   * The name of the cluster.
+   * The name of the service.
    */
-  val clusterName: String
+  val serviceName: String
 
   /**
    * The URL string to use to connect to ZooKeeper.
@@ -37,13 +34,7 @@ trait ZooKeeperClusterComponent extends ClusterComponent with ZooKeeperClusterMa
   /**
    * The ZooKeeper session timeout in milliseconds.
    */
-  val zooKeeperSessionTimeout: Int
+  val zooKeeperSessionTimeoutMillis: Int
 
-  val cluster = newCluster
-
-  private def newCluster: Cluster = {
-    val cnm = new ClusterNotificationManager
-    val zkm = new ZooKeeperClusterManager(zooKeeperConnectString, zooKeeperSessionTimeout, clusterName, cnm)
-    new Cluster(cnm, zkm)
-  }
+  val cluster = new ZooKeeperClusterClient(zooKeeperConnectString, zooKeeperSessionTimeoutMillis, serviceName)
 }

@@ -20,8 +20,7 @@ import org.specs.mock.Mockito
 import org.specs.util.WaitFor
 import actors.Actor._
 
-class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ClusterNotificationManagerComponent
-        with ClusterListenerComponent {
+class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ClusterNotificationManagerComponent {
   val clusterNotificationManager = new ClusterNotificationManager
 
   clusterNotificationManager.start
@@ -29,7 +28,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
   val nodes = List(Node(1, "localhost:31313", Array(1, 2), false),
     Node(2, "localhost:31314", Array(3, 4), true),
     Node(3, "localhost:31315", Array(5, 6), false))
-  
+
   "ClusterNotificationManager" should {
     import ClusterNotificationMessages._
 

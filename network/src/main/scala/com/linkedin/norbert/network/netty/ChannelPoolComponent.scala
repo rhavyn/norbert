@@ -15,21 +15,24 @@
  */
 package com.linkedin.norbert.network.netty
 
-import java.util.concurrent.{ArrayBlockingQueue, LinkedBlockingQueue}
-import com.linkedin.norbert.network.Request
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.group.{ChannelGroup, DefaultChannelGroup}
 import org.jboss.netty.channel.{ChannelFutureListener, ChannelFuture, Channel}
 import com.linkedin.norbert.util.Logging
+import java.util.concurrent.{TimeoutException, ArrayBlockingQueue, LinkedBlockingQueue}
 
 trait ChannelPoolComponent {
   class ChannelPoolClosedException extends Exception
 
-  class ChannelPool private[netty] (maxConnections: Int, writeTimeout: Int, bootstrap: ClientBootstrap, channelGroup: ChannelGroup) extends Logging {
-    def this(maxConnections: Int, writeTimeout: Int, bootstrap: ClientBootstrap) = this(maxConnections,
-      writeTimeout, bootstrap, new DefaultChannelGroup("norbert-client [%s]".format(bootstrap.getOption("remoteAddress"))))
-    
+  class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int) {
+    def newChannelPool(bootstrap: ClientBootstrap): ChannelPool = {
+      val group = new DefaultChannelGroup("norbert-client [%s]".format(bootstrap.getOption("remoteAddress")))
+      new ChannelPool(maxConnections, writeTimeoutMillis, bootstrap, group)
+    }
+  }
+  
+  class ChannelPool(maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap, channelGroup: ChannelGroup) extends Logging {
     private val pool = new ArrayBlockingQueue[Channel](maxConnections)
     private val waitingWrites = new LinkedBlockingQueue[Request]
     private val poolSize = new AtomicInteger(0)
@@ -42,16 +45,16 @@ trait ChannelPoolComponent {
         case Some(channel) =>
           writeRequestToChannel(request, channel)
           checkinChannel(channel)
-        
+
         case None =>
           openChannel
           waitingWrites.offer(request)
       }
     }
-    
+
     def close {
       if (closed.compareAndSet(false, true)) {
-        channelGroup.close.awaitUninterruptibly        
+        channelGroup.close.awaitUninterruptibly
       }
     }
 
@@ -59,13 +62,16 @@ trait ChannelPoolComponent {
       while (!waitingWrites.isEmpty) {
         waitingWrites.poll match {
           case null => // do nothing
-          case request => if((System.currentTimeMillis - request.timestamp) < writeTimeout) writeRequestToChannel(request, channel)
+
+          case request =>
+            if((System.currentTimeMillis - request.timestamp) < writeTimeoutMillis) writeRequestToChannel(request, channel)
+            else request.responseCallback(Left(new TimeoutException("Timed out while waiting to write")))
         }
       }
 
       pool.offer(channel)
     }
-    
+
     private def checkoutChannel: Option[Channel] = {
       var found = false
       var channel: Channel = null
@@ -113,7 +119,7 @@ trait ChannelPoolComponent {
       log.ifDebug("Writing to %s: %s", channel, request)
       channel.write(request).addListener(new ChannelFutureListener {
         def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
-          request.offerResponse(Left(writeFuture.getCause))
+          request.responseCallback(Left(writeFuture.getCause))
         }
       })
     }

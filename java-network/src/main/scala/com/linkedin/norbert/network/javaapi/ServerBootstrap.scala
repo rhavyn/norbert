@@ -42,7 +42,7 @@ class ServerConfig extends ClientConfig {
 
   /**
    * The address to which the <code>NetworkServer</code> to bind.  The <code>NetworkServer</code> will attempt
-   * to find a node with the same address as this (using the method Cluster.getNodeWithAddress) and will
+   * to find a node with the same address as this (using the method ClusterClient.getNodeWithAddress) and will
    * consider that node as the current node. Only one of nodeId and bindAddress should be specified.
    */
   @BeanProperty var bindAddress: InetSocketAddress = _
@@ -80,7 +80,7 @@ class ServerConfig extends ClientConfig {
 @throws(classOf[NorbertException])
 class ServerBootstrap(serverConfig: ServerConfig) extends ClientBootstrapHelper {
   serverConfig.validate
-  
+
   protected object componentRegistry extends {
     val clusterName = serverConfig.clusterName
     val zooKeeperConnectString = serverConfig.zooKeeperUrls

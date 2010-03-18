@@ -86,6 +86,9 @@ object Node {
  */
 final case class Node(@BeanProperty id: Int, @BeanProperty url: String,
         @BeanProperty partitions: Array[Int], @BeanProperty available: Boolean) {
+  if (url == null) throw new NullPointerException("url must not be null")
+  if (partitions == null) throw new NullPointerException("partitions must not be null")
+  
   override def hashCode = id.hashCode
 
   override def equals(other: Any) = other match {

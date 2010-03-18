@@ -18,7 +18,7 @@ package com.linkedin.norbert.cluster
 import com.linkedin.norbert.NorbertException
 
 /**
- * Base class for exceptions thrown by the <code>Cluster</code>.
+ * Base class for exceptions thrown by the <code>ClusterClient</code>.
  */
 class ClusterException(message: String, cause: Throwable) extends NorbertException(message, cause) {
   def this() = this(null, null)
@@ -53,4 +53,6 @@ class InvalidNodeException(message: String, cause: Throwable) extends ClusterExc
 /**
  * Exception that indicates that something about the cluster was invalid when an operation was attempted.
  */
-class InvalidClusterException(message: String) extends ClusterException(message)
+class InvalidClusterException(message: String, cause: Throwable) extends ClusterException(message) {
+  def this(message: String) = this(message, null)
+}

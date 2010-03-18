@@ -13,9 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.router
+package com.linkedin.norbert.network.loadbalancer
 
-import com.linkedin.norbert.cluster.{Node, RouterFactoryComponent}
+import com.linkedin.norbert.cluster.Node
 
 /**
  * A <code>RouterFactoryComponent</code> implementation that provides a consistent hash routing strategy.

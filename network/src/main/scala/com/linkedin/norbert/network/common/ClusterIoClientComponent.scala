@@ -13,11 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert.network.common
 
-/**
- * A component which provides the client interface for interacting with a cluster.
- */
-trait ClusterComponent {
-  val cluster: ClusterClient
+import com.google.protobuf.Message
+import com.linkedin.norbert.cluster.Node
+
+trait ClusterIoClientComponent {
+  trait ClusterIoClient {
+    def sendMessage(node: Node, message: Message, responseCallback: Either[Throwable, Message] => Unit): Unit
+    def shutdown: Unit
+  }
 }

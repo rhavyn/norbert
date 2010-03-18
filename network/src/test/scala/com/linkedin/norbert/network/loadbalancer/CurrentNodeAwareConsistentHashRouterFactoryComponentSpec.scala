@@ -13,13 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.router
+package com.linkedin.norbert.network.loadbalancer
 
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.linkedin.norbert.network.CurrentNodeLocatorComponent
-import com.linkedin.norbert.cluster.router.HashFunctions
-import java.net.InetSocketAddress
 import com.linkedin.norbert.cluster.Node
 
 class CurrentNodeAwareConsistentHashRouterFactoryComponentSpec extends SpecificationWithJUnit with Mockito
@@ -39,11 +37,11 @@ class CurrentNodeAwareConsistentHashRouterFactoryComponentSpec extends Specifica
     "route to the correct node if CurrentNodeLocator returns null" in {
       currentNodeLocator.currentNode returns null
       val nodes = Array(
-        Node(0, new InetSocketAddress("localhost", 1), Array(0, 1), true),
-        Node(1, new InetSocketAddress("localhost", 1), Array(1, 2), true),
-        Node(2, new InetSocketAddress("localhost", 1), Array(2, 3), true),
-        Node(3, new InetSocketAddress("localhost", 1), Array(3, 4), true),
-        Node(4, new InetSocketAddress("localhost", 1), Array(0, 4), true))
+        Node(0, "localhost:31313", Array(0, 1), true),
+        Node(1, "localhost:31313", Array(1, 2), true),
+        Node(2, "localhost:31313", Array(2, 3), true),
+        Node(3, "localhost:31313", Array(3, 4), true),
+        Node(4, "localhost:31313", Array(0, 4), true))
 
       val route = routerFactory.newRouter(nodes)
       route(EId(1210)) must beSome[Node].which(Array(nodes(0), nodes(4)) must contain(_))
@@ -51,11 +49,11 @@ class CurrentNodeAwareConsistentHashRouterFactoryComponentSpec extends Specifica
 
     "route to the current node" in {
       val nodes = Array(
-        Node(0, new InetSocketAddress("localhost", 1), Array(0, 1), true),
-        Node(1, new InetSocketAddress("localhost", 1), Array(1, 2), true),
-        Node(2, new InetSocketAddress("localhost", 1), Array(2, 3), true),
-        Node(3, new InetSocketAddress("localhost", 1), Array(3, 4), true),
-        Node(4, new InetSocketAddress("localhost", 1), Array(0, 4), true))
+        Node(0, "localhost:31313", Array(0, 1), true),
+        Node(1, "localhost:31313", Array(1, 2), true),
+        Node(2, "localhost:31313", Array(2, 3), true),
+        Node(3, "localhost:31313", Array(3, 4), true),
+        Node(4, "localhost:31313", Array(0, 4), true))
       currentNodeLocator.currentNode returns nodes(4)
 
       val routerFactory = new EIdCurrentNodeAwareConsistentHashRouterFactory(5)
@@ -67,11 +65,11 @@ class CurrentNodeAwareConsistentHashRouterFactoryComponentSpec extends Specifica
 
     "not route to the current node" in {
       val nodes = Array(
-        Node(0, new InetSocketAddress("localhost", 1), Array(0, 1), true),
-        Node(1, new InetSocketAddress("localhost", 1), Array(1, 2), true),
-        Node(2, new InetSocketAddress("localhost", 1), Array(2, 3), true),
-        Node(3, new InetSocketAddress("localhost", 1), Array(3, 4), true),
-        Node(4, new InetSocketAddress("localhost", 1), Array(0, 4), true))
+        Node(0, "localhost:31313", Array(0, 1), true),
+        Node(1, "localhost:31313", Array(1, 2), true),
+        Node(2, "localhost:31313", Array(2, 3), true),
+        Node(3, "localhost:31313", Array(3, 4), true),
+        Node(4, "localhost:31313", Array(0, 4), true))
       currentNodeLocator.currentNode returns nodes(2)
 
       val routerFactory = new EIdCurrentNodeAwareConsistentHashRouterFactory(5)

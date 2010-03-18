@@ -45,3 +45,8 @@ class InvalidResponseException(errorMsg: String) extends NetworkingException(err
  * Exception that indicates that a method has been called before the networking system has been started.
  */
 class NetworkNotStartedException extends NetworkingException
+
+/**
+ * Exception that indicates that no nodes are available to process the message.
+ */
+class NoNodesAvailableException(errorMsg: String) extends NetworkingException(errorMsg)

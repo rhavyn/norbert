@@ -13,11 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert.network.loadbalancer
 
 /**
- * A component which provides the client interface for interacting with a cluster.
+ * A <code>RouterFactoryComponent</code> implementation which sets the <code>routerFactory</code> to null.
  */
-trait ClusterComponent {
-  val cluster: ClusterClient
+trait NullRouterFactory extends RouterFactoryComponent {
+  val routerFactory = null
 }

@@ -19,9 +19,10 @@ import com.linkedin.norbert.util.Logging
 import actors.Actor
 
 trait ClusterNotificationManagerComponent {
-  this: ClusterListenerComponent =>
+  val clusterNotificationManager: Actor
 
   sealed trait ClusterNotificationMessage
+
   object ClusterNotificationMessages {
     case class AddListener(listener: Actor) extends ClusterNotificationMessage
     case class AddedListener(key: ClusterListenerKey) extends ClusterNotificationMessage
@@ -42,8 +43,6 @@ trait ClusterNotificationManagerComponent {
     private var listenerId: Long = 0
 
     def act() = {
-      trapExit = true
-
       log.ifDebug("ClusterNotificationManager started")
 
       while(true) {
@@ -74,7 +73,7 @@ trait ClusterNotificationManagerComponent {
 
     private def handleConnected(nodes: Seq[Node]) {
       log.ifDebug("Handling Connected(%s) message", nodes)
-      
+
       if (connected) {
         log.error("Received a Connected event when already connected")
       } else {
@@ -116,14 +115,14 @@ trait ClusterNotificationManagerComponent {
         case Some(a) =>
           a ! 'quit
           listeners -= key
-        
+
         case None => log.ifInfo("Attempt to remove an unknown listener with key: %s", key)
       }
     }
 
     private def handleShutdown {
       log.ifDebug("Handling Shutdown message")
-      
+
       notifyListeners(ClusterEvents.Shutdown)
       listeners.values.foreach(_ ! 'quit)
       currentNodes = Nil

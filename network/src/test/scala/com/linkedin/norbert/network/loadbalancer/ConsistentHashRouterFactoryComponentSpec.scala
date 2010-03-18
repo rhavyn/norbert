@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.router
+package com.linkedin.norbert.network.loadbalancer
 
 import org.specs.SpecificationWithJUnit
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}

@@ -19,7 +19,7 @@ import com.linkedin.norbert.cluster.Node
 
 /**
  * A trait to be implemented by classes which wish to receive cluster events.  Register <code>ClusterListener</code>s
- * with <code>Cluster#addListener(listener)</code>.
+ * with <code>ClusterClient#addListener(listener)</code>.
  */
 trait ClusterListener {
   /**

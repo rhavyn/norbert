@@ -35,11 +35,11 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     case class NodeChildrenChanged(path: String) extends ZooKeeperMessage
   }
 
-  class ZooKeeperClusterManager(connectString: String, sessionTimeout: Int, clusterName: String, clusterNotificationManager: Actor)
+  class ZooKeeperClusterManager(connectString: String, sessionTimeout: Int, serviceName: String)
           (implicit zooKeeperFactory: (String, Int, Watcher) => ZooKeeper) extends Actor with Logging {
-    private val CLUSTER_NODE = "/" + clusterName
-    private val AVAILABILITY_NODE = CLUSTER_NODE + "/available"
-    private val MEMBERSHIP_NODE = CLUSTER_NODE + "/members"
+    private val SERVICE_NODE = "/" + serviceName
+    private val AVAILABILITY_NODE = SERVICE_NODE + "/available"
+    private val MEMBERSHIP_NODE = SERVICE_NODE + "/members"
 
     private var zooKeeper: Option[ZooKeeper] = None
     private var watcher: ClusterWatcher = _
@@ -49,7 +49,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     def act() = {
       log.ifInfo("Connecting to ZooKeeper...")
       startZooKeeper
-      
+
       while(true) {
         import ZooKeeperMessages._
         import ClusterManagerMessages._
@@ -177,7 +177,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
 
             currentNodes += (node.id -> node)
             clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
-            
+
             None
           } catch {
             case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))
@@ -280,7 +280,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     private def verifyZooKeeperStructure(zk: ZooKeeper) {
       log.ifDebug("Verifying ZooKeeper structure...")
 
-      List(CLUSTER_NODE, AVAILABILITY_NODE, MEMBERSHIP_NODE).foreach { path =>
+      List(SERVICE_NODE, AVAILABILITY_NODE, MEMBERSHIP_NODE).foreach { path =>
         try {
           log.ifDebug("Ensuring %s exists", path)
           if (zk.exists(path, false) == null) {
@@ -290,7 +290,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         } catch {
           case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => // do nothing
         }
-      }      
+      }
     }
 
     private def lookupCurrentNodes(zk: ZooKeeper) {
@@ -369,7 +369,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
   }
 
   protected implicit def defaultZooKeeperFactory(connectString: String, sessionTimeout: Int, watcher: Watcher) = new ZooKeeper(connectString, sessionTimeout, watcher)
-  
+
   class ClusterWatcher(zooKeeperManager: Actor) extends Watcher {
     @volatile private var shutdownSwitch = false
 

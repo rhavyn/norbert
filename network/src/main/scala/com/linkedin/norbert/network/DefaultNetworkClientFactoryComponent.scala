@@ -15,36 +15,37 @@
  */
 package com.linkedin.norbert.network
 
-import com.linkedin.norbert.cluster.{RouterFactoryComponent, DefaultClusterComponent}
+import loadbalancer.RouterFactoryComponent
 import netty._
+import com.linkedin.norbert.cluster.ZooKeeperClusterComponent
 
 /**
  * The default network client implementation component mixin. Users should mix this component into their
  * component registry instead of pulling in the individual components.
  */
-trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with NettyClusterIoClientComponent
-        with BootstrapFactoryComponent with DefaultClusterComponent with NettyResponseHandlerComponent
-        with MessageRegistryComponent with ClientCurrentNodeLocatorComponent with MessageExecutorComponent {
-  this: RouterFactoryComponent =>
-
-  /**
-   * The maximum number of sockets that will be opened per node.
-   */
-  val maxConnectionsPerNode: Int
-
-  /**
-   * The maximum amount of time in milliseconds to allow a queued write request to sit before it should be considered timed out.
-   */
-  val writeTimeout: Int
-
-  private val clientMessageExecutor = new DoNothingMessageExecutor
-  def currentNodeLocator: CurrentNodeLocator = new ClientCurrentNodeLocator
-  def messageExecutor: MessageExecutor = clientMessageExecutor
-  val responseHandler = new NettyResponseHandler
-  val bootstrapFactory = new BootstrapFactory
-  val clusterIoClient = new NettyClusterIoClient(maxConnectionsPerNode, writeTimeout)
-  val networkClientFactory = new NetworkClientFactory
-}
+//trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with NettyClusterIoClientComponent
+//        with BootstrapFactoryComponent with ZooKeeperClusterComponent with NettyResponseHandlerComponent
+//        with MessageRegistryComponent with ClientCurrentNodeLocatorComponent with MessageExecutorComponent {
+//  this: RouterFactoryComponent =>
+//
+//  /**
+//   * The maximum number of sockets that will be opened per node.
+//   */
+//  val maxConnectionsPerNode: Int
+//
+//  /**
+//   * The maximum amount of time in milliseconds to allow a queued write request to sit before it should be considered timed out.
+//   */
+//  val writeTimeout: Int
+//
+//  private val clientMessageExecutor = new DoNothingMessageExecutor
+//  def currentNodeLocator: CurrentNodeLocator = new ClientCurrentNodeLocator
+//  def messageExecutor: MessageExecutor = clientMessageExecutor
+//  val responseHandler = new NettyResponseHandler
+//  val bootstrapFactory = new BootstrapFactory
+//  val clusterIoClient = new NettyClusterIoClient(maxConnectionsPerNode, writeTimeout)
+//  val networkClientFactory = new NetworkClientFactory
+//}
 
 /**
  * The default network server implementation component mixin. Users should mix this component into their
@@ -52,27 +53,27 @@ trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent
  * networking subsystem as well, so users writing a peer to peer application do not need to mixin in
  * the <code>DefaultNetworkClientFactoryComponent</code>.
  */
-trait DefaultNetworkServerComponent extends DefaultNetworkClientFactoryComponent with NettyNetworkServerComponent
-        with NettyRequestHandlerComponent with CurrentNodeLocatorComponent with MessageExecutorComponent with ServerCurrentNodeLocatorComponent {
-  this: RouterFactoryComponent =>
-
-  /**
-   * The core number of threads that are dedicated to handling requests.
-   */
-  val coreRequestThreadPoolSize: Int
-
-  /**
-   * The maximum number of threads that are dedicated to handling requests.
-   */
-  val maxRequestThreadPoolSize: Int
-
-  /**
-   * The amount of time an idle request handling thread should live in seconds.
-   */
-  val requestThreadTimeout: Int
-
-  private val serverMessageExecutor = new ThreadPoolMessageExecutor(coreRequestThreadPoolSize, maxRequestThreadPoolSize, requestThreadTimeout)
-  override def currentNodeLocator = new ServerCurrentNodeLocator
-  override def messageExecutor: MessageExecutor = serverMessageExecutor
-  val requestHandler = new NettyRequestHandler
-}
+//trait DefaultNetworkServerComponent extends DefaultNetworkClientFactoryComponent with NettyNetworkServerComponent
+//        with NettyRequestHandlerComponent with CurrentNodeLocatorComponent with MessageExecutorComponent with ServerCurrentNodeLocatorComponent {
+//  this: RouterFactoryComponent =>
+//
+//  /**
+//   * The core number of threads that are dedicated to handling requests.
+//   */
+//  val coreRequestThreadPoolSize: Int
+//
+//  /**
+//   * The maximum number of threads that are dedicated to handling requests.
+//   */
+//  val maxRequestThreadPoolSize: Int
+//
+//  /**
+//   * The amount of time an idle request handling thread should live in seconds.
+//   */
+//  val requestThreadTimeout: Int
+//
+//  private val serverMessageExecutor = new ThreadPoolMessageExecutor(coreRequestThreadPoolSize, maxRequestThreadPoolSize, requestThreadTimeout)
+//  override def currentNodeLocator = new ServerCurrentNodeLocator
+//  override def messageExecutor: MessageExecutor = serverMessageExecutor
+//  val requestHandler = new NettyRequestHandler
+//}

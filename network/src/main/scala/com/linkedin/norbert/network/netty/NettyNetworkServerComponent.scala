@@ -22,11 +22,11 @@ import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, Length
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import org.jboss.netty.channel.{ChannelException, Channel, ChannelPipelineFactory, Channels}
 import com.linkedin.norbert.network._
-import com.linkedin.norbert.cluster.{ClusterListenerComponent, ClusterComponent, InvalidNodeException, Node}
+import com.linkedin.norbert.cluster._
 
 trait NettyNetworkServerComponent extends NetworkServerComponent {
   this: BootstrapFactoryComponent with ClusterComponent with NettyRequestHandlerComponent
-          with NetworkClientFactoryComponent with MessageExecutorComponent with ClusterListenerComponent =>
+          with NetworkClientFactoryComponent with MessageExecutorComponent =>
 
   class NettyNetworkServer private (nodeIdOption: Option[Int], bindAddressOption: Option[InetSocketAddress]) extends NetworkServer with ClusterListener with Logging {
     def this(nodeId: Int) = this(Some(nodeId), None)
@@ -49,7 +49,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
       log.ifDebug("Starting cluster...")
       cluster.start
       log.ifDebug("Cluster started")
-      
+
       log.ifDebug("Waiting for cluster connection to complete...")
       cluster.awaitConnectionUninterruptibly
 
@@ -57,11 +57,13 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
         val nodeId = nodeIdOption.get
         log.ifDebug("Binding network server for node with id: " + nodeId)
         myNode = cluster.nodeWithId(nodeId).getOrElse(throw new InvalidNodeException("Unable to find a node with id: %d".format(nodeId)))
-        myNode.address
+//        myNode.address
+        null
       } else {
         val address = bindAddressOption.get
         log.ifDebug("Binding network server for node with address: " + address)
-        myNode = cluster.nodeWithAddress(address).getOrElse(throw new InvalidNodeException("Unable to find a node with address: %s".format(address)))
+//        myNode = cluster.nodeWithAddress(address).getOrElse(throw new InvalidNodeException("Unable to find a node with address: %s".format(address)))
+        myNode = null
         address
       }
 
@@ -114,7 +116,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
     }
 
     def handleClusterEvent(event: ClusterEvent) = event match {
-      case ClusterEvents.Connected(_, _) => doMarkNodeAvailable
+      case ClusterEvents.Connected(_) => doMarkNodeAvailable
 
       case _ => // do nothing
     }

@@ -19,12 +19,13 @@ import com.linkedin.norbert.cluster._
 import com.linkedin.norbert.util.Logging
 import com.google.protobuf.Message
 import java.util.concurrent.atomic.AtomicBoolean
+import loadbalancer.RouterFactoryComponent
 
 /**
  * A component which provides a network client for interacting with nodes in a cluster.
  */
 trait NetworkClientFactoryComponent {
-  this: ClusterIoClientComponent with ClusterComponent with ClusterListenerComponent with RouterFactoryComponent =>
+  this: ClusterIoClientComponent with ClusterComponent with RouterFactoryComponent =>
 
   val networkClientFactory: NetworkClientFactory
 
@@ -34,7 +35,7 @@ trait NetworkClientFactoryComponent {
   trait NetworkClient {
     /**
      * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
-     * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
+     * will interact with the <code>ClusterClient</code> to calculate which <code>Node</code>s the message
      * must be sent to.  This method is asynchronous and will return immediately.
      *
      * @param ids the <code>Id</code>s to which the message is addressed
@@ -45,10 +46,10 @@ trait NetworkClientFactoryComponent {
      * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
      */
     def sendMessage(ids: Seq[Id], message: Message): ResponseIterator
-    
+
     /**
      * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
-     * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
+     * will interact with the <code>ClusterClient</code> to calculate which <code>Node</code>s the message
      * must be sent to.  This method is asynchronous and will return immediately.
      *
      * @param ids the <code>Id</code>s to which the message is addressed
@@ -66,7 +67,7 @@ trait NetworkClientFactoryComponent {
 
     /**
      * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
-     * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
+     * will interact with the <code>ClusterClient</code> to calculate which <code>Node</code>s the message
      * must be sent to.  This method is synchronous and will return once the responseAggregator has returned a value.
      *
      * @param ids the <code>Id</code>s to which the message is addressed
@@ -83,7 +84,7 @@ trait NetworkClientFactoryComponent {
 
     /**
      * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
-     * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
+     * will interact with the <code>ClusterClient</code> to calculate which <code>Node</code>s the message
      * must be sent to.  This method is synchronous and will return once the responseAggregator has returned a value.
      *
      * @param ids the <code>Id</code>s to which the message is addressed
@@ -124,7 +125,7 @@ trait NetworkClientFactoryComponent {
 
     /**
      * Closes the <code>NetworkClient</code> and releases resources held.
-     * 
+     *
      * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
      */
     def close: Unit
@@ -156,7 +157,7 @@ trait NetworkClientFactoryComponent {
       cluster.awaitConnectionUninterruptibly
 
       val client = new NetworkClient with ClusterListener {
-        @volatile private var routerOption: Option[Router] = cluster.router
+        @volatile private var routerOption: Option[Router] = None
         @volatile private var shutdownSwitch = false
         private var clusterListenerKey: ClusterListenerKey = _
 
@@ -168,7 +169,7 @@ trait NetworkClientFactoryComponent {
           val nodes = calculateNodesFromIds(ids)
           log.ifDebug("Sending message [%s] to nodes: %s", message, nodes)
           val request = Request(message, nodes.size)
-          clusterIoClient.sendRequest(nodes.keySet, request)
+//          clusterIoClient.sendRequest(nodes.keySet, request)
           request.responseIterator
         }
 
@@ -181,7 +182,8 @@ trait NetworkClientFactoryComponent {
               val m = messageCustomizer(message, node, r)
               log.ifDebug("Sending message [%s] to node: %s", m, node)
               val request = Request(m, nodes.size, responseIterator)
-              clusterIoClient.sendRequest(Set(node), request)
+//              clusterIoClient.sendRequest(Set(node), request)
+              null
             } catch {
               case ex: Exception => responseIterator.offerResponse(Left(ex))
             }
@@ -193,7 +195,7 @@ trait NetworkClientFactoryComponent {
         def sendMessage[A](ids: Seq[Id], message: Message, responseAggregator: (Message, ResponseIterator) => A): A = {
           responseAggregator(message, sendMessage(ids, message))
         }
-        
+
         def sendMessage[A](ids: Seq[Id], message: Message, messageCustomizer: (Message, Node, Seq[Id]) => Message,
                 responseAggregator: (Message, ResponseIterator) => A): A = {
           responseAggregator(message, sendMessage(ids, message, messageCustomizer))
@@ -201,10 +203,10 @@ trait NetworkClientFactoryComponent {
 
         def sendMessageToNode(node: Node, message: Message): ResponseIterator = doIfNotShutdown {
           if (!node.available) throw new InvalidNodeException("Unable to send request to an offline node")
-          
+
           log.ifDebug("Sending message [%s] to node: %s", message, node)
           val request = Request(message, 1)
-          clusterIoClient.sendRequest(Set(node), request)
+//          clusterIoClient.sendRequest(Set(node), request)
           request.responseIterator
         }
 
@@ -213,10 +215,10 @@ trait NetworkClientFactoryComponent {
         def close: Unit = doIfNotShutdown {
           cluster.removeListener(clusterListenerKey)
         }
-        
+
         def handleClusterEvent(event: ClusterEvent) = event match {
-          case ClusterEvents.Connected(_, r) => routerOption = r
-          case ClusterEvents.NodesChanged(_, r) => routerOption = r
+          case ClusterEvents.Connected(_) =>
+          case ClusterEvents.NodesChanged(_) =>
           case ClusterEvents.Disconnected => routerOption = None
           case ClusterEvents.Shutdown =>
             shutdownSwitch = true
@@ -242,11 +244,11 @@ trait NetworkClientFactoryComponent {
 
     /**
      * Shuts down the <code>NetworkClientFactory</code>. The results in the closing of all open network
-     * sockets and shutting down the underlying <code>Cluster</code> instance.
+     * sockets and shutting down the underlying <code>ClusterClient</code> instance.
      */
     def shutdown: Unit = {
       log.ifDebug("Shutting down ClusterIoClient...")
-      clusterIoClient.shutdown
+//      clusterIoClient.shutdown
 
       log.ifDebug("Shutting down cluster...")
       cluster.shutdown

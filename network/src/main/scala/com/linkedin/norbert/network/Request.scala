@@ -29,9 +29,14 @@ object Request {
 
     def hasNext = remaining.get > 0
 
-    def next = next(responses.poll)
+//    def next = next(responses.poll)
 
-    def next(timeout: Long, unit: TimeUnit) = next(responses.poll(timeout, unit))
+    def next = null
+
+    def nextAvailable = false
+
+//    def next(timeout: Long, unit: TimeUnit) = next(responses.poll(timeout, unit))
+    def next(timeout: Long, unit: TimeUnit) = null
 
     def offerResponse(response: Either[Throwable, Message]) = responses.offer(response)
 

@@ -13,11 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.router
+package com.linkedin.norbert.network.loadbalancer
 
 import com.linkedin.norbert.network.CurrentNodeLocatorComponent
 import com.linkedin.norbert.cluster.Node
-import com.linkedin.norbert.cluster.router.{ConsistentHashRouterHelper, ConsistentHashRouterFactoryComponent}
 
 /**
  * A <code>RouterFactoryComponent</code> implementation that provides a consistent hash routing strategy which

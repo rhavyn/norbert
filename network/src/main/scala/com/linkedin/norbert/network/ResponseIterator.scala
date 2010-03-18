@@ -32,12 +32,20 @@ trait ResponseIterator {
   def hasNext: Boolean
 
   /**
-   * Retrieves the next response. This method does not block waiting if there are currently no responses available.
+   * Specifies whether a response is available without blocking.
    *
-   * @return Some with either the next response message or exception, depending on the success or failure of the
-   * request, None if there are currently no responses available
+   * @return true if a response is available without blocking, false otherwise
    */
-  def next: Option[Either[Throwable, Message]]
+  def nextAvailable: Boolean
+
+  /**
+   * Retrieves the next response, if necessary waiting until a response is available.
+   *
+   * @return a response
+   * @throws ExecutionException thrown if there was an error
+   * @throws TimeoutException thrown if a response wasn't available before the specified timeout
+   */
+  def next: Message
 
   /**
    * Retrieves the next response, waiting for the specified time if there are no responses available.
@@ -45,8 +53,9 @@ trait ResponseIterator {
    * @param timeout how long to wait before giving up, in terms of <code>unit</code>
    * @param unit the <code>TimeUnit</code> that <code>timeout</code> should be interpreted in
    * 
-   * @return Some with either the next response message or exception, depending on the success or failure of the
-   * request, None if there are currently no responses available
+   * @return a response
+   * @throws ExecutionException thrown if there was an error
+   * @throws TimeoutException thrown if a response wasn't available before the specified timeout
    */
-  def next(timeout: Long, unit: TimeUnit): Option[Either[Throwable, Message]]
+  def next(timeout: Long, unit: TimeUnit): Message
 }
