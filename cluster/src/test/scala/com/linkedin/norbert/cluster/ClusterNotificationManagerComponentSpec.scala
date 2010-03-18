@@ -46,8 +46,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         }
 
         clusterNotificationManager ! AddListener(listener)
-        waitFor(20.ms)
-        callCount must be_==(1)
+        callCount must eventually(be_==(1))
         currentNodes.length must be_==(1)
         currentNodes(0) must be_==(nodes(1))
       }
@@ -84,9 +83,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
       clusterNotificationManager ! Connected(nodes)
       clusterNotificationManager ! RemoveListener(key)
       clusterNotificationManager ! NodesChanged(nodes)
-      waitFor(20.ms)
 
-      callCount must be_==(1)
+      callCount must eventually(be_==(1))
     }
 
     "when handling a Connected message" in {
@@ -103,9 +101,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
 
         clusterNotificationManager ! AddListener(listener)
         clusterNotificationManager ! Connected(nodes)
-        waitFor(20.ms)
 
-        callCount must be_==(1)
+        callCount must eventually(be_==(1))
         currentNodes.length must be_==(1)
         currentNodes(0) must be_==(nodes(1))
       }
@@ -124,9 +121,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         clusterNotificationManager ! AddListener(listener)
         clusterNotificationManager ! Connected(nodes)
         clusterNotificationManager ! Connected(nodes.dropRight(1))
-        waitFor(20.ms)
 
-        callCount must be_==(1)
+        callCount must eventually(be_==(1))
       }
     }
 
@@ -147,9 +143,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         clusterNotificationManager ! Connected(nodes.dropRight(2))
         clusterNotificationManager ! AddListener(listener)
         clusterNotificationManager ! NodesChanged(nodes)
-        waitFor(20.ms)
 
-        callCount must be_==(1)
+        callCount must eventually(be_==(1))
         currentNodes.length must be_==(1)
         currentNodes(0) must be_==(nodes(1))
       }
@@ -169,9 +164,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
       clusterNotificationManager ! Connected(nodes.dropRight(2))
       clusterNotificationManager ! AddListener(listener)
       clusterNotificationManager ! NodesChanged(nodes)
-      waitFor(20.ms)
 
-      callCount must be_==(1)
+      callCount must eventually(be_==(1))
     }
 
     "when handling a Disconnected message" in {
@@ -198,9 +192,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         clusterNotificationManager ! AddListener(listener)
         clusterNotificationManager ! Connected(nodes)
         clusterNotificationManager ! Disconnected
-        waitFor(20.ms)
 
-        callCount must be_==(1)
+        callCount must eventually(be_==(1))
       }
 
       "do nothing if not connected" in {
@@ -216,9 +209,8 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
 
         clusterNotificationManager ! AddListener(listener)
         clusterNotificationManager ! Disconnected
-        waitFor(20.ms)
 
-        callCount must be_==(0)
+        callCount must eventually(be_==(0))
       }
     }
 
@@ -239,10 +231,9 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
       clusterNotificationManager ! Connected(nodes)
       clusterNotificationManager ! Shutdown
       clusterNotificationManager ! Connected(nodes)
-      waitFor(20.ms)
 
-      connectedCallCount must be_==(1)
-      shutdownCallCount must be_==(1)
+      connectedCallCount must eventually(be_==(1))
+      shutdownCallCount must eventually(be_==(1))
     }
   }
 }

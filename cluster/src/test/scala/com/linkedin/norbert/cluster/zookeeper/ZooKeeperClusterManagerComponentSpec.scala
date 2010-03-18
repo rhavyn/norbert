@@ -67,9 +67,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
       val zkm = new ZooKeeperClusterManager("", 0, "", notificationActor)(countedZkf _)
       zkm.start
-      waitFor(10.ms)
 
-      callCount must be_==(1)
+      callCount must eventually(be_==(1))
     }
 
     "when a Connected message is received" in {
@@ -147,9 +146,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
         zooKeeperManager ! Connected
-        waitFor(10.ms)
 
-        connectedCount must be_==(1)
+        connectedCount must eventually(be_==(1))
         nodesReceived.length must be_==(3)
         nodesReceived must containAll(nodes)
         nodes.zip(nodesReceived.toArray).foreach { case (n1, n2) => n1.available must be_==(n2.available) }
@@ -160,16 +158,14 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
       "send a notification to the notification manager actor" in {
         zooKeeperManager ! Connected
         zooKeeperManager ! Disconnected
-        waitFor(10.ms)
 
-        disconnectedCount must be_==(1)
+        disconnectedCount must eventually(be_==(1))
       }
 
       "do nothing if not connected" in {
         zooKeeperManager ! Disconnected
-        waitFor(10.ms)
 
-        disconnectedCount must be_==(0)
+        disconnectedCount must eventually(be_==(0))
       }
     }
 
@@ -185,24 +181,21 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         zkm.start
         zkm ! Connected
         zkm ! Expired
-        waitFor(10.ms)
 
-        callCount must be_==(2)        
+        callCount must eventually(be_==(2))
       }
 
       "send a notification to the notification manager actor" in {
         zooKeeperManager ! Connected
         zooKeeperManager ! Expired
-        waitFor(10.ms)
 
-        disconnectedCount must be_==(1)
+        disconnectedCount must eventually(be_==(1))
       }
 
       "do nothing if not connected" in {
         zooKeeperManager ! Expired
-        waitFor(10.ms)
 
-        disconnectedCount must be_==(0)
+        disconnectedCount must eventually(be_==(0))
       }
     }
 
@@ -231,18 +224,16 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           mockZooKeeper.getChildren(availabilityNode, true) returns availability thenReturns newAvailability
 
           zooKeeperManager ! Connected
-          waitFor(10.ms)
 
-          nodesReceived.length must be_==(3)
+          nodesReceived.length must eventually(be_==(3))
           nodesReceived must containAll(nodes)
           nodesReceived.foreach { n =>
             if (n.id == 2) n.available must beTrue else n.available must beFalse
           }
 
           zooKeeperManager ! NodeChildrenChanged(availabilityNode)
-          waitFor(20.ms)
 
-          nodesChangedCount must be_==(1)
+          nodesChangedCount must eventually(be_==(1))
           nodesReceived.length must be_==(3)
           nodesReceived must containAll(nodes)
           nodesReceived.foreach { n =>
@@ -254,9 +245,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
         "do nothing if not connected" in {
           zooKeeperManager ! NodeChildrenChanged(availabilityNode)
-          waitFor(10.ms)
 
-          nodesChangedCount must be_==(0)
+          nodesChangedCount must eventually(be_==(0))
         }
       }
 
@@ -282,15 +272,13 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           mockZooKeeper.getChildren(availabilityNode, true) returns membership
 
           zooKeeperManager ! Connected
-          waitFor(10.ms)
 
-          nodesReceived.length must be_==(2)
+          nodesReceived.length must eventually(be_==(2))
           nodesReceived must containAll(nodes)
 
           zooKeeperManager ! NodeChildrenChanged(membershipNode)
-          waitFor(10.ms)
 
-          nodesChangedCount must be_==(1)
+          nodesChangedCount must eventually(be_==(1))
           nodesReceived.length must be_==(3)
           nodesReceived must containAll(updatedNodes)
 
@@ -300,9 +288,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
         "do nothing if not connected" in {
           zooKeeperManager ! NodeChildrenChanged(membershipNode)
-          waitFor(10.ms)
 
-          nodesChangedCount must be_==(0)
+          nodesChangedCount must eventually(be_==(0))
         }
       }
     }
@@ -320,9 +307,9 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         zkm.start
         zooKeeperManager ! Shutdown
         zooKeeperManager ! Connected
-        waitFor(10.ms)
 
-        callCount must be_==(1)
+        waitFor(10.ms)
+        callCount must eventually(be_==(1))
         mockZooKeeper.close was called
       }
     }
@@ -425,9 +412,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
         zooKeeperManager ! Connected
         zooKeeperManager !? RemoveNode(2)
-        waitFor(10.ms)
 
-        nodesReceived.length must be_==(2)
+        nodesReceived.length must eventually(be_==(2))
         nodesReceived must containAll(Array(nodes(0), nodes(2)))
       }
     }
@@ -494,14 +480,13 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
         zooKeeperManager ! Connected
-        waitFor(10.ms)
 
+        nodesReceived.length must eventually(be_>(0))
         nodesReceived(2).available must beFalse
 
         zooKeeperManager !? MarkNodeAvailable(3)
-        waitFor(10.ms)
 
-        nodesReceived(2).available must beTrue
+        nodesReceived(2).available must eventually(beTrue)
       }
     }
 
@@ -556,14 +541,13 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
         zooKeeperManager ! Connected
-        waitFor(10.ms)
 
+        nodesReceived.length must eventually(be_>(0))
         nodesReceived(0).available must beTrue
 
         zooKeeperManager !? MarkNodeUnavailable(1)
-        waitFor(10.ms)
 
-        nodesReceived(0).available must beFalse
+        nodesReceived(0).available must eventually(beFalse)
       }
     }
   }
@@ -600,27 +584,24 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
       val event = newEvent(KeeperState.SyncConnected)
 
       clusterWatcher.process(event)
-      waitFor(10.ms)
 
-      connectedCount must be_==(1)
+      connectedCount must eventually(be_==(1))
     }
 
     "send a Disconnected event when ZooKeeper disconnects" in {
       val event = newEvent(KeeperState.Disconnected)
 
       clusterWatcher.process(event)
-      waitFor(10.ms)
 
-      disconnectedCount must be_==(1)
+      disconnectedCount must eventually(be_==(1))
     }
 
     "send an Expired event when ZooKeeper's connection expires" in {
       val event = newEvent(KeeperState.Expired)
 
       clusterWatcher.process(event)
-      waitFor(10.ms)
 
-      expiredCount must be_==(1)
+      expiredCount must eventually(be_==(1))
     }
 
     "send a NodeChildrenChanged event when nodes change" in {
@@ -630,9 +611,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
       event.getPath returns path
 
       clusterWatcher.process(event)
-      waitFor(10.ms)
 
-      nodesChangedCount must be_==(1)
+      nodesChangedCount must eventually(be_==(1))
       nodesChangedPath must be_==(path)
     }
   }
