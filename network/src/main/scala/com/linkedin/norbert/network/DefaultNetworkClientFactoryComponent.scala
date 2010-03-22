@@ -15,16 +15,12 @@
  */
 package com.linkedin.norbert.network
 
-import loadbalancer.RouterFactoryComponent
-import netty._
-import com.linkedin.norbert.cluster.ZooKeeperClusterComponent
-
 /**
  * The default network client implementation component mixin. Users should mix this component into their
  * component registry instead of pulling in the individual components.
  */
 //trait DefaultNetworkClientFactoryComponent extends NetworkClientFactoryComponent with NettyClusterIoClientComponent
-//        with BootstrapFactoryComponent with ZooKeeperClusterComponent with NettyResponseHandlerComponent
+//        with BootstrapFactoryComponent with ZooKeeperClusterClientComponent with NettyResponseHandlerComponent
 //        with MessageRegistryComponent with ClientCurrentNodeLocatorComponent with MessageExecutorComponent {
 //  this: RouterFactoryComponent =>
 //

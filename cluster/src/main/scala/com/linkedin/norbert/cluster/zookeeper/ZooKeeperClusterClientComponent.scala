@@ -15,12 +15,12 @@
  */
 package com.linkedin.norbert.cluster.zookeeper
 
-import com.linkedin.norbert.cluster.ClusterComponent
+import com.linkedin.norbert.cluster.ClusterClientComponent
 
 /**
  * The default cluster implementation component mixin.
  */
-trait ZooKeeperClusterComponent extends ClusterComponent {
+trait ZooKeeperClusterClientComponent extends ClusterClientComponent {
   /**
    * The name of the service.
    */
@@ -36,5 +36,5 @@ trait ZooKeeperClusterComponent extends ClusterComponent {
    */
   val zooKeeperSessionTimeoutMillis: Int
 
-  val cluster = new ZooKeeperClusterClient(zooKeeperConnectString, zooKeeperSessionTimeoutMillis, serviceName)
+  val clusterClient = new ZooKeeperClusterClient(zooKeeperConnectString, zooKeeperSessionTimeoutMillis, serviceName)
 }

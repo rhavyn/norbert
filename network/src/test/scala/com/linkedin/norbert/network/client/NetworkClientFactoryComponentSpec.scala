@@ -21,67 +21,75 @@ import org.specs.mock.Mockito
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster._
 import com.linkedin.norbert.network.{NoNodesAvailableException, NetworkNotStartedException}
+import com.linkedin.norbert.network.common.ClusterIoClientComponent
 
-class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
-        with ClusterComponent with ClusterManagerComponent with LoadBalancerFactoryComponent {
-  type PartitionedId = Int
-
-  val cluster = mock[ClusterClient]
-  val clusterIoClient = mock[ClusterIoClient]
-  val loadBalancerFactory = mock[LoadBalancerFactory]
-  val networkClientFactory = new NetworkClientFactory(clusterIoClient)
+class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito {
+  val clusterClient = mock[ClusterClient]
+  val networkClientFactory = new NetworkClientFactory with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+    val lb = mock[LoadBalancer]
+    val clusterIoClient = mock[ClusterIoClient]
+    val loadBalancerFactory = mock[LoadBalancerFactory]
+    val clusterClient = NetworkClientFactoryComponentSpec.this.clusterClient
+  }
   val nodes = List(Node(1, "", true), Node(2, "", true), Node(3, "", true))
 
   "NetworkClientFactory" should {
     "throw NetworkNotStartedException if a method is called before start" in {
-      val ncf = new NetworkClientFactory(clusterIoClient)
+      val ncf = new NetworkClientFactory with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+        val clusterIoClient = null
+        val clusterClient = null
+        val loadBalancerFactory = null
+      }
       ncf.newNetworkClient must throwA[NetworkNotStartedException]
     }
 
     "throw a ClusterShutdownException if the cluster has been shut down" in {
-      val ncf = new NetworkClientFactory(clusterIoClient)
+      val ncf = new NetworkClientFactory with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+        val clusterIoClient = mock[ClusterIoClient]
+        val clusterClient = mock[ClusterClient]
+        val loadBalancerFactory = mock[LoadBalancerFactory]
+      }
       ncf.shutdown
       ncf.start must throwA[ClusterShutdownException]
       ncf.newNetworkClient must throwA[ClusterShutdownException]
     }
 
     "start the cluster, creates a load balancer and register itself as a listener when started" in {
-      doNothing.when(cluster).start
-      cluster.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
-      cluster.nodes returns nodes
-      loadBalancerFactory.newLoadBalancer(nodes) returns mock[LoadBalancer]
+      doNothing.when(clusterClient).start
+      clusterClient.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
+      clusterClient.nodes returns nodes
+      networkClientFactory.loadBalancerFactory.newLoadBalancer(nodes) returns networkClientFactory.lb
 
-      val ncf = new NetworkClientFactory(clusterIoClient)
-      ncf.start
+      networkClientFactory.start
 
-      cluster.start was called
-      cluster.addListener(any[ClusterListener]) was called
-      cluster.nodes was called
-      loadBalancerFactory.newLoadBalancer(nodes) was called
+      clusterClient.start was called
+      clusterClient.addListener(any[ClusterListener]) was called
+      clusterClient.nodes was called
+      networkClientFactory.loadBalancerFactory.newLoadBalancer(nodes) was called
     }
 
     "update the load balancer when a Connected or NodesChanged event is received" in {
       var listener: ClusterListener = null
-      cluster.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
-      cluster.nodes returns nodes
-      loadBalancerFactory.newLoadBalancer(nodes) returns mock[LoadBalancer]
+      clusterClient.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
+      clusterClient.nodes returns nodes
+      networkClientFactory.loadBalancerFactory.newLoadBalancer(nodes) returns networkClientFactory.lb
 
       networkClientFactory.start
 
       listener must notBeNull
       listener.handleClusterEvent(ClusterEvents.Connected(nodes))
       listener.handleClusterEvent(ClusterEvents.NodesChanged(nodes))
-      loadBalancerFactory.newLoadBalancer(nodes) was called.times(3)
+      networkClientFactory.loadBalancerFactory.newLoadBalancer(nodes) was called.times(3)
     }
 
     "shut down the cluster and clusterIoClient when shutdown is called" in {
-      doNothing.when(cluster).shutdown
-      doNothing.when(clusterIoClient).shutdown
+      doNothing.when(clusterClient).shutdown
+      doNothing.when(networkClientFactory.clusterIoClient).shutdown
 
       networkClientFactory.shutdown
 
-      cluster.shutdown was called
-      clusterIoClient.shutdown was called
+      clusterClient.shutdown was called
+      networkClientFactory.clusterIoClient.shutdown was called
     }
   }
 
@@ -110,8 +118,8 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
     }
 
     "send a message to every available node for broadcastMessage" in {
-      cluster.nodes returns nodes
-      cluster.isConnected returns true
+      clusterClient.nodes returns nodes
+      clusterClient.isConnected returns true
       val message = mock[Message]
 //      nodes.foreach(n => doNothing.when(clusterIoClient).sendMessage(n, message, null))
 
@@ -124,8 +132,8 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
     "send message to the specified node in sendMessageToNode" in {
       val message = mock[Message]
       val node = Node(1, "", true)
-      cluster.nodes returns nodes
-      cluster.isConnected returns true
+      clusterClient.nodes returns nodes
+      clusterClient.isConnected returns true
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClientFactory.start
@@ -137,8 +145,8 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
     "throw an InvalidNodeException if the node provided to sendMessageToNode is not currently availabe" in {
       val message = mock[Message]
       val node = Node(4, "", true)
-      cluster.nodes returns nodes
-      cluster.isConnected returns true
+      clusterClient.nodes returns nodes
+      clusterClient.isConnected returns true
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClientFactory.start
@@ -150,26 +158,25 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
     "send the provide message to the node specified by the load balancer for sendMessage" in {
       val message = mock[Message]
       val node = Node(1, "", true)
-      val lb = mock[LoadBalancer]
-      cluster.nodes returns nodes
-      cluster.isConnected returns true
-      loadBalancerFactory.newLoadBalancer(nodes) returns lb
-      lb.nextNode returns Some(node)
+      clusterClient.nodes returns nodes
+      clusterClient.isConnected returns true
+      networkClientFactory.loadBalancerFactory.newLoadBalancer(nodes) returns networkClientFactory.lb
+      networkClientFactory.lb.nextNode returns Some(node)
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClientFactory.start
       networkClientFactory.newNetworkClient.sendMessage(message) must notBeNull
 
-      lb.nextNode was called
+      networkClientFactory.lb.nextNode was called
 //      clusterIoClient.sendMessage(node, message, null) was called
     }
 
     "throw InvalidClusterException if there is no load balancer instance when sendMessage is called" in {
       val message = mock[Message]
       val node = Node(1, "", true)
-      cluster.nodes returns nodes
-      cluster.isConnected returns true
-      loadBalancerFactory.newLoadBalancer(nodes) throws new InvalidClusterException("")
+      clusterClient.nodes returns nodes
+      clusterClient.isConnected returns true
+      networkClientFactory.loadBalancerFactory.newLoadBalancer(nodes) throws new InvalidClusterException("")
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClientFactory.start
@@ -181,17 +188,16 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
     "throw NoSuchNodeException if load balancer returns None when sendMessage is called" in {
       val message = mock[Message]
       val node = Node(1, "", true)
-      val lb = mock[LoadBalancer]
-      cluster.nodes returns nodes
-      cluster.isConnected returns true
-      loadBalancerFactory.newLoadBalancer(nodes) returns lb
-      lb.nextNode returns None
+      clusterClient.nodes returns nodes
+      clusterClient.isConnected returns true
+      networkClientFactory.loadBalancerFactory.newLoadBalancer(nodes) returns networkClientFactory.lb
+      networkClientFactory.lb.nextNode returns None
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClientFactory.start
       networkClientFactory.newNetworkClient.sendMessage(message) must throwA[NoNodesAvailableException]
 
-      lb.nextNode was called
+      networkClientFactory.lb.nextNode was called
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
     }
   }

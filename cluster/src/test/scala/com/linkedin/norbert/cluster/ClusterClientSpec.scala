@@ -101,9 +101,8 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
   }
   cluster.start
 
-  "ClusterComponent" should {
+  "ClusterClient" should {
     "when starting start the cluster notification and ZooKeeper manager actors" in {
-      println("Running test!")
       var cnmStarted = false
       var zkmStarted = false
 

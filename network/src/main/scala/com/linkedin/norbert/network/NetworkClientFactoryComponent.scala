@@ -25,7 +25,7 @@ import loadbalancer.RouterFactoryComponent
  * A component which provides a network client for interacting with nodes in a cluster.
  */
 trait NetworkClientFactoryComponent {
-  this: ClusterIoClientComponent with ClusterComponent with RouterFactoryComponent =>
+  this: ClusterIoClientComponent with ClusterClientComponent with RouterFactoryComponent =>
 
   val networkClientFactory: NetworkClientFactory
 
@@ -140,7 +140,7 @@ trait NetworkClientFactoryComponent {
     def start: Unit = {
       if (started.compareAndSet(false, true)) {
         log.ifDebug("Starting cluster..")
-        cluster.start
+        clusterClient.start
       }
     }
 
@@ -151,10 +151,10 @@ trait NetworkClientFactoryComponent {
      */
     def newNetworkClient: NetworkClient = {
       log.ifDebug("Starting cluster...")
-      cluster.start
+      clusterClient.start
 
       log.ifDebug("Waiting for cluster connection to complete...")
-      cluster.awaitConnectionUninterruptibly
+      clusterClient.awaitConnectionUninterruptibly
 
       val client = new NetworkClient with ClusterListener {
         @volatile private var routerOption: Option[Router] = None
@@ -162,7 +162,7 @@ trait NetworkClientFactoryComponent {
         private var clusterListenerKey: ClusterListenerKey = _
 
         def start {
-          clusterListenerKey = cluster.addListener(this)
+          clusterListenerKey = clusterClient.addListener(this)
         }
 
         def sendMessage(ids: Seq[Id], message: Message): ResponseIterator = doIfNotShutdown {
@@ -213,7 +213,7 @@ trait NetworkClientFactoryComponent {
         def isConnected = routerOption.isDefined
 
         def close: Unit = doIfNotShutdown {
-          cluster.removeListener(clusterListenerKey)
+          clusterClient.removeListener(clusterListenerKey)
         }
 
         def handleClusterEvent(event: ClusterEvent) = event match {
@@ -251,7 +251,7 @@ trait NetworkClientFactoryComponent {
 //      clusterIoClient.shutdown
 
       log.ifDebug("Shutting down cluster...")
-      cluster.shutdown
+      clusterClient.shutdown
     }
   }
 }

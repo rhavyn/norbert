@@ -18,6 +18,6 @@ package com.linkedin.norbert.cluster
 /**
  * A component which provides the client interface for interacting with a cluster.
  */
-trait ClusterComponent {
-  val cluster: ClusterClient
+trait ClusterClientComponent {
+  val clusterClient: ClusterClient
 }

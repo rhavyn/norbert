@@ -23,18 +23,18 @@ import org.specs.mock.Mockito
 import com.linkedin.norbert.protos.NorbertProtos
 import loadbalancer.RouterFactoryComponent
 
-class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
-        with ClusterIoClientComponent with BootstrapFactoryComponent with ClusterComponent with RouterFactoryComponent
-        with ClusterManagerComponent with ResponseHandlerComponent with MessageRegistryComponent {
-
-  val routerFactory = null
-  val cluster = mock[ClusterClient]
-  val bootstrapFactory = mock[BootstrapFactory]
-  val networkClientFactory = mock[NetworkClientFactory]
-  val messageRegistry = null
-  val responseHandler = null
-
-  "NetworkClientFactory" should {
+//class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
+//        with ClusterIoClientComponent with BootstrapFactoryComponent with ClusterClientComponent with RouterFactoryComponent
+//        with ClusterManagerComponent with ResponseHandlerComponent with MessageRegistryComponent {
+//
+//  val routerFactory = null
+//  val clusterClient = mock[ClusterClient]
+//  val bootstrapFactory = mock[BootstrapFactory]
+//  val networkClientFactory = mock[NetworkClientFactory]
+//  val messageRegistry = null
+//  val responseHandler = null
+//
+//  "NetworkClientFactory" should {
 //    "when calling newNetworkClient" in {
 //      "start the cluster and wait for the cluster to be available" in {
 //        doNothing.when(cluster).start
@@ -276,46 +276,46 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
 //        cluster.removeListener(client.asInstanceOf[ClusterListener]) was called
 //      }
 //    }
-  }
-
-  def messageCustomizer(message: Message, node: Node, isd: Seq[Int]) = message
-}
-
-class NetworkClientFactoryComponentMessageCustomizerSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
-        with ClusterIoClientComponent with BootstrapFactoryComponent with ClusterComponent with RouterFactoryComponent
-        with ClusterManagerComponent with ResponseHandlerComponent with MessageRegistryComponent {
-
-  val routerFactory = null
-  val cluster = mock[ClusterClient]
-  val bootstrapFactory = mock[BootstrapFactory]
-  val networkClientFactory = mock[NetworkClientFactory]
-  val clusterIoClient = mock[ClusterIoClient]
-//  val clusterIoClient = new ClusterIoClient {
-//    var r: Request = null
-//
-//    def shutdown = {}
-//
-//    def sendRequest(nodes: Set[Node], request: Request) {
-//      r = request
-//    }
 //  }
-  val messageRegistry = null
-  val responseHandler = null
-  val msg = NorbertProtos.Ping.newBuilder.setTimestamp(1234L).build
-
-//  "NetworkClient" should {
-//    "sends the correct message" in {
-//      val router = mock[Router]
-//      val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true))
-//      router(1) returns Some(nodes(0))
 //
-//      val client = new NetworkClientFactory().newNetworkClient
-//      client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
-//      client.sendMessage(Array(1), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build, messageCustomizer _)
+//  def messageCustomizer(message: Message, node: Node, isd: Seq[Int]) = message
+//}
 //
-//      clusterIoClient.r.message must be(msg)
-//    }
-//  }
-
-  def messageCustomizer(message: Message, node: Node, isd: Seq[Int]) = msg
-}
+//class NetworkClientFactoryComponentMessageCustomizerSpec extends SpecificationWithJUnit with Mockito with NetworkClientFactoryComponent
+//        with ClusterIoClientComponent with BootstrapFactoryComponent with ClusterClientComponent with RouterFactoryComponent
+//        with ClusterManagerComponent with ResponseHandlerComponent with MessageRegistryComponent {
+//
+//  val routerFactory = null
+//  val clusterClient = mock[ClusterClient]
+//  val bootstrapFactory = mock[BootstrapFactory]
+//  val networkClientFactory = mock[NetworkClientFactory]
+//  val clusterIoClient = mock[ClusterIoClient]
+////  val clusterIoClient = new ClusterIoClient {
+////    var r: Request = null
+////
+////    def shutdown = {}
+////
+////    def sendRequest(nodes: Set[Node], request: Request) {
+////      r = request
+////    }
+////  }
+//  val messageRegistry = null
+//  val responseHandler = null
+//  val msg = NorbertProtos.Ping.newBuilder.setTimestamp(1234L).build
+//
+////  "NetworkClient" should {
+////    "sends the correct message" in {
+////      val router = mock[Router]
+////      val nodes = Array(Node(1, new InetSocketAddress(13131), Array(0), true))
+////      router(1) returns Some(nodes(0))
+////
+////      val client = new NetworkClientFactory().newNetworkClient
+////      client.asInstanceOf[ClusterListener].handleClusterEvent(ClusterEvents.Connected(Array[Node](), Some(router)))
+////      client.sendMessage(Array(1), NorbertProtos.Ping.newBuilder.setTimestamp(1L).build, messageCustomizer _)
+////
+////      clusterIoClient.r.message must be(msg)
+////    }
+////  }
+//
+//  def messageCustomizer(message: Message, node: Node, isd: Seq[Int]) = msg
+//}

@@ -15,33 +15,23 @@
  */
 package com.linkedin.norbert.network.netty
 
-import java.net.InetSocketAddress
-import org.jboss.netty.bootstrap.ServerBootstrap
-import org.jboss.netty.channel.{ChannelPipelineFactory, Channel}
-import org.mockito.Matchers._
-import org.specs.mock.Mockito
-import org.specs.SpecificationWithJUnit
-import com.linkedin.norbert.cluster._
-import com.linkedin.norbert.network._
-import loadbalancer.RouterFactoryComponent
-
-class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockito with NettyNetworkServerComponent
-        with BootstrapFactoryComponent with ClusterComponent with ClusterManagerComponent
-        with NettyRequestHandlerComponent with MessageRegistryComponent with NetworkClientFactoryComponent
-        with ClusterIoClientComponent with ResponseHandlerComponent with MessageExecutorComponent
-        with CurrentNodeLocatorComponent with RouterFactoryComponent {
-  val routerFactory = null
-  val requestHandler = mock[NettyRequestHandler]
-  val messageRegistry = null
-  val responseHandler = null
-  def currentNodeLocator = null
-  val messageExecutor = mock[MessageExecutor]
-  val networkClientFactory = mock[NetworkClientFactory]
-  val cluster = mock[ClusterClient]
-  val bootstrapFactory = mock[BootstrapFactory]
-  val networkServer = mock[NetworkServer]
-
-  "NettyNetworkServer" should {
+//class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockito with NettyNetworkServerComponent
+//        with BootstrapFactoryComponent with ClusterClientComponent with ClusterManagerComponent
+//        with NettyRequestHandlerComponent with MessageRegistryComponent with NetworkClientFactoryComponent
+//        with ClusterIoClientComponent with ResponseHandlerComponent with MessageExecutorComponent
+//        with CurrentNodeLocatorComponent with RouterFactoryComponent {
+//  val routerFactory = null
+//  val requestHandler = mock[NettyRequestHandler]
+//  val messageRegistry = null
+//  val responseHandler = null
+//  def currentNodeLocator = null
+//  val messageExecutor = mock[MessageExecutor]
+//  val networkClientFactory = mock[NetworkClientFactory]
+//  val clusterClient = mock[ClusterClient]
+//  val bootstrapFactory = mock[BootstrapFactory]
+//  val networkServer = mock[NetworkServer]
+//
+//  "NettyNetworkServer" should {
 //    "when instantiated with a node id" in {
 //      "connect to the cluster and listen to cluster events" in {
 //        doNothing.when(cluster).start
@@ -321,5 +311,5 @@ class NettyNetworkServerComponentSpec extends SpecificationWithJUnit with Mockit
 //        server.markAvailable must throwA[NetworkingException]
 //      }
 //    }
-  }
-}
+//  }
+//}

@@ -19,13 +19,13 @@ import com.linkedin.norbert.network.NetworkClientFactoryComponent
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.javaapi.{Cluster, JavaClusterHelper, JavaRouterHelper}
 import java.util.concurrent.TimeUnit
-import com.linkedin.norbert.cluster.{Node, ClusterComponent}
+import com.linkedin.norbert.cluster.{Node, ClusterClientComponent}
 
 /**
  * Mixin which provides the client bootstrap functionality.
  */
 trait ClientBootstrapHelper {
-  protected val componentRegistry: NetworkClientFactoryComponent with ClusterComponent with JavaRouterHelper
+  protected val componentRegistry: NetworkClientFactoryComponent with ClusterClientComponent with JavaRouterHelper
 
   private val cluster = new JavaClusterHelper {
     lazy val componentRegistry = ClientBootstrapHelper.this.componentRegistry
@@ -84,7 +84,7 @@ trait ClientBootstrapHelper {
    * attempting to interact with the instance.
    */
   def getCluster: Cluster = {
-    componentRegistry.cluster.start
+    componentRegistry.clusterClient.start
     cluster
   }
 

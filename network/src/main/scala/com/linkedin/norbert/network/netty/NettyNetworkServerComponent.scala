@@ -25,7 +25,7 @@ import com.linkedin.norbert.network._
 import com.linkedin.norbert.cluster._
 
 trait NettyNetworkServerComponent extends NetworkServerComponent {
-  this: BootstrapFactoryComponent with ClusterComponent with NettyRequestHandlerComponent
+  this: BootstrapFactoryComponent with ClusterClientComponent with NettyRequestHandlerComponent
           with NetworkClientFactoryComponent with MessageExecutorComponent =>
 
   class NettyNetworkServer private (nodeIdOption: Option[Int], bindAddressOption: Option[InetSocketAddress]) extends NetworkServer with ClusterListener with Logging {
@@ -47,16 +47,16 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
     def bind {
       log.ifInfo("Starting network server...")
       log.ifDebug("Starting cluster...")
-      cluster.start
+      clusterClient.start
       log.ifDebug("Cluster started")
 
       log.ifDebug("Waiting for cluster connection to complete...")
-      cluster.awaitConnectionUninterruptibly
+      clusterClient.awaitConnectionUninterruptibly
 
       val bindAddress = if (nodeIdOption.isDefined) {
         val nodeId = nodeIdOption.get
         log.ifDebug("Binding network server for node with id: " + nodeId)
-        myNode = cluster.nodeWithId(nodeId).getOrElse(throw new InvalidNodeException("Unable to find a node with id: %d".format(nodeId)))
+        myNode = clusterClient.nodeWithId(nodeId).getOrElse(throw new InvalidNodeException("Unable to find a node with id: %d".format(nodeId)))
 //        myNode.address
         null
       } else {
@@ -75,7 +75,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
 
       log.ifInfo("Network server started and listening at %s", bindAddress)
 
-      cluster.addListener(this)
+      clusterClient.addListener(this)
     }
 
     def bind(markAvailable: Boolean) {
@@ -94,7 +94,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
     def shutdown {
       log.info("Shutting down network server...")
       log.ifDebug("Shutting down cluster...")
-      cluster.shutdown
+      clusterClient.shutdown
 
       if (serverChannel != null) {
         log.ifDebug("Unbinding from %s...", serverChannel.getLocalAddress)
@@ -139,7 +139,7 @@ trait NettyNetworkServerComponent extends NetworkServerComponent {
     private def doMarkNodeAvailable {
       if (markAvailableWhenConnected) {
         log.ifDebug("Marking node with id %d available", myNode.id)
-        cluster.markNodeAvailable(myNode.id)
+        clusterClient.markNodeAvailable(myNode.id)
       }
     }
   }

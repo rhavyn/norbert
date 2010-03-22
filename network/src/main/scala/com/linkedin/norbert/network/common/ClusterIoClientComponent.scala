@@ -19,6 +19,8 @@ import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.Node
 
 trait ClusterIoClientComponent {
+  val clusterIoClient: ClusterIoClient
+  
   trait ClusterIoClient {
     def sendMessage(node: Node, message: Message, responseCallback: Either[Throwable, Message] => Unit): Unit
     def shutdown: Unit

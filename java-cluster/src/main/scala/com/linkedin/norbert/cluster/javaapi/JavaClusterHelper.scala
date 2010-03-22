@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.cluster.javaapi
 
-import com.linkedin.norbert.cluster.{ClusterComponent, RouterFactoryComponent, Node}
+import com.linkedin.norbert.cluster.{ClusterClientComponent, RouterFactoryComponent, Node}
 import com.linkedin.norbert.cluster.javaapi.{Router => JRouter, ClusterListener => JClusterListener, RouterFactory => JRouterFactory}
 import java.util.concurrent.TimeUnit
 import java.net.InetSocketAddress
@@ -25,7 +25,7 @@ import java.net.InetSocketAddress
  */
 trait JavaRouterHelper extends RouterFactoryComponent {
   val javaRouterFactory: JRouterFactory
-  
+
   type Id = Int
 
   class RouterWrapper(val router: JRouter) extends Router {
@@ -44,9 +44,9 @@ trait JavaRouterHelper extends RouterFactoryComponent {
  * A mixin trait that provides functionality to help adapt the Java API to the Scala API.
  */
 trait JavaClusterHelper extends Cluster {
-  protected val componentRegistry: ClusterComponent with JavaRouterHelper
+  protected val componentRegistry: ClusterClientComponent with JavaRouterHelper
 
-  import componentRegistry.{cluster, ClusterEvent, ClusterEvents, ClusterListener, Router, RouterWrapper}
+  import componentRegistry.{clusterClient, ClusterEvent, ClusterEvents, ClusterListener, Router, RouterWrapper}
 
   private val jListenerListLock = new AnyRef
   private var jListenerList: List[ClusterListenerWrapper] = Nil
@@ -56,24 +56,24 @@ trait JavaClusterHelper extends Cluster {
     case None => null
   }
 
-  def getNodes: Array[Node] = cluster.nodes.toArray
+  def getNodes: Array[Node] = clusterClient.nodes.toArray
 
-  def getNodeWithAddress(address: InetSocketAddress): Node = cluster.nodeWithAddress(address) getOrElse(null)
+  def getNodeWithAddress(address: InetSocketAddress): Node = clusterClient.nodeWithAddress(address) getOrElse(null)
 
-  def getNodeWithId(nodeId: Int) = cluster.nodeWithId(nodeId) getOrElse(null)
+  def getNodeWithId(nodeId: Int) = clusterClient.nodeWithId(nodeId) getOrElse(null)
 
-  def getRouter: JRouter = cluster.router
+  def getRouter: JRouter = clusterClient.router
 
-  def addNode(nodeId: Int, address: InetSocketAddress, partitions: Array[Int]): Node = cluster.addNode(nodeId, address, partitions)
+  def addNode(nodeId: Int, address: InetSocketAddress, partitions: Array[Int]): Node = clusterClient.addNode(nodeId, address, partitions)
 
-  def removeNode(nodeId: Int): Unit = cluster.removeNode(nodeId)
+  def removeNode(nodeId: Int): Unit = clusterClient.removeNode(nodeId)
 
-  def markNodeAvailable(nodeId: Int): Unit = cluster.markNodeAvailable(nodeId)
+  def markNodeAvailable(nodeId: Int): Unit = clusterClient.markNodeAvailable(nodeId)
 
   def addListener(listener: JClusterListener): Unit = {
     val l = new ClusterListenerWrapper(listener)
 
-    cluster.addListener(l)
+    clusterClient.addListener(l)
 
     jListenerListLock.synchronized {
       jListenerList = l :: jListenerList
@@ -86,22 +86,22 @@ trait JavaClusterHelper extends Cluster {
       if (removed.isDefined) {
         val l = removed.get
         jListenerList = jListenerList.filter(_ ne l)
-        cluster.removeListener(l)
+        clusterClient.removeListener(l)
       }
     }
   }
 
-  def shutdown: Unit = cluster.shutdown
+  def shutdown: Unit = clusterClient.shutdown
 
-  def isConnected: Boolean = cluster.isConnected
+  def isConnected: Boolean = clusterClient.isConnected
 
-  def isShutdown: Boolean = cluster.isShutdown
+  def isShutdown: Boolean = clusterClient.isShutdown
 
-  def awaitConnection: Unit = cluster.awaitConnection
+  def awaitConnection: Unit = clusterClient.awaitConnection
 
-  def awaitConnectionUninterruptibly: Unit = cluster.awaitConnectionUninterruptibly
+  def awaitConnectionUninterruptibly: Unit = clusterClient.awaitConnectionUninterruptibly
 
-  def awaitConnection(timeout: Long, unit: TimeUnit): Boolean = cluster.awaitConnection(timeout, unit)
+  def awaitConnection(timeout: Long, unit: TimeUnit): Boolean = clusterClient.awaitConnection(timeout, unit)
 
   private class ClusterListenerWrapper(val listener: JClusterListener) extends ClusterListener {
     import ClusterEvents._
