@@ -112,14 +112,12 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     private def handleExpired {
       log.ifDebug("Handling an Expired message")
 
-      doIfConnected("an Expired message") {
-        log.ifInfo("Connection to ZooKeeper expired, reconnecting...")
-        connected = false
-        currentNodes = IntMap.empty
-        watcher.shutdown
-        clusterNotificationManager ! ClusterNotificationMessages.Disconnected
-        startZooKeeper
-      }
+      log.error("Connection to ZooKeeper expired, reconnecting...")
+      connected = false
+      currentNodes = IntMap.empty
+      watcher.shutdown
+      clusterNotificationManager ! ClusterNotificationMessages.Disconnected
+      startZooKeeper
     }
 
     private def handleAvailabilityChanged {
