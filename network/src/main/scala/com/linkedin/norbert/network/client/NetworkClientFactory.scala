@@ -134,11 +134,8 @@ trait NetworkClientFactory extends Logging {
       def sendMessage(message: Message) = doIfConnected {
         if (message == null) throw new NullPointerException
 
-        val node = loadBalancer match {
-          case Some(Left(ex)) => throw ex
-          case Some(Right(lb)) => lb.nextNode.getOrElse(throw new NoNodesAvailableException("No node available that can handle the message: %s".format(message)))
-          case None => throw new ClusterDisconnectedException
-        }
+        val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
+          lb => lb.nextNode.getOrElse(throw new NoNodesAvailableException("No node available that can handle the message: %s".format(message))))
 
         val future = new NorbertFuture
         clusterIoClient.sendMessage(node, message, e => future.offerResponse(e))

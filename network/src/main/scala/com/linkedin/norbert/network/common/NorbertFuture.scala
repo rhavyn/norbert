@@ -68,8 +68,5 @@ class NorbertResponseIterator(numResponses: Int) extends ResponseIterator with R
 }
 
 private[common] trait ResponseHelper {
-  protected def translateResponse(response: Either[Throwable, Message]) = response match {
-    case Left(ex) => throw new ExecutionException(ex)
-    case Right(msg) => msg
-  }
+  protected def translateResponse(response: Either[Throwable, Message]) = response.fold(ex => throw new ExecutionException(ex), msg => msg)
 }
