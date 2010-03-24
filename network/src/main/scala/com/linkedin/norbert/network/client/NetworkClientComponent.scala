@@ -18,6 +18,6 @@ package com.linkedin.norbert.network.client
 /**
  * A component which provides a network client for interacting with nodes in a cluster.
  */
-trait NetworkClientFactoryComponent {
-  val networkClientFactory: NetworkClientFactory
+trait NetworkClientComponent {
+  val networkClient: NetworkClient
 }
