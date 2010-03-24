@@ -50,7 +50,8 @@ trait NetworkServer extends Logging {
    * @param markAvailable if true marks the <code>Node</code> identified by <code>nodeId</code> as available after binding to
    * the port
    *
-   * @throws InvalidNodeException thrown if no <code>Node</code> with the specified <code>nodeId</code> exists
+   * @throws InvalidNodeException thrown if no <code>Node</code> with the specified <code>nodeId</code> exists or if the
+   * format of the <code>Node</code>'s url isn't hostname:port
    * @throws NetworkShutdownException thrown if the <code>NetworkServer</code> has been shut down
    * @throws NetworkingException thrown if unable to bind
    */
@@ -64,8 +65,6 @@ trait NetworkServer extends Logging {
     clusterClient.awaitConnectionUninterruptibly
 
     val node = clusterClient.nodeWithId(nodeId).getOrElse(throw new InvalidNodeException("No node with id %d exists".format(nodeId)))
-
-    log.ifDebug("Binding to network with url: %s", node.url)
     clusterIoServer.bind(node, true)
 
     nodeOption = Some(node)

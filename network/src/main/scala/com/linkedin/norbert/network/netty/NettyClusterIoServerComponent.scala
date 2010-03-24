@@ -13,15 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert.network.netty
 
+import com.linkedin.norbert.network.server.ClusterIoServerComponent
 import com.linkedin.norbert.cluster.Node
 
-trait ClusterIoServerComponent {
-  val clusterIoServer: ClusterIoServer
+trait NettyClusterIoServerComponent extends ClusterIoServerComponent {
+  class NettyClusterIoServer extends ClusterIoServer with UrlParser {
+    def bind(node: Node, wildcard: Boolean) = {
+      val (_, port) = parseUrl(node.url)
+      null
+    }
 
-  trait ClusterIoServer {
-    def bind(node: Node, wildcardAddress: Boolean): Unit
-    def shutdown: Unit
+    def shutdown = {}
   }
 }

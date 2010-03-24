@@ -13,15 +13,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert.network.netty
 
-import com.linkedin.norbert.cluster.Node
+import com.linkedin.norbert.cluster.InvalidNodeException
 
-trait ClusterIoServerComponent {
-  val clusterIoServer: ClusterIoServer
-
-  trait ClusterIoServer {
-    def bind(node: Node, wildcardAddress: Boolean): Unit
-    def shutdown: Unit
+trait UrlParser {
+  def parseUrl(url: String): (String, Int) = try {
+    val Array(a, p) = url.split(":")
+    (a, p.toInt)
+  } catch {
+    case ex: MatchError => throw new InvalidNodeException("Invalid Node url format, must be in the form address:port")
+    case ex: NumberFormatException => throw new InvalidNodeException("Invalid Node url format, must be in the form address:port", ex)
   }
 }

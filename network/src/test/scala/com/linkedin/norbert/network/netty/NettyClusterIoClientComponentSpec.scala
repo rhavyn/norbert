@@ -37,7 +37,7 @@ class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mock
   val channelPoolFactory = mock[ChannelPoolFactory]
   val channelPool = mock[ChannelPool]
 
-  val clusterIoClient = new NettyClusterIoClient(1, mock[ChannelFactory], channelPoolFactory)(bootstrapFactory _)
+  val clusterIoClient = new NettyClusterIoClient(1, channelPoolFactory, mock[ChannelFactory])(bootstrapFactory _)
 
   val node = Node(1, "localhost:31313", true)
   val address = new InetSocketAddress("localhost", 31313)

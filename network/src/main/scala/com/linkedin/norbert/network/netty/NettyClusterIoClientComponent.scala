@@ -15,40 +15,46 @@
  */
 package com.linkedin.norbert.network.netty
 
-import com.linkedin.norbert.util.Logging
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 import java.lang.Throwable
 import com.google.protobuf.Message
 import com.linkedin.norbert.network.common.ClusterIoClientComponent
-import com.linkedin.norbert.cluster.{InvalidNodeException, Node}
+import com.linkedin.norbert.cluster.Node
 import org.jboss.netty.bootstrap.ClientBootstrap
 import java.net.InetSocketAddress
 import org.jboss.netty.channel.{ChannelFactory, ChannelPipelineFactory}
+import java.util.concurrent.{Executors, ConcurrentHashMap}
+import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
+import java.util.concurrent.atomic.AtomicInteger
+import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 
 /**
  * A <code>ClusterIoClientComponent</code> implementation that uses Netty for network communication.
  */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent with ChannelPoolComponent {
 
-  class NettyClusterIoClient(connectTimeoutMillis: Int, channelFactory: ChannelFactory, channelPoolFactory: ChannelPoolFactory)
-      (implicit bootstrapFactory: (ChannelFactory, InetSocketAddress, Int) => ClientBootstrap) extends ClusterIoClient with Logging {
+  object NettyClusterIoClient {
+    private val counter = new AtomicInteger
+
+    def channelFactory = {
+      val pool = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-%d".format(counter.incrementAndGet)))
+      new NioClientSocketChannelFactory(pool, pool)
+    }
+  }
+
+  class NettyClusterIoClient(connectTimeoutMillis: Int, channelPoolFactory: ChannelPoolFactory, channelFactory: ChannelFactory)
+      (implicit bootstrapFactory: (ChannelFactory, InetSocketAddress, Int) => ClientBootstrap) extends ClusterIoClient with UrlParser with Logging {
+    def this(connectTimeoutMillis: Int, channelPoolFactory: ChannelPoolFactory)
+        (implicit bootstrapFactory: (ChannelFactory, InetSocketAddress, Int) => ClientBootstrap) = this(connectTimeoutMillis, channelPoolFactory,
+      NettyClusterIoClient.channelFactory)(bootstrapFactory)
+
     private val channelPools = new ConcurrentHashMap[Node, ChannelPool]
-    private val shutdownSwitch = new AtomicBoolean
 
     def sendMessage(node: Node, message: Message, responseCallback: (Either[Throwable, Message]) => Unit) = {
       if (node == null || message == null || responseCallback == null) throw new NullPointerException
 
       var pool = channelPools.get(node)
       if (pool == null) {
-        val (address, port) = try {
-          val Array(a, p) = node.url.split(":")
-          (a, p.toInt)
-        } catch {
-          case ex: MatchError => throw new InvalidNodeException("Invalid Node url format, must be in the form address:port")
-          case ex: NumberFormatException => throw new InvalidNodeException("Invalid Node url format, must be in the form address:port", ex)
-        }
-
+        val (address, port) = parseUrl(node.url)
         val bootstrap = bootstrapFactory(channelFactory, new InetSocketAddress(address, port), connectTimeoutMillis)
 
         pool = channelPoolFactory.newChannelPool(bootstrap)
@@ -62,16 +68,16 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent with Channe
     def shutdown = {
       import scala.collection.jcl.Conversions._
 
-      if (shutdownSwitch.compareAndSet(false, true)) {
-        channelPools.keySet.foreach { key =>
-          channelPools.get(key) match {
-            case null => // do nothing
-            case pool => pool.close
-          }
+      channelPools.keySet.foreach { key =>
+        channelPools.get(key) match {
+          case null => // do nothing
+          case pool =>
+            pool.close
+            channelPools.remove(key)
         }
-
-        log.ifDebug("NettyClusterIoClient shut down")
       }
+
+      log.ifDebug("NettyClusterIoClient shut down")
     }
   }
 
