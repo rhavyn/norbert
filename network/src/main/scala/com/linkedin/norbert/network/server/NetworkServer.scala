@@ -70,6 +70,7 @@ trait NetworkServer extends Logging {
     nodeOption = Some(node)
     markAvailableWhenConnected = markAvailable
 
+    log.ifDebug("Registering with ClusterClient")
     listenerKey = clusterClient.addListener(new ClusterListener {
       def handleClusterEvent(event: ClusterEvent) = event match {
         case ClusterEvents.Connected(_) => if (markAvailableWhenConnected) clusterClient.markNodeAvailable(nodeId)
@@ -120,14 +121,22 @@ trait NetworkServer extends Logging {
 
   private def doShutdown(fromCluster: Boolean) {
     if (shutdownSwitch.compareAndSet(false, true)) {
+      log.ifInfo("Shutting down NetworkServer for %s...", nodeOption.map(_.toString).getOrElse("[unbound]"))
+
       if (!fromCluster) {
         nodeOption.foreach { node =>
+          log.ifDebug("Unregistering from ClusterClient")
           clusterClient.removeListener(listenerKey)
+
+          log.ifDebug("Marking %s unavailable", node)
           clusterClient.markNodeUnavailable(node.id)
         }
       }
 
+      log.ifDebug("Closing socket")
       clusterIoServer.shutdown
+
+      log.ifInfo("NetworkServer shut down")
     }
   }
 

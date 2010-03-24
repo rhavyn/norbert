@@ -65,7 +65,6 @@ class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
 
     "start the cluster, creates a load balancer and register itself as a listener when started" in {
       val cc = mock[ClusterClient]
-      doNothing.when(clusterClient).start
       cc.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
       cc.nodes returns nodes
 
@@ -86,12 +85,63 @@ class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
       nc.loadBalancerFactory.newLoadBalancer(nodes) was called
     }
 
-    "shut down the clusterIoClient when shutdown is called" in {
-      doNothing.when(networkClient.clusterIoClient).shutdown
+    "shut down the clusterIoClient and unregister from the cluster when shutdown is called" in {
+      val cc = mock[ClusterClient]
+      val key = ClusterListenerKey(1)
+      cc.addListener(any[ClusterListener]) returns key
+      cc.nodes returns nodes
 
-      networkClient.shutdown
+      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+        val lb = mock[LoadBalancer]
+        val clusterIoClient = mock[ClusterIoClient]
+        val loadBalancerFactory = mock[LoadBalancerFactory]
+        val clusterClient = cc
+      }
 
-      networkClient.clusterIoClient.shutdown was called
+      nc.start
+      nc.shutdown
+
+      nc.clusterIoClient.shutdown was called
+      cc.removeListener(key) was called
+    }
+
+    "shut down the clusterIoClient when a Shutdown event is called" in {
+      val cc = mock[ClusterClient]
+      cc.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
+      cc.nodes returns nodes
+      var listener: ClusterListener = null
+      cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
+
+      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+        val lb = mock[LoadBalancer]
+        val clusterIoClient = mock[ClusterIoClient]
+        val loadBalancerFactory = mock[LoadBalancerFactory]
+        val clusterClient = cc
+      }
+
+      nc.start
+
+      listener.handleClusterEvent(ClusterEvents.Shutdown)
+      nc.clusterIoClient.shutdown was called
+    }
+
+    "do nothing if shutdown is called before start" in {
+      val cc = mock[ClusterClient]
+      val key = ClusterListenerKey(1)
+      cc.addListener(any[ClusterListener]) returns key
+      doNothing.when(cc).removeListener(any[ClusterListenerKey])
+
+      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+        val lb = mock[LoadBalancer]
+        val clusterIoClient = mock[ClusterIoClient]
+        val loadBalancerFactory = mock[LoadBalancerFactory]
+        val clusterClient = cc
+      }
+
+      nc.shutdown
+
+      cc.removeListener(any[ClusterListenerKey]) wasnt called
+      nc.clusterIoClient.shutdown wasnt called
     }
 
     "throw ClusterDisconnectedException if the cluster is disconnected when a method is called" in {

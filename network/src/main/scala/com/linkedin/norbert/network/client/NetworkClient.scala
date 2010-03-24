@@ -35,6 +35,7 @@ trait NetworkClient extends Logging {
   @volatile private var connected = false
   @volatile private var currentNodes: Seq[Node] = Nil
   @volatile private var loadBalancer: Option[Either[InvalidClusterException, LoadBalancer]] = None
+  @volatile private var listenerKey: ClusterListenerKey = _
 
   def start {
     if (startedSwitch.compareAndSet(false, true)) {
@@ -44,7 +45,7 @@ trait NetworkClient extends Logging {
       updateCurrentState(clusterClient.nodes)
       connected = clusterClient.isConnected
 
-      clusterClient.addListener(new ClusterListener {
+      listenerKey = clusterClient.addListener(new ClusterListener {
         def handleClusterEvent(event: ClusterEvent) = event match {
           case ClusterEvents.Connected(nodes) =>
             updateCurrentState(nodes)
@@ -57,7 +58,7 @@ trait NetworkClient extends Logging {
             loadBalancer = None
             currentNodes = Nil
 
-          case ClusterEvents.Shutdown => shutdownSwitch.set(true)
+          case ClusterEvents.Shutdown => doShutdown(true)
         }
       })
     }
@@ -129,14 +130,7 @@ trait NetworkClient extends Logging {
     it
   }
 
-  def shutdown: Unit = if (shutdownSwitch.compareAndSet(false, true)) {
-    log.ifDebug("Shutting down NetworkClientFactory...")
-
-    log.ifDebug("Shutting down ClusterIoClient...")
-    clusterIoClient.shutdown
-
-    log.ifDebug("NetworkClientFactory shut down")
-  }
+  def shutdown: Unit = doShutdown(false)
 
   // TODO: If a node goes away, it should be removed from the ClusterIoClient
   private def updateCurrentState(nodes: Seq[Node]) = {
@@ -155,6 +149,22 @@ trait NetworkClient extends Logging {
       val msg = "Exception while creating new router instance"
       log.ifError(ex, msg)
       Some(Left(new InvalidClusterException(msg, ex)))
+  }
+
+  private def doShutdown(fromCluster: Boolean) {
+    if (shutdownSwitch.compareAndSet(false, true) && startedSwitch.get) {
+      log.ifInfo("Shutting down NetworkClient")
+
+      if (!fromCluster) {
+        log.ifDebug("Unregistering from ClusterClient")
+        clusterClient.removeListener(listenerKey)
+      }
+
+      log.ifDebug("Closing sockets")
+      clusterIoClient.shutdown
+
+      log.ifInfo("NetworkClient shut down")
+    }
   }
 
   private def doIfConnected[T](block: => T): T = {
