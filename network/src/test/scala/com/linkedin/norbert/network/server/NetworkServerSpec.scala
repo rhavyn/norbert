@@ -26,8 +26,9 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
     val clusterClient = mock[ClusterClient]
   }
   val node = Node(1, "", false)
+  val listenerKey: ClusterListenerKey = ClusterListenerKey(1)
   networkServer.clusterClient.nodeWithId(1) returns Some(node)
-  networkServer.clusterClient.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
+  networkServer.clusterClient.addListener(any[ClusterListener]) returns listenerKey
 
   "NetworkServer" should {
     "throw a NetworkShutdownException if the network has been shutdown" in {
@@ -102,12 +103,70 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
       networkServer.myNode must be_==(node)
     }
 
-    "mark the node available and ensure it stays available when Connected events are received for markAvailable"
+    "mark the node available and ensure it stays available when Connected events are received for markAvailable" in {
+      var listener: ClusterListener = null
+      networkServer.clusterClient.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
+      doNothing.when(networkServer.clusterClient).markNodeAvailable(1)
 
-    "mark the node unavailable and ensure it is not marked available when Connected events are received for markUnavailable"
+      networkServer.bind(1, false)
 
-    "shutdown the cluster io server, mark unavailable, and remove the cluster listener if shutdown is called"
+      listener.handleClusterEvent(ClusterEvents.Connected(Nil))
 
-    "shutdown the cluster io server if a Shutdown event is received"
+      networkServer.markAvailable
+
+      networkServer.clusterClient.markNodeAvailable(1) was called
+
+      listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+
+      networkServer.clusterClient.markNodeAvailable(1) was called.twice
+    }
+
+    "mark the node unavailable and ensure it is not marked available when Connected events are received for markUnavailable" in {
+      var listener: ClusterListener = null
+      networkServer.clusterClient.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
+      doNothing.when(networkServer.clusterClient).markNodeAvailable(1)
+      doNothing.when(networkServer.clusterClient).markNodeUnavailable(1)
+
+      networkServer.bind(1)
+
+      listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+
+      networkServer.clusterClient.markNodeAvailable(1) was called
+
+      networkServer.markUnavailable
+
+      listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+
+      networkServer.clusterClient.markNodeAvailable(1) was called
+      networkServer.clusterClient.markNodeUnavailable(1) was called
+    }
+
+    "shutdown the cluster io server, mark unavailable, and remove the cluster listener if shutdown is called" in {
+      doNothing.when(networkServer.clusterIoServer).shutdown
+      doNothing.when(networkServer.clusterClient).markNodeUnavailable(1)
+      doNothing.when(networkServer.clusterClient).removeListener(listenerKey)
+
+      networkServer.bind(1)
+      networkServer.shutdown
+
+      networkServer.clusterIoServer.shutdown was called
+      networkServer.clusterClient.markNodeUnavailable(1) was called
+      networkServer.clusterClient.removeListener(listenerKey) was called
+    }
+
+    "shutdown the cluster io server if a Shutdown event is received" in {
+      var listener: ClusterListener = null
+      networkServer.clusterClient.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
+      doNothing.when(networkServer.clusterIoServer).shutdown
+      doNothing.when(networkServer.clusterClient).markNodeUnavailable(1)
+      doNothing.when(networkServer.clusterClient).removeListener(listenerKey)
+
+      networkServer.bind(1)
+      listener.handleClusterEvent(ClusterEvents.Shutdown)
+      
+      networkServer.clusterIoServer.shutdown was called
+      networkServer.clusterClient.markNodeUnavailable(1) wasnt called
+      networkServer.clusterClient.removeListener(listenerKey) wasnt called
+    }
   }
 }
