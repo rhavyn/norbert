@@ -17,14 +17,30 @@ package com.linkedin.norbert.network.netty
 
 import com.linkedin.norbert.network.server.ClusterIoServerComponent
 import com.linkedin.norbert.cluster.Node
+import org.jboss.netty.bootstrap.ServerBootstrap
+import java.net.InetSocketAddress
+import org.jboss.netty.channel.{ChannelException, Channel}
+import com.linkedin.norbert.network.NetworkingException
+import com.linkedin.norbert.util.Logging
 
 trait NettyClusterIoServerComponent extends ClusterIoServerComponent {
-  class NettyClusterIoServer extends ClusterIoServer with UrlParser {
+  class NettyClusterIoServer(bootstrap: ServerBootstrap) extends ClusterIoServer with UrlParser with Logging {
+    @volatile private var serverChannel: Channel = _
+
     def bind(node: Node, wildcard: Boolean) = {
       val (_, port) = parseUrl(node.url)
-      null
+      try {
+        val address = new InetSocketAddress(port)
+        log.ifDebug("Binding server socket to %s", address)
+        serverChannel = bootstrap.bind(address)
+      } catch {
+        case ex: ChannelException => throw new NetworkingException("Unable to bind to %s".format(node), ex)
+      }
     }
 
-    def shutdown = {}
+    def shutdown = if (serverChannel != null) {
+      serverChannel.close.awaitUninterruptibly
+      bootstrap.releaseExternalResources
+    }
   }
 }
