@@ -27,6 +27,11 @@ class NetworkingException(message: String, cause: Throwable) extends NorbertExce
 }
 
 /**
+ * Exception that indicates that a method was called after the network system has been shut down.
+ */
+class NetworkShutdownException extends NetworkingException
+
+/**
  * Exception that indicates that an exception occurred remotely while processing a request.
  */
 class RemoteException(className: String, errorMsg: String) extends NetworkingException("The remote end threw an exception [%s]: %s".format(className, errorMsg))
@@ -50,3 +55,8 @@ class NetworkNotStartedException extends NetworkingException
  * Exception that indicates that no nodes are available to process the message.
  */
 class NoNodesAvailableException(errorMsg: String) extends NetworkingException(errorMsg)
+
+/**
+ * Exception that indicates that a method has been called before the network server has been bound.
+ */
+class NetworkServerNotBoundException extends NetworkingException

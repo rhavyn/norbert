@@ -23,13 +23,13 @@ import com.linkedin.norbert.cluster._
 import com.linkedin.norbert.network.{NoNodesAvailableException, NetworkNotStartedException}
 import com.linkedin.norbert.network.common.ClusterIoClientComponent
 
-class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mockito {
+class NetworkClientFactorySpec extends SpecificationWithJUnit with Mockito {
   val clusterClient = mock[ClusterClient]
   val networkClientFactory = new NetworkClientFactory with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
     val lb = mock[LoadBalancer]
     val clusterIoClient = mock[ClusterIoClient]
     val loadBalancerFactory = mock[LoadBalancerFactory]
-    val clusterClient = NetworkClientFactoryComponentSpec.this.clusterClient
+    val clusterClient = NetworkClientFactorySpec.this.clusterClient
   }
   val nodes = List(Node(1, "", true), Node(2, "", true), Node(3, "", true))
 
@@ -82,13 +82,11 @@ class NetworkClientFactoryComponentSpec extends SpecificationWithJUnit with Mock
       networkClientFactory.loadBalancerFactory.newLoadBalancer(nodes) was called.times(3)
     }
 
-    "shut down the cluster and clusterIoClient when shutdown is called" in {
-      doNothing.when(clusterClient).shutdown
+    "shut down the clusterIoClient when shutdown is called" in {
       doNothing.when(networkClientFactory.clusterIoClient).shutdown
 
       networkClientFactory.shutdown
 
-      clusterClient.shutdown was called
       networkClientFactory.clusterIoClient.shutdown was called
     }
   }

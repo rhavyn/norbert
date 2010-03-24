@@ -57,8 +57,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
     }
   }
 
-  "ZooKeeperManager" should {
-
+  "ZooKeeperClusterManager" should {
     "instantiate a ZooKeeper instance when started" in {
       var callCount = 0
       def countedZkf(connectString: String, sessionTimeout: Int, watcher: Watcher) = {
@@ -191,12 +190,6 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         clusterManager ! Expired
 
         disconnectedCount must eventually(be_==(1))
-      }
-
-      "do nothing if not connected" in {
-        clusterManager ! Expired
-
-        disconnectedCount must eventually(be_==(0))
       }
     }
 
