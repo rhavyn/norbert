@@ -19,8 +19,9 @@ import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.util.Logging
 import org.jboss.netty.channel._
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.{InvalidMessageException, MessageRegistryComponent, MessageExecutorComponent}
+import com.linkedin.norbert.network.{InvalidMessageException, MessageRegistryComponent}
 import group.DefaultChannelGroup
+import com.linkedin.norbert.network.server.MessageExecutorComponent
 
 /**
  * A component that provides a Netty <code>ChannelHandler</code> for processing incoming requests.

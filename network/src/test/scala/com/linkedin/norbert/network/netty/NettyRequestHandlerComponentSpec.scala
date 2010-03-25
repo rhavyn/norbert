@@ -19,11 +19,12 @@ import org.specs.SpecificationWithJUnit
 import org.specs.util.WaitFor
 import org.specs.mock.Mockito
 import com.linkedin.norbert.protos.NorbertProtos
-import com.linkedin.norbert.network.{InvalidMessageException, MessageExecutorComponent, MessageRegistryComponent}
+import com.linkedin.norbert.network.{InvalidMessageException, MessageRegistryComponent}
 import java.net.SocketAddress
 import org.jboss.netty.channel._
 import java.util.UUID
 import com.google.protobuf.Message
+import com.linkedin.norbert.network.server.MessageExecutorComponent
 
 class NettyRequestHandlerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor
         with NettyRequestHandlerComponent with MessageRegistryComponent with MessageExecutorComponent {

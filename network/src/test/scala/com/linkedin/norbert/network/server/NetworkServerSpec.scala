@@ -19,12 +19,15 @@ import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.linkedin.norbert.cluster._
 import com.linkedin.norbert.network.{NetworkServerNotBoundException, NetworkShutdownException}
+import com.google.protobuf.Message
 
 class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
-  val networkServer = new NetworkServer with ClusterClientComponent with ClusterIoServerComponent {
+  val networkServer = new NetworkServer with ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent {
     val clusterIoServer = mock[ClusterIoServer]
     val clusterClient = mock[ClusterClient]
+    val messageHandlerRegistry = mock[MessageHandlerRegistry]
   }
+
   val node = Node(1, "", false)
   val listenerKey: ClusterListenerKey = ClusterListenerKey(1)
   networkServer.clusterClient.nodeWithId(1) returns Some(node)
@@ -44,6 +47,19 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
       networkServer.myNode must throwA[NetworkServerNotBoundException]
       networkServer.markUnavailable must throwA[NetworkServerNotBoundException]
       networkServer.markAvailable must throwA[NetworkServerNotBoundException]
+    }
+
+    "register messages with the MessageHandlerRegistry" in {
+      def handler(msg: Message): Message = msg
+      def h = handler _
+      val request = mock[Message]
+      val response = mock[Message]
+      doNothing.when(networkServer.messageHandlerRegistry).registerHandler(request, response, h)
+
+      networkServer.registerHandler(request, response, h)
+
+      // TODO: doesn't seem to work in scala 2.7.7
+//      networkServer.messageHandlerRegistry.registerHandler(request, response, h) was called
     }
 
     "when bind is called" in {

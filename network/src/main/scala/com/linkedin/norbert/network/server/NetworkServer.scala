@@ -19,14 +19,28 @@ import com.linkedin.norbert.cluster._
 import java.util.concurrent.atomic.AtomicBoolean
 import com.linkedin.norbert.util.Logging
 import com.linkedin.norbert.network.{NetworkShutdownException, NetworkingException, NetworkServerNotBoundException}
+import com.google.protobuf.Message
 
 trait NetworkServer extends Logging {
-  this: ClusterClientComponent with ClusterIoServerComponent =>
+  this: ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent =>
 
   @volatile private var markAvailableWhenConnected = true
   private var listenerKey: ClusterListenerKey = _
   private var nodeOption: Option[Node] = None
   private val shutdownSwitch = new AtomicBoolean
+
+  /**
+   * Registers a message handler with the <code>NetworkServer</code>. The <code>NetworkServer</code> will call the
+   * provided handler when an incoming request of type <code>requestMessage</code> is received.  If a response is
+   * expected then a response message should also be provided.
+   *
+   * @param requestMessage an instance of an incoming request message
+   * @param responseMessage an instance of an outgoing response message
+   * @param handler the function to call when an incoming message of type <code>requestMessage</code> is recieved
+   */
+  def registerHandler(requestMessage: Message, responseMessage: Message, handler: (Message) => Message) {
+    messageHandlerRegistry.registerHandler(requestMessage, responseMessage, handler)
+  }
 
   /**
    * Binds the network server instance to the wildcard address and the port of the <code>Node</code> identified

@@ -40,7 +40,7 @@ trait MessageRegistryComponent {
 
     private def getMessagePair(requestMessage: Message) = {
       val name = requestMessage.getDescriptorForType.getFullName
-      messageMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(requestMessage.getDescriptorForType.getFullName)))
+      messageMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(name)))
     }
   }
 }

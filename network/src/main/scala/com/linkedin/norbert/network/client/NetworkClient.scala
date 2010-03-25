@@ -70,7 +70,7 @@ trait NetworkClient extends Logging {
    * a <code>Message</code> is made.
    *
    * @param requestMessage an instance of an outgoing request message
-   * @param responseMessage an instance of the expected response message
+   * @param responseMessage an instance of the expected response message or null if this is a one way message
    */
   def registerRequest(requestMessage: Message, responseMessage: Message) {
     messageRegistry.registerMessage(requestMessage, responseMessage)

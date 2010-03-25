@@ -13,11 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert.network.server
 
 import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
+import com.linkedin.norbert.network.{MessageRegistryComponent, InvalidMessageException}
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -30,11 +31,6 @@ trait MessageExecutorComponent {
   trait MessageExecutor {
     def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit
     def shutdown: Unit
-  }
-
-  class DoNothingMessageExecutor extends MessageExecutor {
-    def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = null
-    def shutdown: Unit = null
   }
 
   class ThreadPoolMessageExecutor(corePoolSize: Int, maxPoolSize: Int, keepAliveTime: Int) extends MessageExecutor with Logging {

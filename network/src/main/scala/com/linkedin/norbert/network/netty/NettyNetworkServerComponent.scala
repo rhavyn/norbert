@@ -23,6 +23,7 @@ import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import org.jboss.netty.channel.{ChannelException, Channel, ChannelPipelineFactory, Channels}
 import com.linkedin.norbert.network._
 import com.linkedin.norbert.cluster._
+import server.MessageExecutorComponent
 
 trait NettyNetworkServerComponent extends NetworkServerComponent {
   this: BootstrapFactoryComponent with ClusterClientComponent with NettyRequestHandlerComponent
