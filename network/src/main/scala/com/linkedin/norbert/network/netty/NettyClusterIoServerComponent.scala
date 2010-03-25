@@ -25,7 +25,7 @@ import com.linkedin.norbert.util.Logging
 
 trait NettyClusterIoServerComponent extends ClusterIoServerComponent {
   class NettyClusterIoServer(bootstrap: ServerBootstrap) extends ClusterIoServer with UrlParser with Logging {
-    @volatile private var serverChannel: Channel = _
+    private var serverChannel: Channel = _
 
     def bind(node: Node, wildcard: Boolean) = {
       val (_, port) = parseUrl(node.url)

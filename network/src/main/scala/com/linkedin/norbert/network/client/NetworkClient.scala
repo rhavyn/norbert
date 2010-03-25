@@ -21,21 +21,21 @@ import com.linkedin.norbert.util.Logging
 import java.util.concurrent.Future
 import loadbalancer.LoadBalancerFactoryComponent
 import com.linkedin.norbert.cluster._
-import com.linkedin.norbert.network.{NoNodesAvailableException, NetworkNotStartedException, ResponseIterator}
-import com.linkedin.norbert.network.common.{NorbertFuture, NorbertResponseIterator, ClusterIoClientComponent}
+import com.linkedin.norbert.network.common.{MessageRegistryComponent, NorbertFuture, NorbertResponseIterator, ClusterIoClientComponent}
+import com.linkedin.norbert.network.{InvalidMessageException, NoNodesAvailableException, NetworkNotStartedException, ResponseIterator}
 
 /**
  * The network client interface for interacting with nodes in a cluster.
  */
 trait NetworkClient extends Logging {
-  this: ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent =>
+  this: ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent =>
 
   private val shutdownSwitch = new AtomicBoolean
   private val startedSwitch = new AtomicBoolean
+  private var listenerKey: ClusterListenerKey = _
   @volatile private var connected = false
   @volatile private var currentNodes: Seq[Node] = Nil
   @volatile private var loadBalancer: Option[Either[InvalidClusterException, LoadBalancer]] = None
-  @volatile private var listenerKey: ClusterListenerKey = _
 
   def start {
     if (startedSwitch.compareAndSet(false, true)) {
@@ -65,6 +65,18 @@ trait NetworkClient extends Logging {
   }
 
   /**
+   * Registers a request/response message pair with the <code>NetworkClient</code>.  Requests and their associated
+   * responses must be registered or an <code>InvalidMessageException</code> will be thrown when an attempt to send
+   * a <code>Message</code> is made.
+   *
+   * @param requestMessage an instance of an outgoing request message
+   * @param responseMessage an instance of the expected response message
+   */
+  def registerRequest(requestMessage: Message, responseMessage: Message) {
+    messageRegistry.registerMessage(requestMessage, responseMessage)
+  }
+
+  /**
    * Sends a message to a node in the cluster. The <code>NetworkClient</code> defers to the current
    * <code>LoadBalancer</code> to decide which <code>Node</code> the message should be sent to.
    *
@@ -79,6 +91,7 @@ trait NetworkClient extends Logging {
    */
   def sendMessage(message: Message): Future[Message] = doIfConnected {
     if (message == null) throw new NullPointerException
+    verifyMessageRegistered(message)
 
     val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
       lb => lb.nextNode.getOrElse(throw new NoNodesAvailableException("No node available that can handle the message: %s".format(message))))
@@ -102,6 +115,7 @@ trait NetworkClient extends Logging {
    */
   def sendMessageToNode(message: Message, node: Node): Future[Message] = doIfConnected {
     if (message == null || node == null) throw new NullPointerException
+    verifyMessageRegistered(message)
 
     val candidate = currentNodes.filter(_ == node)
     if (candidate.length == 0) throw new InvalidNodeException("Unable to send message, %s is not available".format(node))
@@ -122,6 +136,8 @@ trait NetworkClient extends Logging {
    */
   def broadcastMessage(message: Message): ResponseIterator = doIfConnected {
     if (message == null) throw new NullPointerException
+    verifyMessageRegistered(message)
+
     val nodes = currentNodes
     val it = new NorbertResponseIterator(nodes.length)
 
@@ -149,6 +165,10 @@ trait NetworkClient extends Logging {
       val msg = "Exception while creating new router instance"
       log.ifError(ex, msg)
       Some(Left(new InvalidClusterException(msg, ex)))
+  }
+
+  private def verifyMessageRegistered(message: Message) {
+    if (!messageRegistry.contains(message)) throw new InvalidMessageException("The message provided [%s] is not a registered request message".format(message))
   }
 
   private def doShutdown(fromCluster: Boolean) {

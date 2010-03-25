@@ -20,17 +20,20 @@ import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster._
-import com.linkedin.norbert.network.{NoNodesAvailableException, NetworkNotStartedException}
-import com.linkedin.norbert.network.common.ClusterIoClientComponent
+import com.linkedin.norbert.network.common.{MessageRegistryComponent, ClusterIoClientComponent}
+import com.linkedin.norbert.network.{InvalidMessageException, NoNodesAvailableException}
 
 class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
   val clusterClient = mock[ClusterClient]
-  val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+  val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {
     val lb = mock[LoadBalancer]
     val clusterIoClient = mock[ClusterIoClient]
     val loadBalancerFactory = mock[LoadBalancerFactory]
+    val messageRegistry = mock[MessageRegistry]
     val clusterClient = NetworkClientSpec.this.clusterClient
   }
+
+  networkClient.messageRegistry.contains(any[Message]) returns true
 
   val nodes = List(Node(1, "", true), Node(2, "", true), Node(3, "", true))
   val message = mock[Message]
@@ -45,10 +48,11 @@ class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
       cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
       cc.nodes returns nodes
 
-      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {
         val lb = mock[LoadBalancer]
         val clusterIoClient = mock[ClusterIoClient]
         val loadBalancerFactory = mock[LoadBalancerFactory]
+        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
       }
 
@@ -68,17 +72,18 @@ class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
       cc.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
       cc.nodes returns nodes
 
-      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {
         val lb = mock[LoadBalancer]
         val clusterIoClient = mock[ClusterIoClient]
         val loadBalancerFactory = mock[LoadBalancerFactory]
+        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
       }
 
       nc.loadBalancerFactory.newLoadBalancer(nodes) returns nc.lb
 
       nc.start
-      
+
       cc.start was called
       cc.addListener(any[ClusterListener]) was called
       cc.nodes was called
@@ -91,10 +96,11 @@ class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
       cc.addListener(any[ClusterListener]) returns key
       cc.nodes returns nodes
 
-      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {
         val lb = mock[LoadBalancer]
         val clusterIoClient = mock[ClusterIoClient]
         val loadBalancerFactory = mock[LoadBalancerFactory]
+        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
       }
 
@@ -112,10 +118,11 @@ class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
       var listener: ClusterListener = null
       cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
 
-      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {
         val lb = mock[LoadBalancer]
         val clusterIoClient = mock[ClusterIoClient]
         val loadBalancerFactory = mock[LoadBalancerFactory]
+        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
       }
 
@@ -131,10 +138,11 @@ class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
       cc.addListener(any[ClusterListener]) returns key
       doNothing.when(cc).removeListener(any[ClusterListenerKey])
 
-      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+      val nc = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {
         val lb = mock[LoadBalancer]
         val clusterIoClient = mock[ClusterIoClient]
         val loadBalancerFactory = mock[LoadBalancerFactory]
+        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
       }
 
@@ -158,6 +166,18 @@ class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
       networkClient.broadcastMessage(message) must throwA[ClusterShutdownException]
       networkClient.sendMessageToNode(message, nodes(1)) must throwA[ClusterShutdownException]
       networkClient.sendMessage(message) must throwA[ClusterShutdownException]
+    }
+
+    "throw an InvalidMessageException if an unregistered message is sent" in {
+      clusterClient.nodes returns nodes
+      clusterClient.isConnected returns true
+      networkClient.messageRegistry.contains(any[Message]) returns false
+
+      networkClient.start
+
+      networkClient.broadcastMessage(message) must throwA[InvalidMessageException]
+      networkClient.sendMessageToNode(message, nodes(1)) must throwA[InvalidMessageException]
+      networkClient.sendMessage(message) must throwA[InvalidMessageException]
     }
 
     "send a message to every available node for broadcastMessage" in {

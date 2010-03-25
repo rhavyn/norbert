@@ -24,7 +24,7 @@ trait NetworkServer extends Logging {
   this: ClusterClientComponent with ClusterIoServerComponent =>
 
   @volatile private var markAvailableWhenConnected = true
-  @volatile private var listenerKey: ClusterListenerKey = _
+  private var listenerKey: ClusterListenerKey = _
   private var nodeOption: Option[Node] = None
   private val shutdownSwitch = new AtomicBoolean
 
