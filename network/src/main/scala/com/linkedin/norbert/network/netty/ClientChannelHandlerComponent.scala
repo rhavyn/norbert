@@ -22,6 +22,7 @@ import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel._
 import com.linkedin.norbert.network.common.MessageRegistryComponent
 import com.linkedin.norbert.network.RemoteException
+import com.google.protobuf.InvalidProtocolBufferException
 
 trait ClientChannelHandlerComponent {
   this: MessageRegistryComponent =>
@@ -53,9 +54,14 @@ trait ClientChannelHandlerComponent {
         case null => log.warn("Received a response message [%s] without a corresponding request", message)
         case request =>
           if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
-            val rdi = messageRegistry.responseMessageDefaultInstanceFor(request.message)
-            request.responseCallback(Right(rdi.newBuilderForType.mergeFrom(message.getMessage).build))
+            try {
+              val rdi = messageRegistry.responseMessageDefaultInstanceFor(request.message)
+              request.responseCallback(Right(rdi.newBuilderForType.mergeFrom(message.getMessage).build))
+            } catch {
+              case ex: InvalidProtocolBufferException => request.responseCallback(Left(ex))
+            }
           } else {
+            val errorMsg = if (message.hasErrorMessage()) message.getErrorMessage else "<null>"
             request.responseCallback(Left(new RemoteException(message.getMessageName, message.getErrorMessage)))
           }
       }
