@@ -16,6 +16,8 @@
 package com.linkedin.norbert.network.common
 
 import com.google.protobuf.Message
+import java.lang.NullPointerException
+import com.linkedin.norbert.network.InvalidMessageException
 
 trait MessageRegistryComponent {
   val messageRegistry: MessageRegistry
@@ -25,10 +27,20 @@ trait MessageRegistryComponent {
 
     def contains(requestMessage: Message): Boolean = messageMap.contains(requestMessage.getDescriptorForType.getFullName)
 
-    def registerMessage(requestMessage: Message, responseMessage: Message): Unit = {
-      messageMap += (requestMessage.getDescriptorForType.getFullName -> (requestMessage.getDefaultInstanceForType, responseMessage.getDefaultInstanceForType))
+    def hasResponse(requestMessage: Message): Boolean = getMessagePair(requestMessage)._2 != null
+
+    def registerMessage(requestMessage: Message, responseMessage: Message) {
+      if (requestMessage == null) throw new NullPointerException
+      val response = if (responseMessage == null) null else responseMessage.getDefaultInstanceForType
+      
+      messageMap += (requestMessage.getDescriptorForType.getFullName -> (requestMessage.getDefaultInstanceForType, response))
     }
 
-    def responseMessageDefaultInstanceFor(requestMessage: Message): Message = messageMap(requestMessage.getDescriptorForType.getFullName)._2
+    def responseMessageDefaultInstanceFor(requestMessage: Message): Message = getMessagePair(requestMessage)._2
+
+    private def getMessagePair(requestMessage: Message) = {
+      val name = requestMessage.getDescriptorForType.getFullName
+      messageMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(requestMessage.getDescriptorForType.getFullName)))
+    }
   }
 }

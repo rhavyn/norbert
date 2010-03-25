@@ -33,7 +33,7 @@ trait ClientChannelHandlerComponent {
       val request = e.getMessage.asInstanceOf[Request]
       log.ifDebug("Writing request: %s", request)
 
-      requestMap.put(request.id, request)
+      if (messageRegistry.hasResponse(request.message)) requestMap.put(request.id, request)
 
       val message = NorbertProtos.NorbertMessage.newBuilder
       message.setRequestIdMsb(request.id.getMostSignificantBits)
