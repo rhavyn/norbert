@@ -50,7 +50,7 @@ trait ClientChannelHandlerComponent {
       val requestId = new UUID(message.getRequestIdMsb, message.getRequestIdLsb)
 
       requestMap.get(requestId) match {
-        case null => log.warn("Received a message [%s] without a corresponding request", message)
+        case null => log.warn("Received a response message [%s] without a corresponding request", message)
         case request =>
           if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
             val rdi = messageRegistry.responseMessageDefaultInstanceFor(request.message)

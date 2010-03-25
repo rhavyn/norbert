@@ -97,7 +97,7 @@ trait NetworkClient extends Logging {
       lb => lb.nextNode.getOrElse(throw new NoNodesAvailableException("No node available that can handle the message: %s".format(message))))
 
     val future = new NorbertFuture
-    clusterIoClient.sendMessage(node, message, e => future.offerResponse(e))
+    doSendMessage(node, message, e => future.offerResponse(e))
 
     future
   }
@@ -121,7 +121,7 @@ trait NetworkClient extends Logging {
     if (candidate.length == 0) throw new InvalidNodeException("Unable to send message, %s is not available".format(node))
 
     val future = new NorbertFuture
-    clusterIoClient.sendMessage(node, message, e => future.offerResponse(e))
+    doSendMessage(node, message, e => future.offerResponse(e))
 
     future
   }
@@ -141,12 +141,16 @@ trait NetworkClient extends Logging {
     val nodes = currentNodes
     val it = new NorbertResponseIterator(nodes.length)
 
-    currentNodes.foreach(clusterIoClient.sendMessage(_, message, e => it.offerResponse(e)))
+    currentNodes.foreach(doSendMessage(_, message, e => it.offerResponse(e)))
 
     it
   }
 
   def shutdown: Unit = doShutdown(false)
+
+  protected def doSendMessage(node: Node, message: Message, responseHandler: (Either[Throwable, Message]) => Unit) {
+    clusterIoClient.sendMessage(node, message, responseHandler)
+  }
 
   // TODO: If a node goes away, it should be removed from the ClusterIoClient
   private def updateCurrentState(nodes: Seq[Node]) = {
