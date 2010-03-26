@@ -22,7 +22,7 @@ import com.linkedin.norbert.network.InvalidMessageException
 import com.google.protobuf.Message
 import com.linkedin.norbert.protos.NorbertProtos
 
-class MessageRegistryComponentSpec extends SpecificationWithJUnit with Mockito with MessageRegistryComponent {
+class MessageRegistrySpec extends SpecificationWithJUnit with Mockito {
   val messageRegistry = new MessageRegistry
 
   val proto = NorbertProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build

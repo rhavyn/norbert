@@ -21,26 +21,27 @@ import com.linkedin.norbert.network.InvalidMessageException
 
 trait MessageRegistryComponent {
   val messageRegistry: MessageRegistry
+}
 
-  class MessageRegistry {
-    private var messageMap = Map[String, (Message, Message)]()
+class MessageRegistry {
+  private var messageMap = Map[String, (Message, Message)]()
 
-    def contains(requestMessage: Message): Boolean = messageMap.contains(requestMessage.getDescriptorForType.getFullName)
+  def contains(requestMessage: Message): Boolean = messageMap.contains(requestMessage.getDescriptorForType.getFullName)
 
-    def hasResponse(requestMessage: Message): Boolean = getMessagePair(requestMessage)._2 != null
+  def hasResponse(requestMessage: Message): Boolean = getMessagePair(requestMessage)._2 != null
 
-    def registerMessage(requestMessage: Message, responseMessage: Message) {
-      if (requestMessage == null) throw new NullPointerException
-      val response = if (responseMessage == null) null else responseMessage.getDefaultInstanceForType
-      
-      messageMap += (requestMessage.getDescriptorForType.getFullName -> (requestMessage.getDefaultInstanceForType, response))
-    }
+  def registerMessage(requestMessage: Message, responseMessage: Message) {
+    if (requestMessage == null) throw new NullPointerException
+    val response = if (responseMessage == null) null else responseMessage.getDefaultInstanceForType
 
-    def responseMessageDefaultInstanceFor(requestMessage: Message): Message = getMessagePair(requestMessage)._2
+    messageMap += (requestMessage.getDescriptorForType.getFullName -> (requestMessage.getDefaultInstanceForType, response))
+  }
 
-    private def getMessagePair(requestMessage: Message) = {
-      val name = requestMessage.getDescriptorForType.getFullName
-      messageMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(name)))
-    }
+  def responseMessageDefaultInstanceFor(requestMessage: Message): Message = getMessagePair(requestMessage)._2
+
+  private def getMessagePair(requestMessage: Message) = {
+    val name = requestMessage.getDescriptorForType.getFullName
+    messageMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(name)))
   }
 }
+

@@ -20,8 +20,8 @@ import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster._
-import com.linkedin.norbert.network.common.{MessageRegistryComponent, ClusterIoClientComponent}
 import com.linkedin.norbert.network.{InvalidMessageException, NoNodesAvailableException}
+import com.linkedin.norbert.network.common.{MessageRegistry, MessageRegistryComponent, ClusterIoClientComponent}
 
 class NetworkClientSpec extends SpecificationWithJUnit with Mockito {
   val clusterClient = mock[ClusterClient]
