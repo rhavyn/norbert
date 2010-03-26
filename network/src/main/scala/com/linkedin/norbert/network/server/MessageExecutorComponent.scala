@@ -18,13 +18,13 @@ package com.linkedin.norbert.network.server
 import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
-import com.linkedin.norbert.network.{MessageRegistryComponent, InvalidMessageException}
+import com.linkedin.norbert.network.InvalidMessageException
 
 /**
  * A component which submits incoming messages to their associated message handler.
  */
 trait MessageExecutorComponent {
-  this: MessageRegistryComponent =>
+  this: MessageHandlerRegistryComponent =>
 
   def messageExecutor: MessageExecutor
 
@@ -35,23 +35,33 @@ trait MessageExecutorComponent {
 
   class ThreadPoolMessageExecutor(corePoolSize: Int, maxPoolSize: Int, keepAliveTime: Int) extends MessageExecutor with Logging {
     private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
-      new NamedPoolThreadFactory("message-executor"))
+      new NamedPoolThreadFactory("norbert-message-executor"))
 
     def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
       threadPool.execute(new Runnable  {
         def run {
-          messageRegistry.handlerForClassName(message.getClass.getName) match {
-            case Some(handler) => try {
-              log.ifDebug("Executing message: %s[%s]", message.getClass.getName, message)
-              handler(message) match {
-                case Some(m) => responseHandler(Right(m))
-                case None => // do nothing
+          try {
+            val handler = messageHandlerRegistry.handlerFor(message)
+
+            try {
+              val response = handler(message)
+              
+              if (messageHandlerRegistry.validResponseFor(message, response)) {
+                if (response != null) responseHandler(Right(response))
+              } else {
+                val name = if (response == null) "<null>" else response.getDescriptorForType.getFullName
+                val errorMsg = "Message handler returned an invalid response message of type %s".format(name)
+                log.error(errorMsg)
+                responseHandler(Left(new InvalidMessageException(errorMsg)))
               }
             } catch {
-              case ex: Exception => responseHandler(Left(ex))
+              case ex: Exception =>
+                log.error(ex, "Message handler threw an exception while processing message")
+                responseHandler(Left(ex))
             }
-
-            case None => responseHandler(Left(new InvalidMessageException("Message does have a registered handler: " + message.getClass.getName)))
+          } catch {
+            case ex: InvalidMessageException => log.error(ex, "Received an invalid message: %s", message)
+            case ex: Exception => log.error(ex, "Unexpected error while handling message: %s", message)
           }
         }
       })
