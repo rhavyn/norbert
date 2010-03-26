@@ -20,36 +20,36 @@ import com.linkedin.norbert.network.InvalidMessageException
 
 trait MessageHandlerRegistryComponent {
   val messageHandlerRegistry: MessageHandlerRegistry
+}
 
-  class MessageHandlerRegistry {
-    private var handlerMap = Map[String, (Message, Message, (Message) => Message)]()
+class MessageHandlerRegistry {
+  private var handlerMap = Map[String, (Message, Message, (Message) => Message)]()
 
-    def registerHandler(requestMessage: Message, responseMessage: Message, handler: (Message) => Message) {
-      if (requestMessage == null || handler == null) throw new NullPointerException
-      val response = if (responseMessage == null) null else responseMessage.getDefaultInstanceForType
+  def registerHandler(requestMessage: Message, responseMessage: Message, handler: (Message) => Message) {
+    if (requestMessage == null || handler == null) throw new NullPointerException
+    val response = if (responseMessage == null) null else responseMessage.getDefaultInstanceForType
 
-      handlerMap += (requestMessage.getDescriptorForType.getFullName -> (requestMessage, responseMessage, handler))
-    }
+    handlerMap += (requestMessage.getDescriptorForType.getFullName -> (requestMessage, responseMessage, handler))
+  }
 
-    @throws(classOf[InvalidMessageException])
-    def handlerFor(requestMessage: Message): (Message) => Message = {
-      if (requestMessage == null) throw new NullPointerException
+  @throws(classOf[InvalidMessageException])
+  def handlerFor(requestMessage: Message): (Message) => Message = {
+    if (requestMessage == null) throw new NullPointerException
 
-      getHandlerTuple(requestMessage)._3
-    }
+    getHandlerTuple(requestMessage)._3
+  }
 
-    def validResponseFor(requestMessage: Message, responseMessage: Message): Boolean = {
-      if (requestMessage == null) throw new NullPointerException
-      val (_, r, _) = getHandlerTuple(requestMessage)
+  def validResponseFor(requestMessage: Message, responseMessage: Message): Boolean = {
+    if (requestMessage == null) throw new NullPointerException
+    val (_, r, _) = getHandlerTuple(requestMessage)
 
-      if (r == null && responseMessage == null) true
-      else if (r != null && responseMessage == null) false
-      else responseMessage.getClass == r.getClass
-    }
+    if (r == null && responseMessage == null) true
+    else if (r != null && responseMessage == null) false
+    else responseMessage.getClass == r.getClass
+  }
 
-    def getHandlerTuple(requestMessage: Message) = {
-      val name = requestMessage.getDescriptorForType.getFullName
-      handlerMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(name)))
-    }
+  def getHandlerTuple(requestMessage: Message) = {
+    val name = requestMessage.getDescriptorForType.getFullName
+    handlerMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(name)))
   }
 }

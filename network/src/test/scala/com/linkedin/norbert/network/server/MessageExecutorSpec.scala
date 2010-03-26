@@ -22,9 +22,9 @@ import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.network.InvalidMessageException
 import org.specs.util.WaitFor
 
-class MessageExecutorComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with MessageExecutorComponent with MessageHandlerRegistryComponent {
+class MessageExecutorSpec extends SpecificationWithJUnit with Mockito with WaitFor {
   val messageHandlerRegistry = mock[MessageHandlerRegistry]
-  val messageExecutor = new ThreadPoolMessageExecutor(1, 1, 1)
+  val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 1, 1, 1)
   val message = NorbertProtos.Ping.getDefaultInstance
   var handlerCalled = false
   var either: Either[Exception, Message] = null

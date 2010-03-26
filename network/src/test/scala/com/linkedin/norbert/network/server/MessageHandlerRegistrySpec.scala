@@ -21,7 +21,7 @@ import com.google.protobuf.Message
 import com.linkedin.norbert.network.InvalidMessageException
 import org.specs.mock.Mockito
 
-class MessageHandlerRegistryComponentSpec extends SpecificationWithJUnit with Mockito with MessageHandlerRegistryComponent {
+class MessageHandlerRegistrySpec extends SpecificationWithJUnit with Mockito {
   val messageHandlerRegistry = new MessageHandlerRegistry
   val proto = NorbertProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build
   var handled: Message = _
@@ -34,7 +34,7 @@ class MessageHandlerRegistryComponentSpec extends SpecificationWithJUnit with Mo
     "throw a NullPointerException if the request message or handler is null" in {
       messageHandlerRegistry.registerHandler(null, null, handler) must throwA[NullPointerException]
       messageHandlerRegistry.registerHandler(proto, null, null) must throwA[NullPointerException]
-      messageHandlerRegistry.registerHandler(proto, null, handler) 
+      messageHandlerRegistry.registerHandler(proto, null, handler)
     }
 
     "return the handler for the specified request message" in {

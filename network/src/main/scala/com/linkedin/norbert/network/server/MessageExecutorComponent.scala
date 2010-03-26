@@ -24,52 +24,51 @@ import com.linkedin.norbert.network.InvalidMessageException
  * A component which submits incoming messages to their associated message handler.
  */
 trait MessageExecutorComponent {
-  this: MessageHandlerRegistryComponent =>
-
   def messageExecutor: MessageExecutor
+}
 
-  trait MessageExecutor {
-    def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit
-    def shutdown: Unit
-  }
+trait MessageExecutor {
+  def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit
+  def shutdown: Unit
+}
 
-  class ThreadPoolMessageExecutor(corePoolSize: Int, maxPoolSize: Int, keepAliveTime: Int) extends MessageExecutor with Logging {
-    private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
-      new NamedPoolThreadFactory("norbert-message-executor"))
+class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
+    keepAliveTime: Int) extends MessageExecutor with Logging {
+  private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
+    new NamedPoolThreadFactory("norbert-message-executor"))
 
-    def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
-      threadPool.execute(new Runnable  {
-        def run {
+  def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
+    threadPool.execute(new Runnable  {
+      def run {
+        try {
+          val handler = messageHandlerRegistry.handlerFor(message)
+
           try {
-            val handler = messageHandlerRegistry.handlerFor(message)
+            val response = handler(message)
 
-            try {
-              val response = handler(message)
-              
-              if (messageHandlerRegistry.validResponseFor(message, response)) {
-                if (response != null) responseHandler(Right(response))
-              } else {
-                val name = if (response == null) "<null>" else response.getDescriptorForType.getFullName
-                val errorMsg = "Message handler returned an invalid response message of type %s".format(name)
-                log.error(errorMsg)
-                responseHandler(Left(new InvalidMessageException(errorMsg)))
-              }
-            } catch {
-              case ex: Exception =>
-                log.error(ex, "Message handler threw an exception while processing message")
-                responseHandler(Left(ex))
+            if (messageHandlerRegistry.validResponseFor(message, response)) {
+              if (response != null) responseHandler(Right(response))
+            } else {
+              val name = if (response == null) "<null>" else response.getDescriptorForType.getFullName
+              val errorMsg = "Message handler returned an invalid response message of type %s".format(name)
+              log.error(errorMsg)
+              responseHandler(Left(new InvalidMessageException(errorMsg)))
             }
           } catch {
-            case ex: InvalidMessageException => log.error(ex, "Received an invalid message: %s", message)
-            case ex: Exception => log.error(ex, "Unexpected error while handling message: %s", message)
+            case ex: Exception =>
+              log.error(ex, "Message handler threw an exception while processing message")
+              responseHandler(Left(ex))
           }
+        } catch {
+          case ex: InvalidMessageException => log.error(ex, "Received an invalid message: %s", message)
+          case ex: Exception => log.error(ex, "Unexpected error while handling message: %s", message)
         }
-      })
-    }
+      }
+    })
+  }
 
-    def shutdown {
-      threadPool.shutdown
-      log.ifDebug("MessageExecutor shut down")
-    }
+  def shutdown {
+    threadPool.shutdown
+    log.ifDebug("MessageExecutor shut down")
   }
 }

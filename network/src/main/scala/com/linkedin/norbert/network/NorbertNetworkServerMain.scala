@@ -15,13 +15,60 @@
  */
 package com.linkedin.norbert.network
 
-import com.google.protobuf.Message
+import netty.{ClientChannelHandlerComponent, NettyClusterIoServerComponent}
+import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
+import org.jboss.netty.bootstrap.ServerBootstrap
+import java.util.concurrent.Executors
 import org.jboss.netty.logging.{InternalLoggerFactory, Log4JLoggerFactory}
+import com.linkedin.norbert.cluster.{ClusterClientComponent}
+import com.linkedin.norbert.cluster.zookeeper.ZooKeeperClusterClient
+import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
+import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import com.linkedin.norbert.protos.NorbertProtos
-import com.linkedin.norbert.cluster.ClusterDefaults
-import loadbalancer.NullRouterFactory
+import server._
 
 object NorbertNetworkServerMain {
+  InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
+
+  def main(args: Array[String]) {
+    val cc = new ZooKeeperClusterClient("localhost:2181", 30000, "nimbus")
+    cc.start
+    cc.awaitConnectionUninterruptibly
+    cc.removeNode(1)
+    cc.addNode(1, "localhost:31313", new Array[Int](0))
+
+    val ns = new NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent
+        with MessageHandlerRegistryComponent {
+      val executor = Executors.newCachedThreadPool
+      val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
+      bootstrap.setOption("reuseAddress", true)
+      bootstrap.setOption("tcpNoDelay", true)
+      bootstrap.setOption("child.tcpNoDelay", true)
+      bootstrap.setOption("child.reuseAddress", true)
+      val p = bootstrap.getPipeline
+      p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
+      p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
+
+      p.addLast("frameEncoder", new LengthFieldPrepender(4))
+      p.addLast("protobufEncoder", new ProtobufEncoder)
+
+//      p.addLast("requestHandler", requestHandler)
+
+      val clusterIoServer = new NettyClusterIoServer(bootstrap)
+      val clusterClient = cc
+      val messageHandlerRegistry = new MessageHandlerRegistry
+      val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 5, 10, 1000)
+    }
+
+    ns.bind(1)
+
+    Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run = {
+        ns.shutdown
+      }
+    })
+  }
+
 //  InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
 //
 //  def main(args: Array[String]) {
