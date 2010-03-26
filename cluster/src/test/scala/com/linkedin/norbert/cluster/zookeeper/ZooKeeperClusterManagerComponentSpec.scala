@@ -184,13 +184,6 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
         callCount must eventually(be_==(2))
       }
-
-      "send a notification to the notification manager actor" in {
-        clusterManager ! Connected
-        clusterManager ! Expired
-
-        disconnectedCount must eventually(be_==(1))
-      }
     }
 
     "when a NodeChildrenChanged message is received" in {

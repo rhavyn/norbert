@@ -116,7 +116,6 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       connected = false
       currentNodes = IntMap.empty
       watcher.shutdown
-      clusterNotificationManager ! ClusterNotificationMessages.Disconnected
       startZooKeeper
     }
 
