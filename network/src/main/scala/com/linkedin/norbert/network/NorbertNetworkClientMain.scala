@@ -15,113 +15,119 @@
  */
 package com.linkedin.norbert.network
 
-import java.util.concurrent.TimeUnit
+import client.loadbalancer.LoadBalancerFactoryComponent
+import client.NetworkClient
+import common.{MessageRegistry, MessageRegistryComponent}
+import netty.NettyClusterIoClientComponent
 import org.jboss.netty.logging.{Log4JLoggerFactory, InternalLoggerFactory}
+import com.linkedin.norbert.cluster.zookeeper.ZooKeeperClusterClient
+import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import com.linkedin.norbert.protos.NorbertProtos
-import com.linkedin.norbert.cluster.{ClusterDefaults, ClusterShutdownException}
-import loadbalancer.NullRouterFactory
+import java.util.concurrent.{ExecutionException, TimeoutException, TimeUnit, Executors}
+import com.linkedin.norbert.cluster.{ClusterClient, ClusterShutdownException, Node, ClusterClientComponent}
 
 object NorbertNetworkClientMain {
-//  InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
-//
-//  def main(args: Array[String]) {
-//    val main = new Main(args(0), args(1))
-//    main.loop
-//  }
-//
-//  private class Main(clusterName: String, zooKeeperUrls: String) {
-//    println("Connecting to cluster...")
-//
-//    object ComponentRegistry extends {
-//      val zooKeeperSessionTimeout = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT
-//      val clusterDisconnectTimeout = ClusterDefaults.CLUSTER_DISCONNECT_TIMEOUT
-//      val maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
-//      val writeTimeout = NetworkDefaults.WRITE_TIMEOUT
-//      val clusterName = Main.this.clusterName
-//      val zooKeeperConnectString = Main.this.zooKeeperUrls
-//    } with DefaultNetworkClientFactoryComponent with NullRouterFactory {
-//      val messageRegistry = new DefaultMessageRegistry(Array(NorbertProtos.Ping.getDefaultInstance))
-//    }
-//
-//    import ComponentRegistry._
-//
-//    val client = networkClientFactory.newNetworkClient
-//    println("Connected to cluster")
-//
-//    def loop {
-//      print("> ")
-//      var line = Console.in.readLine.trim
-//      while (line != null) {
-//        try {
-//          if (line.length > 0) processCommand(line)
-//        } catch {
-//          case ex: ClusterShutdownException => throw ex
-//          case ex: Exception => println("Error: %s".format(ex))
-//        }
-//
-//        print("> ")
-//        line = Console.in.readLine.trim
-//      }
-//    }
-//
-//    private def processCommand(line: String) {
-//      val command :: args = line.split(" ").toList.map(_.trim).filter(_.length > 0)
-//
-//      command match {
-//        case "nodes" =>
-//          val nodes = cluster.nodes
-//          if (nodes.length > 0) println(nodes.mkString("\n")) else println("The cluster has no nodes")
-//
-//        case "join" =>
-//          if (args.length < 4) {
-//            println("Error: Invalid syntax: join nodeId url partition1 partition2...")
-//          } else {
-//            val nodeId :: url :: partitions = args
-//            cluster.addNode(nodeId.toInt, url, partitions.map(_.toInt).toArray)
-//            println("Joined Norbert cluster")
-//          }
-//
-//        case "leave" =>
-//          if (args.length < 1) {
-//            println("Invalid syntax: leave nodeId")
-//          } else {
-//            cluster.removeNode(args.head.toInt)
-//            println("Left Norbert cluster")
-//          }
-//
-//        case "ping" =>
-//          if (args.length < 1) {
-//            println("Invalid syntax: ping nodeId")
-//          } else {
-//            val node = cluster.nodeWithId(args.head.toInt)
-//            node match {
-//              case Some(n) =>
-//                val it = client.sendMessageToNode(n, NorbertProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build)
-//                while (it.hasNext) {
-//                  it.next(500, TimeUnit.MILLISECONDS) match {
-//                    case Some(Right(ping: NorbertProtos.Ping)) => println("Ping took %dms".format(System.currentTimeMillis - ping.getTimestamp))
-//
-//                    case Some(Left(ex)) => println("Error: %s".format(ex))
-//
-//                    case None => println("Ping timed out")
-//                  }
-//                }
-//
-//              case None => println("No node with id: %d".format(args.head.toInt))
-//            }
-//          }
-//
-//        case "exit" => exit
-//
-//        case "quit" => exit
-//
-//        case msg => "Unknown command: " + msg
-//      }
-//    }
-//
-//    private def exit {
-//      cluster.shutdown
-//      System.exit(0)
-//    }
-//  }
+  InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
+
+  def main(args: Array[String]) {
+    val cc = new ZooKeeperClusterClient("localhost:2181", 30000, "nimbus")
+    cc.start
+
+    val nc = new NetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with LoadBalancerFactoryComponent
+        with MessageRegistryComponent {
+      val messageRegistry = new MessageRegistry
+      val clusterClient = cc
+      val loadBalancerFactory = new LoadBalancerFactory {
+        def newLoadBalancer(nodes: Seq[Node]) = new LoadBalancer {
+          def nextNode = null
+        }
+      }
+
+      val executor = Executors.newCachedThreadPool
+      val channelFactory = new NioClientSocketChannelFactory(executor, executor)
+      val clusterIoClient = new NettyClusterIoClient(1000, new ChannelPoolFactory(5, 100), channelFactory)
+    }
+
+    nc.start
+    nc.registerRequest(NorbertProtos.Ping.getDefaultInstance, NorbertProtos.PingResponse.getDefaultInstance)
+
+    Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run = {
+        nc.shutdown
+        cc.shutdown
+      }
+    })
+
+    loop(nc, cc)
+  }
+
+  def loop(nc: NetworkClient, cc: ClusterClient) {
+    print("> ")
+    var line = Console.in.readLine.trim
+    while (line != null) {
+      try {
+        if (line.length > 0) processCommand(nc, cc, line)
+      } catch {
+        case ex: ClusterShutdownException => throw ex
+        case ex: Exception => println("Error: %s".format(ex))
+      }
+
+      print("> ")
+      line = Console.in.readLine.trim
+    }
+  }
+
+  def processCommand(nc: NetworkClient, cc: ClusterClient, line: String) {
+    val command :: args = line.split(" ").toList.map(_.trim).filter(_.length > 0)
+
+    command match {
+      case "nodes" =>
+        val nodes = cc.nodes
+        if (nodes.length > 0) println(nodes.mkString("\n")) else println("The cluster has no nodes")
+
+      case "join" =>
+        if (args.length < 4) {
+          println("Error: Invalid syntax: join nodeId url partition1 partition2...")
+        } else {
+          val nodeId :: url :: partitions = args
+          cc.addNode(nodeId.toInt, url, partitions.map(_.toInt).toArray)
+          println("Joined Norbert cluster")
+        }
+
+      case "leave" =>
+        if (args.length < 1) {
+          println("Invalid syntax: leave nodeId")
+        } else {
+          cc.removeNode(args.head.toInt)
+          println("Left Norbert cluster")
+        }
+
+      case "ping" =>
+        if (args.length < 1) {
+          println("Invalid syntax: ping nodeId")
+        } else {
+          val node = cc.nodeWithId(args.head.toInt)
+          node match {
+            case Some(n) =>
+              val future = nc.sendMessageToNode(NorbertProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build, n)
+              try {
+                val response = future.get(500, TimeUnit.MILLISECONDS).asInstanceOf[NorbertProtos.PingResponse]
+                println("Ping took %dms".format(System.currentTimeMillis - response.getTimestamp))
+              } catch {
+                case ex: TimeoutException => println("Ping timed out")
+                case ex: ExecutionException => println("Error: %s".format(ex.getCause))
+              }
+
+            case None => println("No node with id: %d".format(args.head.toInt))
+          }
+        }
+
+      case "exit" => System.exit(0)
+
+      case "quit" => System.exit(0)
+
+      case msg => "Unknown command: " + msg
+
+    }
+  }
 }

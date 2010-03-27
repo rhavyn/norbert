@@ -15,22 +15,26 @@
  */
 package com.linkedin.norbert.network.netty
 
-import java.lang.Throwable
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.common.ClusterIoClientComponent
 import com.linkedin.norbert.cluster.Node
 import org.jboss.netty.bootstrap.ClientBootstrap
 import java.net.InetSocketAddress
-import org.jboss.netty.channel.{ChannelFactory, ChannelPipelineFactory}
 import java.util.concurrent.{Executors, ConcurrentHashMap}
 import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
 import java.util.concurrent.atomic.AtomicInteger
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
+import com.linkedin.norbert.network.common.{MessageRegistryComponent, ClusterIoClientComponent}
+import org.jboss.netty.handler.codec.protobuf.{ProtobufEncoder, ProtobufDecoder}
+import org.jboss.netty.handler.codec.frame.{LengthFieldPrepender, LengthFieldBasedFrameDecoder}
+import com.linkedin.norbert.protos.NorbertProtos
+import org.jboss.netty.handler.logging.LoggingHandler
+import org.jboss.netty.channel.{Channels, ChannelFactory, ChannelPipelineFactory}
 
 /**
  * A <code>ClusterIoClientComponent</code> implementation that uses Netty for network communication.
  */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent with ChannelPoolComponent {
+  this: MessageRegistryComponent =>
 
   object NettyClusterIoClient {
     private val counter = new AtomicInteger
@@ -56,6 +60,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent with Channe
       if (pool == null) {
         val (address, port) = parseUrl(node.url)
         val bootstrap = bootstrapFactory(channelFactory, new InetSocketAddress(address, port), connectTimeoutMillis)
+        bootstrap.setPipelineFactory(new NorbertChannelPipelineFactory)
 
         pool = channelPoolFactory.newChannelPool(bootstrap)
         channelPools.putIfAbsent(node, pool)
@@ -93,6 +98,17 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent with Channe
   }
 
   private class NorbertChannelPipelineFactory extends ChannelPipelineFactory {
-    def getPipeline = null
+    val p = Channels.pipeline
+    p.addFirst("logging", new LoggingHandler)
+
+    p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
+    p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
+
+    p.addLast("frameEncoder", new LengthFieldPrepender(4))
+    p.addLast("protobufEncoder", new ProtobufEncoder)
+
+    p.addLast("requestHandler", new ClientChannelHandler(messageRegistry))
+
+    def getPipeline = p
   }
 }

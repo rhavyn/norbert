@@ -24,6 +24,7 @@ import com.linkedin.norbert.network.RemoteException
 import com.google.protobuf.InvalidProtocolBufferException
 import com.linkedin.norbert.network.common.MessageRegistry
 
+@ChannelPipelineCoverage("all")
 class ClientChannelHandler(messageRegistry: MessageRegistry) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request]
 

@@ -23,8 +23,10 @@ import org.specs.util.WaitFor
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.{InvalidNodeException, Node}
+import com.linkedin.norbert.network.common.MessageRegistryComponent
 
-class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with NettyClusterIoClientComponent {
+class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with NettyClusterIoClientComponent with MessageRegistryComponent {
+  val messageRegistry = null
   val bootstrap = mock[ClientBootstrap]
   var bootstrapFactoryWasCalled = false
   var bootstrapAddress: InetSocketAddress = _

@@ -823,6 +823,274 @@ public final class NorbertProtos {
     }
   }
   
+  public static final class PingResponse extends
+      com.google.protobuf.GeneratedMessage {
+    // Use PingResponse.newBuilder() to construct.
+    private PingResponse() {}
+    
+    private static final PingResponse defaultInstance = new PingResponse();
+    public static PingResponse getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public PingResponse getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return com.linkedin.norbert.protos.NorbertProtos.internal_static_norbert_PingResponse_descriptor;
+    }
+    
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return com.linkedin.norbert.protos.NorbertProtos.internal_static_norbert_PingResponse_fieldAccessorTable;
+    }
+    
+    // required int64 timestamp = 1;
+    public static final int TIMESTAMP_FIELD_NUMBER = 1;
+    private boolean hasTimestamp;
+    private long timestamp_ = 0L;
+    public boolean hasTimestamp() { return hasTimestamp; }
+    public long getTimestamp() { return timestamp_; }
+    
+    public final boolean isInitialized() {
+      if (!hasTimestamp) return false;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (hasTimestamp()) {
+        output.writeInt64(1, getTimestamp());
+      }
+      getUnknownFields().writeTo(output);
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (hasTimestamp()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(1, getTimestamp());
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeDelimitedFrom(input).buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeDelimitedFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static com.linkedin.norbert.protos.NorbertProtos.PingResponse parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(com.linkedin.norbert.protos.NorbertProtos.PingResponse prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> {
+      private com.linkedin.norbert.protos.NorbertProtos.PingResponse result;
+      
+      // Construct using com.linkedin.norbert.protos.NorbertProtos.PingResponse.newBuilder()
+      private Builder() {}
+      
+      private static Builder create() {
+        Builder builder = new Builder();
+        builder.result = new com.linkedin.norbert.protos.NorbertProtos.PingResponse();
+        return builder;
+      }
+      
+      protected com.linkedin.norbert.protos.NorbertProtos.PingResponse internalGetResult() {
+        return result;
+      }
+      
+      public Builder clear() {
+        if (result == null) {
+          throw new IllegalStateException(
+            "Cannot call clear() after build().");
+        }
+        result = new com.linkedin.norbert.protos.NorbertProtos.PingResponse();
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(result);
+      }
+      
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return com.linkedin.norbert.protos.NorbertProtos.PingResponse.getDescriptor();
+      }
+      
+      public com.linkedin.norbert.protos.NorbertProtos.PingResponse getDefaultInstanceForType() {
+        return com.linkedin.norbert.protos.NorbertProtos.PingResponse.getDefaultInstance();
+      }
+      
+      public boolean isInitialized() {
+        return result.isInitialized();
+      }
+      public com.linkedin.norbert.protos.NorbertProtos.PingResponse build() {
+        if (result != null && !isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return buildPartial();
+      }
+      
+      private com.linkedin.norbert.protos.NorbertProtos.PingResponse buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        if (!isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return buildPartial();
+      }
+      
+      public com.linkedin.norbert.protos.NorbertProtos.PingResponse buildPartial() {
+        if (result == null) {
+          throw new IllegalStateException(
+            "build() has already been called on this Builder.");
+        }
+        com.linkedin.norbert.protos.NorbertProtos.PingResponse returnMe = result;
+        result = null;
+        return returnMe;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof com.linkedin.norbert.protos.NorbertProtos.PingResponse) {
+          return mergeFrom((com.linkedin.norbert.protos.NorbertProtos.PingResponse)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+      
+      public Builder mergeFrom(com.linkedin.norbert.protos.NorbertProtos.PingResponse other) {
+        if (other == com.linkedin.norbert.protos.NorbertProtos.PingResponse.getDefaultInstance()) return this;
+        if (other.hasTimestamp()) {
+          setTimestamp(other.getTimestamp());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        return this;
+      }
+      
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder(
+            this.getUnknownFields());
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              this.setUnknownFields(unknownFields.build());
+              return this;
+            default: {
+              if (!parseUnknownField(input, unknownFields,
+                                     extensionRegistry, tag)) {
+                this.setUnknownFields(unknownFields.build());
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              setTimestamp(input.readInt64());
+              break;
+            }
+          }
+        }
+      }
+      
+      
+      // required int64 timestamp = 1;
+      public boolean hasTimestamp() {
+        return result.hasTimestamp();
+      }
+      public long getTimestamp() {
+        return result.getTimestamp();
+      }
+      public Builder setTimestamp(long value) {
+        result.hasTimestamp = true;
+        result.timestamp_ = value;
+        return this;
+      }
+      public Builder clearTimestamp() {
+        result.hasTimestamp = false;
+        result.timestamp_ = 0L;
+        return this;
+      }
+    }
+    
+    static {
+      com.linkedin.norbert.protos.NorbertProtos.getDescriptor();
+    }
+    
+    static {
+      com.linkedin.norbert.protos.NorbertProtos.internalForceInit();
+    }
+  }
+  
   public static final class Node extends
       com.google.protobuf.GeneratedMessage {
     // Use Node.newBuilder() to construct.
@@ -1217,6 +1485,11 @@ public final class NorbertProtos {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_norbert_Ping_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
+    internal_static_norbert_PingResponse_descriptor;
+  private static
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_norbert_PingResponse_fieldAccessorTable;
+  private static com.google.protobuf.Descriptors.Descriptor
     internal_static_norbert_Node_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -1236,10 +1509,11 @@ public final class NorbertProtos {
       "orbert.NorbertMessage.Status:\002OK\022\024\n\014mess" +
       "age_name\030\013 \002(\t\022\017\n\007message\030\014 \001(\014\022\025\n\rerror" +
       "_message\030\r \001(\t\"\033\n\006Status\022\006\n\002OK\020\000\022\t\n\005ERRO" +
-      "R\020\001\"\031\n\004Ping\022\021\n\ttimestamp\030\001 \002(\003\"2\n\004Node\022\n" +
-      "\n\002id\030\001 \002(\005\022\013\n\003url\030\002 \002(\t\022\021\n\tpartition\030\003 \003" +
-      "(\005B.\n\033com.linkedin.norbert.protosB\rNorbe" +
-      "rtProtosH\001"
+      "R\020\001\"\031\n\004Ping\022\021\n\ttimestamp\030\001 \002(\003\"!\n\014PingRe" +
+      "sponse\022\021\n\ttimestamp\030\001 \002(\003\"2\n\004Node\022\n\n\002id\030" +
+      "\001 \002(\005\022\013\n\003url\030\002 \002(\t\022\021\n\tpartition\030\003 \003(\005B.\n" +
+      "\033com.linkedin.norbert.protosB\rNorbertPro",
+      "tosH\001"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -1262,8 +1536,16 @@ public final class NorbertProtos {
               new java.lang.String[] { "Timestamp", },
               com.linkedin.norbert.protos.NorbertProtos.Ping.class,
               com.linkedin.norbert.protos.NorbertProtos.Ping.Builder.class);
-          internal_static_norbert_Node_descriptor =
+          internal_static_norbert_PingResponse_descriptor =
             getDescriptor().getMessageTypes().get(2);
+          internal_static_norbert_PingResponse_fieldAccessorTable = new
+            com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+              internal_static_norbert_PingResponse_descriptor,
+              new java.lang.String[] { "Timestamp", },
+              com.linkedin.norbert.protos.NorbertProtos.PingResponse.class,
+              com.linkedin.norbert.protos.NorbertProtos.PingResponse.Builder.class);
+          internal_static_norbert_Node_descriptor =
+            getDescriptor().getMessageTypes().get(3);
           internal_static_norbert_Node_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_norbert_Node_descriptor,

@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.network
 
-import netty.NettyClusterIoServerComponent
+import netty.{ServerChannelHandler, NettyClusterIoServerComponent}
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
 import org.jboss.netty.bootstrap.ServerBootstrap
 import java.util.concurrent.Executors
@@ -26,6 +26,9 @@ import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, Length
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import com.linkedin.norbert.protos.NorbertProtos
 import server._
+import org.jboss.netty.channel.group.DefaultChannelGroup
+import com.google.protobuf.Message
+import org.jboss.netty.handler.logging.LoggingHandler
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
@@ -39,6 +42,10 @@ object NorbertNetworkServerMain {
 
     val ns = new NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent
         with MessageHandlerRegistryComponent {
+      val clusterClient = cc
+      val messageHandlerRegistry = new MessageHandlerRegistry
+      val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 5, 10, 1000)
+
       val executor = Executors.newCachedThreadPool
       val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
       bootstrap.setOption("reuseAddress", true)
@@ -46,19 +53,21 @@ object NorbertNetworkServerMain {
       bootstrap.setOption("child.tcpNoDelay", true)
       bootstrap.setOption("child.reuseAddress", true)
       val p = bootstrap.getPipeline
+      p.addFirst("logging", new LoggingHandler)
+      
       p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
       p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
 
       p.addLast("frameEncoder", new LengthFieldPrepender(4))
       p.addLast("protobufEncoder", new ProtobufEncoder)
 
-//      p.addLast("requestHandler", requestHandler)
+      val channelGroup = new DefaultChannelGroup("norbert-server-group")
+      p.addLast("requestHandler", new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor))
 
       val clusterIoServer = new NettyClusterIoServer(bootstrap)
-      val clusterClient = cc
-      val messageHandlerRegistry = new MessageHandlerRegistry
-      val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 5, 10, 1000)
     }
+
+    ns.registerHandler(NorbertProtos.Ping.getDefaultInstance, NorbertProtos.PingResponse.getDefaultInstance, pingHandler _)
 
     ns.bind(1)
 
@@ -69,54 +78,8 @@ object NorbertNetworkServerMain {
     })
   }
 
-//  InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
-//
-//  def main(args: Array[String]) {
-//    val main = new Main(args(0), args(1), args(2).toInt)
-//    main.loop
-//  }
-//
-//  private class Main(clusterName: String, zooKeeperUrls: String, nodeId: Int) {
-//    println("Connecting to cluster...")
-//
-//    object ComponentRegistry extends {
-//      val zooKeeperSessionTimeout = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT
-//      val clusterDisconnectTimeout = ClusterDefaults.CLUSTER_DISCONNECT_TIMEOUT
-//      val maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
-//      val writeTimeout = NetworkDefaults.WRITE_TIMEOUT
-//      val clusterName = Main.this.clusterName
-//      val zooKeeperConnectString = Main.this.zooKeeperUrls
-//      val requestThreadTimeout = NetworkDefaults.REQUEST_THREAD_TIMEOUT
-//      val maxRequestThreadPoolSize = NetworkDefaults.MAX_REQUEST_THREAD_POOL_SIZE
-//      val coreRequestThreadPoolSize = NetworkDefaults.CORE_REQUEST_THREAD_POOL_SIZE
-//    } with NullRouterFactory with DefaultNetworkServerComponent {
-//      val messageRegistry = new DefaultMessageRegistry(Array((NorbertProtos.Ping.getDefaultInstance, pingHandler _)))
-//      val networkServer = new NettyNetworkServer(nodeId)
-//    }
-//
-//    import ComponentRegistry._
-//
-//    def loop {
-//      try {
-//        networkServer.bind
-//        println("Connected to cluster and listening for requests")
-//      } catch {
-//        case ex: NetworkingException =>
-//          println("Unable to bind to port, exiting: " + ex)
-//          cluster.shutdown
-//          System.exit(1)
-//      }
-//
-//      Runtime.getRuntime.addShutdownHook(new Thread {
-//        override def run = shutdown
-//      })
-//    }
-//
-//    private def shutdown {
-//      println("Shutting down")
-//      networkServer.shutdown
-//    }
-//
-//    private def pingHandler(message: Message): Option[Message] = Some(message)
-//  }
+  private def pingHandler(message: Message): Message = {
+    val ping = message.asInstanceOf[NorbertProtos.Ping]
+    NorbertProtos.PingResponse.newBuilder.setTimestamp(ping.getTimestamp).build
+  }
 }
