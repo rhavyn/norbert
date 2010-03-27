@@ -131,19 +131,23 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         var currentIndex = 0
         var availableIndex = 0
 
-        while (currentIndex < current.length && availableIndex < available.length) {
-          val currentValue = current(currentIndex)
-          val availableValue = available(availableIndex)
+        if (available.length == 0) {
+          currentNodes = currentNodes.transform { case (id, n) => Node(n.id, n.url, n.partitions, false) }
+        } else {
+          while (currentIndex < current.length && availableIndex < available.length) {
+            val currentValue = current(currentIndex)
+            val availableValue = available(availableIndex)
 
-          if (currentValue == availableValue) {
-            makeNodeAvailable(currentValue)
-            currentIndex += 1
-            availableIndex += 1
-          } else if (currentValue < availableValue) {
-            makeNodeUnavailable(currentValue)
-            currentIndex += 1
-          } else {
-            availableIndex += 1
+            if (currentValue == availableValue) {
+              makeNodeAvailable(currentValue)
+              currentIndex += 1
+              availableIndex += 1
+            } else if (currentValue < availableValue) {
+              makeNodeUnavailable(currentValue)
+              currentIndex += 1
+            } else {
+              availableIndex += 1
+            }
           }
         }
 
