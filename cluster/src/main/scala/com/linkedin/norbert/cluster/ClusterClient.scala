@@ -47,6 +47,13 @@ trait ClusterClient extends Logging {
   }
 
   /**
+   * Retrieves the name of the service running on this cluster
+   *
+   * @return the name of the service running on this cluster
+   */
+  def serviceName: String
+
+  /**
    * Retrieves the current list of nodes registered with the cluster.
    *
    * @return the current list of nodes

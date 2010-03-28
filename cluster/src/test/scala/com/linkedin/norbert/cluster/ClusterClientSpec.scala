@@ -46,6 +46,8 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
   var zkmShutdownCount = 0
 
   val cluster = new ClusterClient with ClusterManagerComponent with ClusterNotificationManagerComponent {
+    def serviceName = "test"
+
     val clusterNotificationManager = actor {
       loop {
         react {
@@ -107,6 +109,8 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
       var zkmStarted = false
 
       val c = new ClusterClient with ClusterManagerComponent with ClusterNotificationManagerComponent {
+        def serviceName = "test"
+
         val clusterNotificationManager = new Actor {
           def act() = {
             cnmStarted = true
@@ -139,6 +143,7 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
 
     "throw ClusterNotStartedException if the cluster wasn't started when the method was called" in {
       val c = new ClusterClient with ClusterManagerComponent with ClusterNotificationManagerComponent {
+        def serviceName = null
         val clusterNotificationManager = null
         val clusterManager = null
       }
