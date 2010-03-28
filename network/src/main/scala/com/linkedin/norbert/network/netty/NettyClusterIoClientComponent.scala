@@ -33,7 +33,7 @@ import org.jboss.netty.channel.{Channels, ChannelFactory, ChannelPipelineFactory
 /**
  * A <code>ClusterIoClientComponent</code> implementation that uses Netty for network communication.
  */
-trait NettyClusterIoClientComponent extends ClusterIoClientComponent with ChannelPoolComponent {
+trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
   this: MessageRegistryComponent =>
 
   object NettyClusterIoClient {
@@ -45,12 +45,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent with Channe
     }
   }
 
-  class NettyClusterIoClient(connectTimeoutMillis: Int, channelPoolFactory: ChannelPoolFactory, channelFactory: ChannelFactory)
-      (implicit bootstrapFactory: (ChannelFactory, InetSocketAddress, Int) => ClientBootstrap) extends ClusterIoClient with UrlParser with Logging {
-    def this(connectTimeoutMillis: Int, channelPoolFactory: ChannelPoolFactory)
-        (implicit bootstrapFactory: (ChannelFactory, InetSocketAddress, Int) => ClientBootstrap) = this(connectTimeoutMillis, channelPoolFactory,
-      NettyClusterIoClient.channelFactory)(bootstrapFactory)
-
+  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory) extends ClusterIoClient with UrlParser with Logging {
     private val channelPools = new ConcurrentHashMap[Node, ChannelPool]
 
     def sendMessage(node: Node, message: Message, responseCallback: (Either[Throwable, Message]) => Unit) = {
@@ -59,10 +54,8 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent with Channe
       var pool = channelPools.get(node)
       if (pool == null) {
         val (address, port) = parseUrl(node.url)
-        val bootstrap = bootstrapFactory(channelFactory, new InetSocketAddress(address, port), connectTimeoutMillis)
-        bootstrap.setPipelineFactory(new NorbertChannelPipelineFactory)
 
-        pool = channelPoolFactory.newChannelPool(bootstrap)
+        pool = channelPoolFactory.newChannelPool(new InetSocketAddress(address, port))
         channelPools.putIfAbsent(node, pool)
         pool = channelPools.get(node)
       }
@@ -87,27 +80,10 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent with Channe
   }
 
   protected implicit def defaultBootstrapFactory(channelFactory: ChannelFactory, remoteAddress: InetSocketAddress, connectTimeoutMillis: Int) = {
-    val bootstrap = new ClientBootstrap(channelFactory)
-    bootstrap.setOption("remoteAddress", remoteAddress)
-    bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)
-    bootstrap.setOption("tcpNoDelay", true)
-    bootstrap.setOption("reuseAddress", true)
-    bootstrap.setPipelineFactory(new NorbertChannelPipelineFactory)
-
-    bootstrap
   }
 
   private class NorbertChannelPipelineFactory extends ChannelPipelineFactory {
     val p = Channels.pipeline
-    p.addFirst("logging", new LoggingHandler)
-
-    p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
-    p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
-
-    p.addLast("frameEncoder", new LengthFieldPrepender(4))
-    p.addLast("protobufEncoder", new ProtobufEncoder)
-
-    p.addLast("requestHandler", new ClientChannelHandler(messageRegistry))
 
     def getPipeline = p
   }

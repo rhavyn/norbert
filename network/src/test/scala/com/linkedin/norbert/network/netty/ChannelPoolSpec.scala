@@ -22,14 +22,16 @@ import org.specs.mock.Mockito
 import org.jboss.netty.channel.{Channel, ChannelFutureListener, ChannelFuture}
 import com.google.protobuf.Message
 import java.util.concurrent.{TimeoutException, TimeUnit}
+import java.net.InetSocketAddress
 
-class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with ChannelPoolComponent {
+class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
   val channelGroup = mock[ChannelGroup]
   val bootstrap = mock[ClientBootstrap]
-  val channelPool = new ChannelPool(1, 1, bootstrap, channelGroup)
+  val address = new InetSocketAddress("localhost", 31313)
+  val channelPool = new ChannelPool(address, 1, 1, bootstrap, channelGroup)
 
   "ChannelPool" should {
-    "close the ChannelGroup when close is called" in {
+    "close the ChannelGroup when close  is called" in {
       val future = mock[ChannelGroupFuture]
       channelGroup.close returns future
       future.awaitUninterruptibly returns future
@@ -51,18 +53,18 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
 
     "open a new channel if no channels are open" in {
       val future = mock[ChannelFuture]
-      bootstrap.connect returns future
+      bootstrap.connect(address) returns future
 
       channelPool.sendRequest(mock[Request])
 
-      bootstrap.connect was called
+      bootstrap.connect(address) was called
     }
 
     "not open a new channel if the max number of channels are already in the pool" in {
       val channel = mock[Channel]
       channel.isConnected returns true
       val future = new TestChannelFuture(channel, true)
-      bootstrap.connect returns future
+      bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
       channel.write(any[Request]) returns future
 
@@ -73,14 +75,14 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       channelPool.sendRequest(mock[Request])
 
       channelGroup.add(channel) was called.once
-      bootstrap.connect was called.once
+      bootstrap.connect(address) was called.once
     }
 
     "open a new channel if the max number of channels are already in the pool but a channel is closed" in {
       val channel = mock[Channel]
       channel.isConnected returns false
       val future = new TestChannelFuture(channel, true)
-      bootstrap.connect returns future
+      bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
       channel.write(any[Request]) returns future
 
@@ -92,7 +94,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       future.listener.operationComplete(future)
 
       channelGroup.add(channel) was called.twice
-      bootstrap.connect was called.twice
+      bootstrap.connect(address) was called.twice
     }
 
     "write all queued requests" in {
@@ -101,7 +103,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       request.timestamp returns System.currentTimeMillis + 10000
       channel.isConnected returns true
       val future = new TestChannelFuture(channel, true)
-      bootstrap.connect returns future
+      bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
       channel.write(request) returns future
 
@@ -111,7 +113,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       future.listener.operationComplete(future)
 
       channel.write(any[Request]) was called.times(3)
-      bootstrap.connect was called.once
+      bootstrap.connect(address) was called.once
     }
 
     "properly handle a failed write" in {
@@ -122,7 +124,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       channel.isConnected returns true
       val openFuture = new TestChannelFuture(channel, true)
       val writeFuture = new TestChannelFuture(channel, false)
-      bootstrap.connect returns openFuture
+      bootstrap.connect(address) returns openFuture
       channelGroup.add(channel) returns true
       channel.write(request) returns writeFuture
 
@@ -143,7 +145,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       badRequest.timestamp returns System.currentTimeMillis - 10000
       channel.isConnected returns true
       val future = new TestChannelFuture(channel, true)
-      bootstrap.connect returns future
+      bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
       channel.write(goodRequest) returns future
       channel.write(badRequest) returns future
@@ -155,7 +157,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
 
       channel.write(goodRequest) was called.times(2)
       channel.write(badRequest) wasnt called
-      bootstrap.connect was called.once
+      bootstrap.connect(address) was called.once
       either must notBeNull
       either.isLeft must beTrue
       either.left.get must haveClass[TimeoutException]
@@ -167,7 +169,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       request.timestamp returns System.currentTimeMillis + 10000
       channel.isConnected returns true
       val future = new TestChannelFuture(channel, false)
-      bootstrap.connect returns future
+      bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
       channel.write(request) returns future
 
@@ -177,7 +179,7 @@ class ChannelPoolComponentSpec extends SpecificationWithJUnit with Mockito with 
       future.listener.operationComplete(future)
 
       channel.write(any[Request]) wasnt called
-      bootstrap.connect was called.once
+      bootstrap.connect(address) was called.once
     }
   }
 
