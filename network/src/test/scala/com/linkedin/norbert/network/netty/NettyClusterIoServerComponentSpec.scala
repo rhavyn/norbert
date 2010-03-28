@@ -21,16 +21,18 @@ import org.jboss.netty.bootstrap.ServerBootstrap
 import com.linkedin.norbert.cluster.{InvalidNodeException, Node}
 import java.net.InetSocketAddress
 import org.jboss.netty.channel.{ChannelFuture, Channel}
+import org.jboss.netty.channel.group.{ChannelGroupFuture, ChannelGroup}
 
 class NettyClusterIoServerComponentSpec extends SpecificationWithJUnit with Mockito with NettyClusterIoServerComponent {
   val bootstrap = mock[ServerBootstrap]
-  val clusterIoServer = new NettyClusterIoServer(bootstrap)
+  val channelGroup = mock[ChannelGroup]
+  val clusterIoServer = new NettyClusterIoServer(bootstrap, channelGroup)
 
   "NettyClusterIoServer" should {
     "bind should fail if the node's url is in the incorrect format" in {
       clusterIoServer.bind(Node(1, "", false), true) must throwA[InvalidNodeException]
       clusterIoServer.bind(Node(1, "localhost", false), true) must throwA[InvalidNodeException]
-      clusterIoServer.bind(Node(1, "localhost:foo", false), true) must throwA[InvalidNodeException]      
+      clusterIoServer.bind(Node(1, "localhost:foo", false), true) must throwA[InvalidNodeException]
     }
 
     "binds to the specified port" in {
@@ -43,18 +45,25 @@ class NettyClusterIoServerComponentSpec extends SpecificationWithJUnit with Mock
       bootstrap.bind(address) was called
     }
 
-    "shutdown should shutdown an opened socket" in {
+    "shutdown should shutdown opened sockets" in {
       val channel = mock[Channel]
-      val future = mock[ChannelFuture]
-      channel.close returns future
-      future.awaitUninterruptibly returns future
+      val socketFuture = mock[ChannelFuture]
+      val groupFuture = mock[ChannelGroupFuture]
+      channel.close returns socketFuture
+      channelGroup.close returns groupFuture
+      socketFuture.awaitUninterruptibly returns socketFuture
+      groupFuture.awaitUninterruptibly returns groupFuture
       bootstrap.bind(any[InetSocketAddress]) returns channel
+
 
       clusterIoServer.bind(Node(1, "localhost:31313", false), true)
       clusterIoServer.shutdown
 
       channel.close was called
-      future.awaitUninterruptibly was called
+      socketFuture.awaitUninterruptibly was called
+
+      channelGroup.close was called
+      groupFuture.awaitUninterruptibly was called
     }
   }
 }

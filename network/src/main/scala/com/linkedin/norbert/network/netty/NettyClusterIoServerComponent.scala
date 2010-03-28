@@ -22,9 +22,10 @@ import java.net.InetSocketAddress
 import org.jboss.netty.channel.{ChannelException, Channel}
 import com.linkedin.norbert.network.NetworkingException
 import com.linkedin.norbert.util.Logging
+import org.jboss.netty.channel.group.ChannelGroup
 
 trait NettyClusterIoServerComponent extends ClusterIoServerComponent {
-  class NettyClusterIoServer(bootstrap: ServerBootstrap) extends ClusterIoServer with UrlParser with Logging {
+  class NettyClusterIoServer(bootstrap: ServerBootstrap, channelGroup: ChannelGroup) extends ClusterIoServer with UrlParser with Logging {
     private var serverChannel: Channel = _
 
     def bind(node: Node, wildcard: Boolean) = {
@@ -40,6 +41,7 @@ trait NettyClusterIoServerComponent extends ClusterIoServerComponent {
 
     def shutdown = if (serverChannel != null) {
       serverChannel.close.awaitUninterruptibly
+      channelGroup.close.awaitUninterruptibly
       bootstrap.releaseExternalResources
     }
   }

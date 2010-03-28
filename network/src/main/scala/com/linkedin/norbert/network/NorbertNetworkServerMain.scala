@@ -29,6 +29,7 @@ import server._
 import org.jboss.netty.channel.group.DefaultChannelGroup
 import com.google.protobuf.Message
 import org.jboss.netty.handler.logging.LoggingHandler
+import com.linkedin.norbert.util.NamedPoolThreadFactory
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
@@ -46,7 +47,7 @@ object NorbertNetworkServerMain {
       val messageHandlerRegistry = new MessageHandlerRegistry
       val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 5, 10, 1000)
 
-      val executor = Executors.newCachedThreadPool
+      val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(cc.serviceName)))
       val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
       bootstrap.setOption("reuseAddress", true)
       bootstrap.setOption("tcpNoDelay", true)
@@ -54,17 +55,17 @@ object NorbertNetworkServerMain {
       bootstrap.setOption("child.reuseAddress", true)
       val p = bootstrap.getPipeline
       p.addFirst("logging", new LoggingHandler)
-      
+
       p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
       p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
 
       p.addLast("frameEncoder", new LengthFieldPrepender(4))
       p.addLast("protobufEncoder", new ProtobufEncoder)
 
-      val channelGroup = new DefaultChannelGroup("norbert-server-group")
+      val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(cc.serviceName))
       p.addLast("requestHandler", new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor))
 
-      val clusterIoServer = new NettyClusterIoServer(bootstrap)
+      val clusterIoServer = new NettyClusterIoServer(bootstrap, channelGroup)
     }
 
     ns.registerHandler(NorbertProtos.Ping.getDefaultInstance, NorbertProtos.PingResponse.getDefaultInstance, pingHandler _)
