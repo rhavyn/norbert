@@ -13,11 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.loadbalancer
+package com.linkedin.norbert.network.client.loadbalancer
 
-/**
- * A <code>RouterFactoryComponent</code> implementation which sets the <code>routerFactory</code> to null.
- */
-trait NullRouterFactory extends RouterFactoryComponent {
-  val routerFactory = null
+import com.linkedin.norbert.cluster.Node
+
+class RoundRobinLoadBalancerFactory extends LoadBalancerFactory {
+  def newLoadBalancer(nodes: Seq[Node]) = new LoadBalancer {
+    private val random = new scala.util.Random
+    private val myNodes = nodes.toArray
+
+    def nextNode = Some(myNodes(random.nextInt(myNodes.length)))
+  }
 }

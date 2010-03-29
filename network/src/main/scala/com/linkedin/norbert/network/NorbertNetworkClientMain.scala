@@ -15,9 +15,8 @@
  */
 package com.linkedin.norbert.network
 
-import client.loadbalancer.LoadBalancerFactoryComponent
-import client.NetworkClient
-import netty.{NettyNetworkClient, NetworkClientConfig}
+import client._
+import client.loadbalancer.RoundRobinLoadBalancerFactory
 import org.jboss.netty.logging.{Log4JLoggerFactory, InternalLoggerFactory}
 import com.linkedin.norbert.protos.NorbertProtos
 import java.util.concurrent.{ExecutionException, TimeoutException, TimeUnit}
@@ -33,14 +32,7 @@ object NorbertNetworkClientMain {
     val config = new NetworkClientConfig
     config.clusterClient = cc
 
-    val nc = new NettyNetworkClient(config) with LoadBalancerFactoryComponent {
-      val loadBalancerFactory = new LoadBalancerFactory {
-        def newLoadBalancer(nodes: Seq[Node]) = new LoadBalancer {
-          def nextNode = null
-        }
-      }
-    }
-
+    val nc = NetworkClient(config, new RoundRobinLoadBalancerFactory)
     nc.start
     nc.registerRequest(NorbertProtos.Ping.getDefaultInstance, NorbertProtos.PingResponse.getDefaultInstance)
 

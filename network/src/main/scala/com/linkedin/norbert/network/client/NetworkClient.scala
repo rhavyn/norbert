@@ -19,16 +19,32 @@ import com.google.protobuf.Message
 import java.util.concurrent.atomic.AtomicBoolean
 import com.linkedin.norbert.util.Logging
 import java.util.concurrent.Future
-import loadbalancer.LoadBalancerFactoryComponent
 import com.linkedin.norbert.cluster._
 import com.linkedin.norbert.network.common.{MessageRegistryComponent, NorbertFuture, NorbertResponseIterator, ClusterIoClientComponent}
 import com.linkedin.norbert.network.{InvalidMessageException, NoNodesAvailableException, NetworkNotStartedException, ResponseIterator}
+import com.linkedin.norbert.network.netty.NettyNetworkClient
+import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
+
+class NetworkClientConfig {
+  var clusterClient: ClusterClient = _
+  var serviceName: String = _
+  var zooKeeperConnectString: String = _
+  var zooKeeperSessionTimeoutMillis = 30000
+
+  var connectTimeoutMillis = 1000
+  var writeTimeoutMillis = 100
+  var maxConnectionsPerNode = 5
+}
+
+object NetworkClient {
+  def apply(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory): NetworkClient = new NettyNetworkClient(config, loadBalancerFactory)
+}
 
 /**
  * The network client interface for interacting with nodes in a cluster.
  */
 trait NetworkClient extends Logging {
-  this: ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent =>
+  this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent with LoadBalancerFactoryComponent =>
 
   private val shutdownSwitch = new AtomicBoolean
   private val startedSwitch = new AtomicBoolean

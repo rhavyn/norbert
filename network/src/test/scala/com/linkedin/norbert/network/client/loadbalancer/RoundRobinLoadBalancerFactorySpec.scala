@@ -18,18 +18,19 @@ package com.linkedin.norbert.network.client.loadbalancer
 import org.specs.SpecificationWithJUnit
 import com.linkedin.norbert.cluster.Node
 
-class RoundRobinLoadBalancerFactory extends SpecificationWithJUnit with RoundRobinLoadBalancerFactoryComponent {
+class RoundRobinLoadBalancerFactorySpec extends SpecificationWithJUnit {
   "RoundRobinLoadBalancerFactory" should {
     "create a round robin load balancer" in {
       val nodes = Array(Node(1, "localhost:31310", true), Node(2, "localhost:31311", true), Node(3, "localhost:31312", true),
         Node(4, "localhost:31313", true), Node(5, "localhost:31314", true), Node(6, "localhost:31315", true),
         Node(7, "localhost:31316", true), Node(8, "localhost:31317", true), Node(9, "localhost:31318", true),
         Node(10, "localhost:31319", true))
+      val loadBalancerFactory = new RoundRobinLoadBalancerFactory
       val lb = loadBalancerFactory.newLoadBalancer(nodes)
 
       for (i <- 0 until 100) {
         val node = lb.nextNode
-        nodes must contain(node)
+        node must beSome[Node].which { nodes must contain(_) }
       }
     }
   }

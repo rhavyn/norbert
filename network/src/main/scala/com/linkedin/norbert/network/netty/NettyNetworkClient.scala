@@ -15,9 +15,7 @@
  */
 package com.linkedin.norbert.network.netty
 
-import com.linkedin.norbert.network.client.NetworkClient
 import com.linkedin.norbert.network.common.{MessageRegistry, MessageRegistryComponent}
-import com.linkedin.norbert.network.client.loadbalancer.LoadBalancerFactoryComponent
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import org.jboss.netty.handler.logging.LoggingHandler
@@ -27,28 +25,18 @@ import com.linkedin.norbert.protos.NorbertProtos
 import java.util.concurrent.Executors
 import com.linkedin.norbert.cluster.{ClusterClientComponent, ClusterClient}
 import com.linkedin.norbert.util.NamedPoolThreadFactory
+import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactory, LoadBalancerFactoryComponent}
+import com.linkedin.norbert.network.client.{NetworkClientConfig, NetworkClient}
 
-class NetworkClientConfig {
-  var clusterClient: ClusterClient = _
-  var serviceName: String = _
-  var zooKeeperConnectString: String = _
-  var zooKeeperSessionTimeoutMillis = 30000
-
-  var connectTimeoutMillis = 1000
-  var writeTimeoutMillis = 100
-  var maxConnectionsPerNode = 5
-}
-
-abstract class NettyNetworkClient(clientConfig: NetworkClientConfig) extends NetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with MessageRegistryComponent {
-  this: LoadBalancerFactoryComponent =>
-
+class NettyNetworkClient(clientConfig: NetworkClientConfig, val loadBalancerFactory: LoadBalancerFactory) extends NetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with MessageRegistryComponent
+        with LoadBalancerFactoryComponent{
   val messageRegistry = new MessageRegistry
   val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
     clientConfig.zooKeeperSessionTimeoutMillis)
 
-  val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
-  val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
-  val connectTimeoutMillis = clientConfig.connectTimeoutMillis
+  private val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
+  private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
+  private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
   // TODO why isn't clientConfig visible here?
   bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)
   bootstrap.setOption("tcpNoDelay", true)

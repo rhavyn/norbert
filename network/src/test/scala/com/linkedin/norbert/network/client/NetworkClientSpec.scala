@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.network.client
 
-import loadbalancer.LoadBalancerFactoryComponent
+import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
