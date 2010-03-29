@@ -15,20 +15,11 @@
  */
 package com.linkedin.norbert.network
 
-import netty.{ServerChannelHandler, NettyClusterIoServerComponent}
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
-import org.jboss.netty.bootstrap.ServerBootstrap
-import java.util.concurrent.Executors
+import netty.{NetworkServerConfig, NettyNetworkServer}
 import org.jboss.netty.logging.{InternalLoggerFactory, Log4JLoggerFactory}
-import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
-import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import com.linkedin.norbert.protos.NorbertProtos
-import server._
-import org.jboss.netty.channel.group.DefaultChannelGroup
 import com.google.protobuf.Message
-import org.jboss.netty.handler.logging.LoggingHandler
-import com.linkedin.norbert.util.NamedPoolThreadFactory
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterClientComponent}
+import com.linkedin.norbert.cluster.ClusterClient
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
@@ -40,32 +31,10 @@ object NorbertNetworkServerMain {
     cc.removeNode(1)
     cc.addNode(1, "localhost:31313", new Array[Int](0))
 
-    val ns = new NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent
-        with MessageHandlerRegistryComponent {
-      val clusterClient = cc
-      val messageHandlerRegistry = new MessageHandlerRegistry
-      val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 5, 10, 1000)
+    val config = new NetworkServerConfig
+    config.clusterClient = cc
 
-      val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(cc.serviceName)))
-      val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
-      bootstrap.setOption("reuseAddress", true)
-      bootstrap.setOption("tcpNoDelay", true)
-      bootstrap.setOption("child.tcpNoDelay", true)
-      bootstrap.setOption("child.reuseAddress", true)
-      val p = bootstrap.getPipeline
-      p.addFirst("logging", new LoggingHandler)
-
-      p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
-      p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
-
-      p.addLast("frameEncoder", new LengthFieldPrepender(4))
-      p.addLast("protobufEncoder", new ProtobufEncoder)
-
-      val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(cc.serviceName))
-      p.addLast("requestHandler", new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor))
-
-      val clusterIoServer = new NettyClusterIoServer(bootstrap, channelGroup)
-    }
+    val ns = new NettyNetworkServer(config)
 
     ns.registerHandler(NorbertProtos.Ping.getDefaultInstance, NorbertProtos.PingResponse.getDefaultInstance, pingHandler _)
 

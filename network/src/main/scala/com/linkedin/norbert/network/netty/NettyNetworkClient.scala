@@ -26,6 +26,7 @@ import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import com.linkedin.norbert.protos.NorbertProtos
 import java.util.concurrent.Executors
 import com.linkedin.norbert.cluster.{ClusterClientComponent, ClusterClient}
+import com.linkedin.norbert.util.NamedPoolThreadFactory
 
 class NetworkClientConfig {
   var clusterClient: ClusterClient = _
@@ -45,7 +46,7 @@ abstract class NettyNetworkClient(clientConfig: NetworkClientConfig) extends Net
   val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
     clientConfig.zooKeeperSessionTimeoutMillis)
 
-  val executor = Executors.newCachedThreadPool
+  val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   val connectTimeoutMillis = clientConfig.connectTimeoutMillis
   // TODO why isn't clientConfig visible here?
