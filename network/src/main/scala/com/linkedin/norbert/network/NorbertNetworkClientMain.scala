@@ -17,17 +17,11 @@ package com.linkedin.norbert.network
 
 import client.loadbalancer.LoadBalancerFactoryComponent
 import client.NetworkClient
-import common.{MessageRegistry, MessageRegistryComponent}
-import netty.{ClientChannelHandler, ChannelPoolFactory, NettyClusterIoClientComponent}
-import org.jboss.netty.handler.logging.LoggingHandler
-import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
-import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
+import netty.{NettyNetworkClient, NetworkClientConfig}
 import org.jboss.netty.logging.{Log4JLoggerFactory, InternalLoggerFactory}
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import com.linkedin.norbert.protos.NorbertProtos
-import java.util.concurrent.{ExecutionException, TimeoutException, TimeUnit, Executors}
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterShutdownException, Node, ClusterClientComponent}
-import org.jboss.netty.bootstrap.ClientBootstrap
+import java.util.concurrent.{ExecutionException, TimeoutException, TimeUnit}
+import com.linkedin.norbert.cluster.{ClusterClient, ClusterShutdownException, Node}
 
 object NorbertNetworkClientMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
@@ -36,34 +30,15 @@ object NorbertNetworkClientMain {
     val cc = ClusterClient("nimbus", "localhost:2181", 30000)
     cc.start
 
-    val nc = new NetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with LoadBalancerFactoryComponent
-        with MessageRegistryComponent {
-      val messageRegistry = new MessageRegistry
-      val clusterClient = cc
+    val config = new NetworkClientConfig
+    config.clusterClient = cc
+    
+    val nc = new NettyNetworkClient(config) with LoadBalancerFactoryComponent {
       val loadBalancerFactory = new LoadBalancerFactory {
         def newLoadBalancer(nodes: Seq[Node]) = new LoadBalancer {
           def nextNode = null
         }
       }
-
-      val executor = Executors.newCachedThreadPool
-      val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
-      // TODO: connect timeout millis needs to be a constructor param
-      bootstrap.setOption("connectTimeoutMillis", 1000)
-      bootstrap.setOption("tcpNoDelay", true)
-      bootstrap.setOption("reuseAddress", true)
-      val p = bootstrap.getPipeline
-      p.addFirst("logging", new LoggingHandler)
-
-      p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
-      p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
-
-      p.addLast("frameEncoder", new LengthFieldPrepender(4))
-      p.addLast("protobufEncoder", new ProtobufEncoder)
-
-      p.addLast("requestHandler", new ClientChannelHandler(messageRegistry))
-
-      val clusterIoClient = new NettyClusterIoClient(new ChannelPoolFactory(5, 100, bootstrap))
     }
 
     nc.start
@@ -72,7 +47,6 @@ object NorbertNetworkClientMain {
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run = {
         nc.shutdown
-        cc.shutdown
       }
     })
 
