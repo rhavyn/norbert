@@ -43,6 +43,7 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
       try {
         val di = messageHandlerRegistry.requestMessageDefaultInstanceFor(norbertMessage.getMessageName)
         val message = di.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
+        log.ifDebug("Queuing to MessageExecutor: %s", message)
         messageExecutor.executeMessage(message, either => responseHandler(norbertMessage, channel, either))
       } catch {
         case ex: InvalidMessageException => log.error(ex, "Recieved invalid message")

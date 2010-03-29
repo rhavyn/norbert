@@ -41,6 +41,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     threadPool.execute(new Runnable  {
       def run {
         try {
+          log.ifDebug("Executing message: %s", message)
           val handler = messageHandlerRegistry.handlerFor(message)
 
           try {

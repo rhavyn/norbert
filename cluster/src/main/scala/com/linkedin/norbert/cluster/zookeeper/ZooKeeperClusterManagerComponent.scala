@@ -47,7 +47,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     private var currentNodes: Map[Int, Node] = IntMap.empty
 
     def act() = {
-      log.ifInfo("Connecting to ZooKeeper...")
+      log.ifDebug("Connecting to ZooKeeper...")
       startZooKeeper
 
       while(true) {
@@ -265,7 +265,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       zooKeeper = try {
         watcher = new ClusterWatcher(self)
         val zk = Some(zooKeeperFactory(connectString, sessionTimeout, watcher))
-        log.ifInfo("Connected to ZooKeeper")
+        log.ifDebug("Connected to ZooKeeper")
         zk
       } catch {
         case ex: IOException =>

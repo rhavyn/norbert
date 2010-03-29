@@ -147,7 +147,7 @@ trait NetworkServer extends Logging {
         }
       }
 
-      log.ifDebug("Closing socket")
+      log.ifDebug("Closing opened sockets")
       clusterIoServer.shutdown
 
       log.ifInfo("NetworkServer shut down")

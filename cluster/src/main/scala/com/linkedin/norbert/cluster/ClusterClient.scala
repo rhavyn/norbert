@@ -49,6 +49,8 @@ trait ClusterClient extends Logging {
     if (shutdownSwitch.get) throw new ClusterShutdownException
 
     if (startedSwitch.compareAndSet(false, true)) {
+      log.ifInfo("Starting ClusterClient...")
+
       log.ifDebug("Starting ClusterNotificationManager...")
       clusterNotificationManager.start
 
@@ -67,7 +69,7 @@ trait ClusterClient extends Logging {
 
       clusterNotificationManager !? ClusterNotificationMessages.AddListener(a)
 
-      log.ifDebug("Cluster started")
+      log.ifInfo("Cluster started")
     }
   }
 
@@ -227,7 +229,7 @@ trait ClusterClient extends Logging {
       log.ifDebug("Shutting down ClusterNotificationManager...")
       clusterNotificationManager ! ClusterNotificationMessages.Shutdown
 
-      log.ifDebug("Cluster shut down")
+      log.ifInfo("Cluster shut down")
     }
   }
 
