@@ -23,7 +23,6 @@ import org.jboss.netty.handler.logging.LoggingHandler
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import org.jboss.netty.logging.{Log4JLoggerFactory, InternalLoggerFactory}
-import com.linkedin.norbert.cluster.zookeeper.ZooKeeperClusterClient
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import com.linkedin.norbert.protos.NorbertProtos
 import java.util.concurrent.{ExecutionException, TimeoutException, TimeUnit, Executors}
@@ -34,7 +33,7 @@ object NorbertNetworkClientMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
 
   def main(args: Array[String]) {
-    val cc = new ZooKeeperClusterClient("localhost:2181", 30000, "nimbus")
+    val cc = ClusterClient("nimbus", "localhost:2181", 30000)
     cc.start
 
     val nc = new NetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with LoadBalancerFactoryComponent

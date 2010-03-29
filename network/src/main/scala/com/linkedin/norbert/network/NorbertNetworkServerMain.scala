@@ -20,8 +20,6 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
 import org.jboss.netty.bootstrap.ServerBootstrap
 import java.util.concurrent.Executors
 import org.jboss.netty.logging.{InternalLoggerFactory, Log4JLoggerFactory}
-import com.linkedin.norbert.cluster.{ClusterClientComponent}
-import com.linkedin.norbert.cluster.zookeeper.ZooKeeperClusterClient
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import com.linkedin.norbert.protos.NorbertProtos
@@ -30,12 +28,13 @@ import org.jboss.netty.channel.group.DefaultChannelGroup
 import com.google.protobuf.Message
 import org.jboss.netty.handler.logging.LoggingHandler
 import com.linkedin.norbert.util.NamedPoolThreadFactory
+import com.linkedin.norbert.cluster.{ClusterClient, ClusterClientComponent}
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
 
   def main(args: Array[String]) {
-    val cc = new ZooKeeperClusterClient("localhost:2181", 30000, "nimbus")
+    val cc = ClusterClient("nimbus", "localhost:2181", 30000)
     cc.start
     cc.awaitConnectionUninterruptibly
     cc.removeNode(1)

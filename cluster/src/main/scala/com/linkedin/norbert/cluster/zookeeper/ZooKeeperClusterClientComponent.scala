@@ -36,5 +36,5 @@ trait ZooKeeperClusterClientComponent extends ClusterClientComponent {
    */
   val zooKeeperSessionTimeoutMillis: Int
 
-  val clusterClient = new ZooKeeperClusterClient(zooKeeperConnectString, zooKeeperSessionTimeoutMillis, serviceName)
+  val clusterClient = new ZooKeeperClusterClient(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
 }
