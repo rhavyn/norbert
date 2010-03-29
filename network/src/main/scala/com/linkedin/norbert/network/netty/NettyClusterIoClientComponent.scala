@@ -17,17 +17,10 @@ package com.linkedin.norbert.network.netty
 
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.Node
-import org.jboss.netty.bootstrap.ClientBootstrap
 import java.net.InetSocketAddress
-import java.util.concurrent.{Executors, ConcurrentHashMap}
-import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
-import java.util.concurrent.atomic.AtomicInteger
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
+import java.util.concurrent.{ConcurrentHashMap}
+import com.linkedin.norbert.util.{Logging}
 import com.linkedin.norbert.network.common.{MessageRegistryComponent, ClusterIoClientComponent}
-import org.jboss.netty.handler.codec.protobuf.{ProtobufEncoder, ProtobufDecoder}
-import org.jboss.netty.handler.codec.frame.{LengthFieldPrepender, LengthFieldBasedFrameDecoder}
-import com.linkedin.norbert.protos.NorbertProtos
-import org.jboss.netty.handler.logging.LoggingHandler
 import org.jboss.netty.channel.{Channels, ChannelFactory, ChannelPipelineFactory}
 
 /**
@@ -35,15 +28,6 @@ import org.jboss.netty.channel.{Channels, ChannelFactory, ChannelPipelineFactory
  */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
   this: MessageRegistryComponent =>
-
-  object NettyClusterIoClient {
-    private val counter = new AtomicInteger
-
-    def channelFactory = {
-      val pool = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-%d".format(counter.incrementAndGet)))
-      new NioClientSocketChannelFactory(pool, pool)
-    }
-  }
 
   class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory) extends ClusterIoClient with UrlParser with Logging {
     private val channelPools = new ConcurrentHashMap[Node, ChannelPool]
@@ -75,6 +59,8 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
         }
       }
 
+      channelPoolFactory.shutdown
+      
       log.ifDebug("NettyClusterIoClient shut down")
     }
   }

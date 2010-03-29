@@ -42,7 +42,7 @@ object NorbertNetworkServerMain {
 
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run = {
-        ns.shutdown
+        cc.shutdown
       }
     })
   }

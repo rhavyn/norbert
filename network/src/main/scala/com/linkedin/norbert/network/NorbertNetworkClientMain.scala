@@ -32,7 +32,7 @@ object NorbertNetworkClientMain {
 
     val config = new NetworkClientConfig
     config.clusterClient = cc
-    
+
     val nc = new NettyNetworkClient(config) with LoadBalancerFactoryComponent {
       val loadBalancerFactory = new LoadBalancerFactory {
         def newLoadBalancer(nodes: Seq[Node]) = new LoadBalancer {
@@ -46,7 +46,7 @@ object NorbertNetworkClientMain {
 
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run = {
-        nc.shutdown
+        cc.shutdown
       }
     })
 

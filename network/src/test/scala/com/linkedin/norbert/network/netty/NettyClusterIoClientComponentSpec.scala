@@ -65,11 +65,13 @@ class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mock
     "close all ChannelPools when shutdown is called" in {
       channelPoolFactory.newChannelPool(address) returns channelPool
       doNothing.when(channelPool).close
+      doNothing.when(channelPoolFactory).shutdown
 
       clusterIoClient.sendMessage(node, mock[Message], e => null)
       clusterIoClient.shutdown
 
       channelPool.close was called
+      channelPoolFactory.shutdown was called
     }
   }
 }

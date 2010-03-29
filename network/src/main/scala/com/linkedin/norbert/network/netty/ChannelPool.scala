@@ -30,6 +30,8 @@ class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap
     val group = new DefaultChannelGroup("norbert-client [%s]".format(address))
     new ChannelPool(address, maxConnections, writeTimeoutMillis, bootstrap, group)
   }
+
+  def shutdown: Unit = bootstrap.releaseExternalResources
 }
 
 class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap,
