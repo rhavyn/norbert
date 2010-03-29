@@ -52,5 +52,16 @@ class MessageRegistrySpec extends SpecificationWithJUnit with Mockito {
       messageRegistry.registerMessage(proto, proto)
       messageRegistry.hasResponse(proto) must beTrue
     }
+
+    "return true if the response message is of the correct type" in {
+      val name = "norbert.PingResponse"
+      messageRegistry.registerMessage(proto, null)
+      messageRegistry.validResponseFor(proto, name) must beFalse
+
+      messageRegistry.registerMessage(proto, proto)
+      messageRegistry.validResponseFor(proto, name) must beFalse
+
+      messageRegistry.validResponseFor(proto, proto.getDescriptorForType.getFullName) must beTrue
+    }
   }
 }

@@ -39,6 +39,14 @@ class MessageRegistry {
 
   def responseMessageDefaultInstanceFor(requestMessage: Message): Message = getMessagePair(requestMessage)._2
 
+  def validResponseFor(requestMessage: Message, responseName: String): Boolean = {
+    if (requestMessage == null || responseName == null) throw new NullPointerException
+    val response = getMessagePair(requestMessage)._2
+
+    if (response == null) false
+    else response.getDescriptorForType.getFullName == responseName
+  }
+
   private def getMessagePair(requestMessage: Message) = {
     val name = requestMessage.getDescriptorForType.getFullName
     messageMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(name)))

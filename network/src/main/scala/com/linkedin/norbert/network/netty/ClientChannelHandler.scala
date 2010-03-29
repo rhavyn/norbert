@@ -20,9 +20,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel._
-import com.linkedin.norbert.network.RemoteException
 import com.google.protobuf.InvalidProtocolBufferException
 import com.linkedin.norbert.network.common.MessageRegistry
+import com.linkedin.norbert.network.{InvalidMessageException, RemoteException}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(messageRegistry: MessageRegistry) extends SimpleChannelHandler with Logging {
@@ -53,8 +53,13 @@ class ClientChannelHandler(messageRegistry: MessageRegistry) extends SimpleChann
       case request =>
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           try {
-            val rdi = messageRegistry.responseMessageDefaultInstanceFor(request.message)
-            request.responseCallback(Right(rdi.newBuilderForType.mergeFrom(message.getMessage).build))
+            if (messageRegistry.validResponseFor(request.message, message.getMessageName)) {
+              val rdi = messageRegistry.responseMessageDefaultInstanceFor(request.message)
+              request.responseCallback(Right(rdi.newBuilderForType.mergeFrom(message.getMessage).build))
+            } else {
+              request.responseCallback(Left(new InvalidMessageException("Response message of type %s doesn't match registered response for %s".format(message.getMessageName,
+                request.message.getDescriptorForType.getFullName))))
+            }
           } catch {
             case ex: InvalidProtocolBufferException => request.responseCallback(Left(ex))
           }
