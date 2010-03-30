@@ -13,31 +13,29 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.loadbalancer
+package com.linkedin.norbert.network.partitioned.loadbalancer
 
 import org.specs.SpecificationWithJUnit
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
 
-class ConsistentHashRouterFactoryComponentSpec extends SpecificationWithJUnit
-        with ConsistentHashRouterFactoryComponent {
+class ConsistentHashPartitionedLoadBalancerFactorySpec extends SpecificationWithJUnit {
   case class EId(id: Int)
   implicit def eId2ByteArray(eId: EId): Array[Byte] = BigInt(eId.id).toByteArray
 
-  type Id = EId
-  class EIdConsistentHashRouterFactory(numPartitions: Int) extends ConsistentHashRouterFactory(numPartitions) {
+  class EIdConsistentHashLoadBalancerFactory(numPartitions: Int) extends ConsistentHashPartitionedLoadBalancerFactory[EId](numPartitions) {
     protected def calculateHash(id: EId) = HashFunctions.fnv(id)
   }
 
-  val routerFactory = new EIdConsistentHashRouterFactory(5)
+  val loadBalancerFactory = new EIdConsistentHashLoadBalancerFactory(5)
 
-  "RouterFactory" should {
+  "ConsistentHashPartitionedLoadBalancerFactory" should {
     "return the correct partition id" in {
-      routerFactory.partitionForId(EId(1210)) must be_==(0)
+      loadBalancerFactory.partitionForId(EId(1210)) must be_==(0)
     }
   }
 
-  "Router" should {
-    "route returns the correct node for 1210" in {
+  "ConsistentHashPartitionedLoadBalancer" should {
+    "nextNode returns the correct node for 1210" in {
       val nodes = Array(
         Node(0, "localhost:31313", Array(0, 1), true),
         Node(1, "localhost:31313", Array(1, 2), true),
@@ -45,8 +43,8 @@ class ConsistentHashRouterFactoryComponentSpec extends SpecificationWithJUnit
         Node(3, "localhost:31313", Array(3, 4), true),
         Node(4, "localhost:31313", Array(0, 4), true))
 
-      val route = routerFactory.newRouter(nodes)
-      route(EId(1210)) must beSome[Node].which(Array(nodes(0), nodes(4)) must contain(_))
+      val lb = loadBalancerFactory.newLoadBalancer(nodes)
+      lb.nextNode(EId(1210)) must beSome[Node].which(Array(nodes(0), nodes(4)) must contain(_))
     }
 
     "throw InvalidClusterException if a partition is not assigned to a node" in {
@@ -57,7 +55,7 @@ class ConsistentHashRouterFactoryComponentSpec extends SpecificationWithJUnit
         Node(3, "localhost:31313", Array(3, 6), true),
         Node(4, "localhost:31313", Array(4, 5, 1), true))
 
-      new EIdConsistentHashRouterFactory(10).newRouter(nodes) must throwA[InvalidClusterException]
+      new EIdConsistentHashLoadBalancerFactory(10).newLoadBalancer(nodes) must throwA[InvalidClusterException]
     }
   }
 }

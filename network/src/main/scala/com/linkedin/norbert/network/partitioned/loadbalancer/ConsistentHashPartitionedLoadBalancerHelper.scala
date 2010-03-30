@@ -13,20 +13,21 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.loadbalancer
+package com.linkedin.norbert.network.partitioned.loadbalancer
 
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
 
 /**
  * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
  */
-trait ConsistentHashRouterHelper {
+
+trait ConsistentHashPartitionedLoadBalancerHelper {
   private val random = new scala.util.Random()
 
   /**
    * A mapping from partition id to the <code>Node</code>s which can service that partition.
    */
-  protected val partitionToNodeMap: Map[Int, Seq[Node]]  
+  protected val partitionToNodeMap: Map[Int, Seq[Node]]
 
   /**
    * Given the currently available <code>Node</code>s and the total number of partitions in the cluster, this method

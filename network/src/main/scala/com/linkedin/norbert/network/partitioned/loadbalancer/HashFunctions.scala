@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.loadbalancer
+package com.linkedin.norbert.network.partitioned.loadbalancer
 
 /**
  * Object which provides hash function implementations.
@@ -25,7 +25,7 @@ object HashFunctions {
    * @param bytes the bytes to hash
    *
    * @return the hashed value of the bytes
-   * 
+   *
    * @see http://en.wikipedia.org/wiki/Fowler-Noll-Vo_hash_function
    */
   def fnv[T <% Array[Byte]](bytes: T): Int = {
