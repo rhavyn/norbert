@@ -18,7 +18,10 @@ package com.linkedin.norbert.network.netty
 import com.google.protobuf.Message
 import java.util.UUID
 
-case class Request(message: Message, responseCallback: (Either[Throwable, Message]) => Unit) {
-  val id = UUID.randomUUID
-  val timestamp = System.currentTimeMillis
+object Request {
+  def apply(message: Message, responseCallback: (Either[Throwable, Message]) => Unit): Request = {
+    Request(UUID.randomUUID, message, System.currentTimeMillis, responseCallback)
+  }
 }
+
+case class Request(id: UUID, message: Message, timestamp: Long, responseCallback: (Either[Throwable, Message]) => Unit)
