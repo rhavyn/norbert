@@ -26,7 +26,9 @@ import zookeeper.ZooKeeperClusterClient
  */
 object ClusterClient {
   def apply(serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int): ClusterClient = {
-    new ZooKeeperClusterClient(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+    val cc = new ZooKeeperClusterClient(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+    cc.start
+    cc
   }
 }
 

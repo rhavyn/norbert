@@ -27,13 +27,11 @@ object NorbertNetworkClientMain {
 
   def main(args: Array[String]) {
     val cc = ClusterClient("nimbus", "localhost:2181", 30000)
-    cc.start
 
     val config = new NetworkClientConfig
     config.clusterClient = cc
 
     val nc = NetworkClient(config, new RoundRobinLoadBalancerFactory)
-    nc.start
     nc.registerRequest(NorbertProtos.Ping.getDefaultInstance, NorbertProtos.PingResponse.getDefaultInstance)
 
     Runtime.getRuntime.addShutdownHook(new Thread {

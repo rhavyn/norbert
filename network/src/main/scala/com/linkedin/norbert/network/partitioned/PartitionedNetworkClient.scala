@@ -15,21 +15,45 @@
  */
 package com.linkedin.norbert.network.partitioned
 
-import com.linkedin.norbert.util.Logging
 import com.google.protobuf.Message
 import com.linkedin.norbert.network.ResponseIterator
-import loadbalancer.PartitionedLoadBalancerFactoryComponent
-import com.linkedin.norbert.network.common.{ClusterIoClientComponent, MessageRegistryComponent}
 import com.linkedin.norbert.cluster.{ClusterClientComponent, Node}
+import java.util.concurrent.Future
+import loadbalancer.{PartitionedLoadBalancerFactory, PartitionedLoadBalancerFactoryComponent}
+import com.linkedin.norbert.network.client.NetworkClientConfig
+import com.linkedin.norbert.network.common.{BaseNetworkClient, ClusterIoClientComponent, MessageRegistryComponent}
+
+object PartitionedNetworkClient {
+  def apply[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]): PartitionedNetworkClient[PartitionedId] = {
+    null
+  }
+}
 
 /**
  * The network client interface for interacting with nodes in a partitioned cluster.
  */
-trait PartitionedNetworkClient[PartitionedId] extends Logging {
+trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
   this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent with PartitionedLoadBalancerFactoryComponent[PartitionedId] =>
 
+  /**
+    * Sends a <code>Message</code> to the specified <code>Id</code>. The <code>PartitionedNetworkClient</code>
+    * will interact with the <code>Cluster</code> to calculate which <code>Node</code> the message
+    * must be sent to.  This method is asynchronous and will return immediately.
+    *
+    * @param id the <code>Id</code> to which the message is addressed
+    * @param message the message to send
+    *
+   * @returns a future which will become available when a response to the message is received
+   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
+   * to send the request to
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
+   * @throws ClusterShutdownException thrown if the cluster has been shut down
+    */
+  def sendMessage(id: PartitionedId, message: Message): Future[Message]
+  
  /**
-   * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
+   * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>PartitionedNetworkClient</code>
    * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
    * must be sent to.  This method is asynchronous and will return immediately.
    *
@@ -39,15 +63,15 @@ trait PartitionedNetworkClient[PartitionedId] extends Logging {
    * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
    * the message was sent to.
   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
-  * @throws NoNodesAvailableException thrown if the <code>LoadBalancer</code> was unable to provide a <code>Node</code>
+  * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
   * to send the request to
-  * @throws ClusterDisconnectedException thrown if the <code>NetworkClient</code> is not connected to the cluster
+  * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
   * @throws ClusterShutdownException thrown if the cluster has been shut down
    */
   def sendMessage(ids: Seq[PartitionedId], message: Message): ResponseIterator
 
   /**
-   * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
+   * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>PartitionedNetworkClient</code>
    * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
    * must be sent to.  This method is asynchronous and will return immediately.
    *
@@ -61,15 +85,15 @@ trait PartitionedNetworkClient[PartitionedId] extends Logging {
    * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
    * the message was sent to.
    * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
-   * @throws NoNodesAvailableException thrown if the <code>LoadBalancer</code> was unable to provide a <code>Node</code>
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
    * to send the request to
-   * @throws ClusterDisconnectedException thrown if the <code>NetworkClient</code> is not connected to the cluster
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws ClusterShutdownException thrown if the cluster has been shut down
    */
   def sendMessage(ids: Seq[PartitionedId], message: Message, messageCustomizer: (Message, Node, Seq[PartitionedId]) => Message): ResponseIterator
 
   /**
-   * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
+   * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>PartitionedNetworkClient</code>
    * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
    * must be sent to.  This method is synchronous and will return once the responseAggregator has returned a value.
    *
@@ -81,16 +105,16 @@ trait PartitionedNetworkClient[PartitionedId] extends Logging {
    *
    * @return the return value of the <code>responseAggregator</code>
    * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
-   * @throws NoNodesAvailableException thrown if the <code>LoadBalancer</code> was unable to provide a <code>Node</code>
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
    * to send the request to
-   * @throws ClusterDisconnectedException thrown if the <code>NetworkClient</code> is not connected to the cluster
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws ClusterShutdownException thrown if the cluster has been shut down
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
   def sendMessage[A](ids: Seq[PartitionedId], message: Message, responseAggregator: (Message, ResponseIterator) => A): A
 
   /**
-   * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>NetworkClient</code>
+   * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>PartitionedNetworkClient</code>
    * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
    * must be sent to.  This method is synchronous and will return once the responseAggregator has returned a value.
    *
@@ -106,9 +130,9 @@ trait PartitionedNetworkClient[PartitionedId] extends Logging {
    *
    * @return the return value of the <code>responseAggregator</code>
    * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
-   * @throws NoNodesAvailableException thrown if the <code>LoadBalancer</code> was unable to provide a <code>Node</code>
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
    * to send the request to
-   * @throws ClusterDisconnectedException thrown if the <code>NetworkClient</code> is not connected to the cluster
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws ClusterShutdownException thrown if the cluster has been shut down
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
