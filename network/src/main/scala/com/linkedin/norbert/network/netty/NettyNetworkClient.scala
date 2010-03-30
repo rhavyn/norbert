@@ -15,7 +15,6 @@
  */
 package com.linkedin.norbert.network.netty
 
-import com.linkedin.norbert.network.common.{MessageRegistry, MessageRegistryComponent}
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import org.jboss.netty.handler.logging.LoggingHandler
@@ -27,9 +26,11 @@ import com.linkedin.norbert.cluster.{ClusterClientComponent, ClusterClient}
 import com.linkedin.norbert.util.NamedPoolThreadFactory
 import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactory, LoadBalancerFactoryComponent}
 import com.linkedin.norbert.network.client.{NetworkClientConfig, NetworkClient}
+import com.linkedin.norbert.network.partitioned.PartitionedNetworkClient
+import com.linkedin.norbert.network.partitioned.loadbalancer.{PartitionedLoadBalancerFactory, PartitionedLoadBalancerFactoryComponent}
+import com.linkedin.norbert.network.common.{BaseNetworkClient, MessageRegistry, MessageRegistryComponent}
 
-class NettyNetworkClient(clientConfig: NetworkClientConfig, val loadBalancerFactory: LoadBalancerFactory) extends NetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with MessageRegistryComponent
-        with LoadBalancerFactoryComponent{
+abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with MessageRegistryComponent {
   val messageRegistry = new MessageRegistry
   val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
     clientConfig.zooKeeperSessionTimeoutMillis)
@@ -56,3 +57,8 @@ class NettyNetworkClient(clientConfig: NetworkClientConfig, val loadBalancerFact
 
   override def shutdown = if (clientConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
 }
+
+class NettyNetworkClient(clientConfig: NetworkClientConfig, val loadBalancerFactory: LoadBalancerFactory) extends BaseNettyNetworkClient(clientConfig) with NetworkClient with LoadBalancerFactoryComponent
+
+class NettyPartitionedNetworkClient[PartitionedId](clientConfig: NetworkClientConfig, val loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]) extends BaseNettyNetworkClient(clientConfig)
+    with PartitionedNetworkClient[PartitionedId] with PartitionedLoadBalancerFactoryComponent[PartitionedId]

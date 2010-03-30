@@ -16,16 +16,19 @@
 package com.linkedin.norbert.network.partitioned
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.ResponseIterator
-import com.linkedin.norbert.cluster.{ClusterClientComponent, Node}
 import java.util.concurrent.Future
-import loadbalancer.{PartitionedLoadBalancerFactory, PartitionedLoadBalancerFactoryComponent}
 import com.linkedin.norbert.network.client.NetworkClientConfig
-import com.linkedin.norbert.network.common.{BaseNetworkClient, ClusterIoClientComponent, MessageRegistryComponent}
+import loadbalancer.{PartitionedLoadBalancer, PartitionedLoadBalancerFactory, PartitionedLoadBalancerFactoryComponent}
+import com.linkedin.norbert.network.netty.NettyPartitionedNetworkClient
+import com.linkedin.norbert.cluster.{ClusterDisconnectedException, InvalidClusterException, ClusterClientComponent, Node}
+import com.linkedin.norbert.network.{NoNodesAvailableException, ResponseIterator}
+import com.linkedin.norbert.network.common._
 
 object PartitionedNetworkClient {
   def apply[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]): PartitionedNetworkClient[PartitionedId] = {
-    null
+    val nc = new NettyPartitionedNetworkClient(config, loadBalancerFactory)
+    nc.start
+    nc
   }
 }
 
@@ -34,6 +37,8 @@ object PartitionedNetworkClient {
  */
 trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
   this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent with PartitionedLoadBalancerFactoryComponent[PartitionedId] =>
+
+  @volatile private var loadBalancer: Option[Either[InvalidClusterException, PartitionedLoadBalancer[PartitionedId]]] = None
 
   /**
     * Sends a <code>Message</code> to the specified <code>Id</code>. The <code>PartitionedNetworkClient</code>
@@ -50,8 +55,19 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws ClusterShutdownException thrown if the cluster has been shut down
     */
-  def sendMessage(id: PartitionedId, message: Message): Future[Message]
-  
+  def sendMessage(id: PartitionedId, message: Message): Future[Message] = doIfConnected {
+    if (id == null || message == null) throw new NullPointerException
+    verifyMessageRegistered(message)
+
+    val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
+      lb => lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id))))
+
+    val future = new NorbertFuture
+    doSendMessage(node, message, e => future.offerResponse(e))
+
+    future
+  }
+
  /**
    * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>PartitionedNetworkClient</code>
    * will interact with the <code>Cluster</code> to calculate which <code>Node</code>s the message
@@ -68,7 +84,16 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
   * @throws ClusterShutdownException thrown if the cluster has been shut down
    */
-  def sendMessage(ids: Seq[PartitionedId], message: Message): ResponseIterator
+  def sendMessage(ids: Seq[PartitionedId], message: Message): ResponseIterator = doIfConnected {
+    if (ids == null || message == null) throw new NullPointerException
+    verifyMessageRegistered(message)
+
+    val nodes = calculateNodesFromIds(ids)
+    val ri = new NorbertResponseIterator(nodes.size)
+    nodes.keySet.foreach { node => doSendMessage(node, message, e => ri.offerResponse(e)) }
+
+    ri
+  }
 
   /**
    * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>PartitionedNetworkClient</code>
@@ -90,7 +115,22 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws ClusterShutdownException thrown if the cluster has been shut down
    */
-  def sendMessage(ids: Seq[PartitionedId], message: Message, messageCustomizer: (Message, Node, Seq[PartitionedId]) => Message): ResponseIterator
+  def sendMessage(ids: Seq[PartitionedId], message: Message, messageCustomizer: (Message, Node, Seq[PartitionedId]) => Message): ResponseIterator = doIfConnected {
+    if (ids == null || message == null || messageCustomizer == null) throw new NullPointerException
+    verifyMessageRegistered(message)
+
+    val nodes = calculateNodesFromIds(ids)
+    val ri = new NorbertResponseIterator(nodes.size)
+    nodes.foreach { case (node, idsForNode) =>
+      try {
+        doSendMessage(node, messageCustomizer(message, node, idsForNode), e => ri.offerResponse(e))
+      } catch {
+        case ex: Exception => ri.offerResponse(Left(ex))
+      }
+    }
+
+    ri
+  }
 
   /**
    * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>PartitionedNetworkClient</code>
@@ -111,7 +151,10 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterShutdownException thrown if the cluster has been shut down
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
-  def sendMessage[A](ids: Seq[PartitionedId], message: Message, responseAggregator: (Message, ResponseIterator) => A): A
+  def sendMessage[A](ids: Seq[PartitionedId], message: Message, responseAggregator: (Message, ResponseIterator) => A): A = doIfConnected{
+    if (responseAggregator == null) throw new NullPointerException
+    responseAggregator(message, sendMessage(ids, message))
+  }
 
   /**
    * Sends a <code>Message</code> to the specified <code>Id</code>s. The <code>PartitionedNetworkClient</code>
@@ -137,5 +180,36 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
   def sendMessage[A](ids: Seq[PartitionedId], message: Message, messageCustomizer: (Message, Node, Seq[PartitionedId]) => Message,
-              responseAggregator: (Message, ResponseIterator) => A): A
+              responseAggregator: (Message, ResponseIterator) => A): A = doIfConnected {
+    if (responseAggregator == null) throw new NullPointerException
+    responseAggregator(message, sendMessage(ids, message, messageCustomizer))
+  }
+
+  protected def updateLoadBalancer(nodes: Seq[Node]) {
+    loadBalancer = if (nodes != null && nodes.length > 0) {
+      try {
+        Some(Right(loadBalancerFactory.newLoadBalancer(nodes)))
+      } catch {
+        case ex: InvalidClusterException =>
+          log.ifInfo(ex, "Unable to create new router instance")
+          Some(Left(ex))
+
+        case ex: Exception =>
+          val msg = "Exception while creating new router instance"
+          log.ifError(ex, msg)
+          Some(Left(new InvalidClusterException(msg, ex)))
+      }
+    } else {
+      None
+    }
+  }
+
+  private def calculateNodesFromIds(ids: Seq[PartitionedId]) = {
+    val lb = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex, lb => lb)
+
+    ids.foldLeft(Map[Node, List[PartitionedId]]().withDefaultValue(Nil)) { (map, id) =>
+      val node = lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id)))
+      map(node) = id :: map(node)
+    }
+  }
 }
