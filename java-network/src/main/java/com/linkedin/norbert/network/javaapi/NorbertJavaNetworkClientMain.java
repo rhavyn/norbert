@@ -16,6 +16,7 @@
 package com.linkedin.norbert.network.javaapi;
 
 import com.google.protobuf.Message;
+import com.linkedin.norbert.cluster.Node;
 import com.linkedin.norbert.cluster.javaapi.ClusterClient;
 import com.linkedin.norbert.cluster.javaapi.ZooKeeperClusterClient;
 import com.linkedin.norbert.protos.NorbertProtos;
@@ -35,9 +36,12 @@ public class NorbertJavaNetworkClientMain {
     NetworkClientConfig config = new NetworkClientConfig();
     config.setClusterClient(cc);
     NetworkClient nc = new NettyNetworkClient(config, new RoundRobinLoadBalancerFactory());
+//    PartitionedNetworkClient<Integer> nc = new NettyPartitionedNetworkClient<Integer>(config, new IntegerConsistentHashPartitionedLoadBalancerFactory());
     nc.registerRequest(NorbertProtos.Ping.getDefaultInstance(), NorbertProtos.PingResponse.getDefaultInstance());
 
-    Future<Message> f = nc.sendMessage(NorbertProtos.Ping.newBuilder().setTimestamp(System.currentTimeMillis()).build());
+    Node node = cc.getNodeWithId(1);
+
+    Future<Message> f = nc.sendMessageToNode(NorbertProtos.Ping.newBuilder().setTimestamp(System.currentTimeMillis()).build(), node);
     try {
       f.get(750, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
