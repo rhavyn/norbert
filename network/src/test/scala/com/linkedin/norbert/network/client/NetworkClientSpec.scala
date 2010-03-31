@@ -18,8 +18,8 @@ package com.linkedin.norbert.network.client
 import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster._
-import com.linkedin.norbert.network.{InvalidMessageException, NoNodesAvailableException}
 import com.linkedin.norbert.network.common.{BaseNetworkClientSpecification, MessageRegistry, MessageRegistryComponent, ClusterIoClientComponent}
+import com.linkedin.norbert.network.{NetworkShutdownException, InvalidMessageException, NoNodesAvailableException}
 
 class NetworkClientSpec extends BaseNetworkClientSpecification {
   val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {
@@ -46,9 +46,9 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     "throw ClusterShutdownException if the cluster is shut down when a method is called" in {
       networkClient.shutdown
 
-      networkClient.broadcastMessage(message) must throwA[ClusterShutdownException]
-      networkClient.sendMessageToNode(message, nodes(1)) must throwA[ClusterShutdownException]
-      networkClient.sendMessage(message) must throwA[ClusterShutdownException]
+      networkClient.broadcastMessage(message) must throwA[NetworkShutdownException]
+      networkClient.sendMessageToNode(message, nodes(1)) must throwA[NetworkShutdownException]
+      networkClient.sendMessage(message) must throwA[NetworkShutdownException]
     }
 
     "throw an InvalidMessageException if an unregistered message is sent" in {

@@ -22,7 +22,7 @@ import com.linkedin.norbert.cluster._
 import java.net.InetSocketAddress
 import com.linkedin.norbert.protos.NorbertProtos
 import java.util.concurrent.ExecutionException
-import com.linkedin.norbert.network.{ResponseIterator, NoNodesAvailableException, InvalidMessageException}
+import com.linkedin.norbert.network.{NetworkShutdownException, ResponseIterator, NoNodesAvailableException, InvalidMessageException}
 
 class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
   val networkClient = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent
@@ -51,10 +51,10 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
     "throw ClusterShutdownException if the cluster is shut down when a method is called" in {
       networkClient.shutdown
 
-      networkClient.broadcastMessage(message) must throwA[ClusterShutdownException]
-      networkClient.sendMessageToNode(message, nodes(1)) must throwA[ClusterShutdownException]
-      networkClient.sendMessage(1, message) must throwA[ClusterShutdownException]
-      networkClient.sendMessage(Array(1, 2), message) must throwA[ClusterShutdownException]
+      networkClient.broadcastMessage(message) must throwA[NetworkShutdownException]
+      networkClient.sendMessageToNode(message, nodes(1)) must throwA[NetworkShutdownException]
+      networkClient.sendMessage(1, message) must throwA[NetworkShutdownException]
+      networkClient.sendMessage(Array(1, 2), message) must throwA[NetworkShutdownException]
     }
 
     "throw an InvalidMessageException if an unregistered message is sent" in {

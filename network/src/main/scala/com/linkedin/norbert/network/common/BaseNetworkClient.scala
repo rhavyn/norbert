@@ -20,7 +20,7 @@ import com.google.protobuf.Message
 import com.linkedin.norbert.cluster._
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.Future
-import com.linkedin.norbert.network.{InvalidMessageException, ResponseIterator, NetworkNotStartedException}
+import com.linkedin.norbert.network.{NetworkShutdownException, InvalidMessageException, ResponseIterator, NetworkNotStartedException}
 
 trait BaseNetworkClient extends Logging {
   this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent =>
@@ -130,7 +130,7 @@ trait BaseNetworkClient extends Logging {
   }
 
   protected def doIfConnected[T](block: => T): T = {
-    if (shutdownSwitch.get) throw new ClusterShutdownException
+    if (shutdownSwitch.get) throw new NetworkShutdownException
     else if (!startedSwitch.get) throw new NetworkNotStartedException
     else if (!connected) throw new ClusterDisconnectedException
     else block
