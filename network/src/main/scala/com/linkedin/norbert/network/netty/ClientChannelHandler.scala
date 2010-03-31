@@ -16,17 +16,34 @@
 package com.linkedin.norbert.network.netty
 
 import com.linkedin.norbert.logging.Logging
-import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel._
 import com.google.protobuf.InvalidProtocolBufferException
 import com.linkedin.norbert.network.common.MessageRegistry
 import com.linkedin.norbert.network.{InvalidMessageException, RemoteException}
+import java.util.concurrent.{TimeUnit, ConcurrentHashMap}
 
 @ChannelPipelineCoverage("all")
-class ClientChannelHandler(messageRegistry: MessageRegistry) extends SimpleChannelHandler with Logging {
+class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeoutMins: Int, staleRequestCleanupFrequencyMins: Int) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request]
+
+  private val cleanupThread = new Thread("stale-request-cleanup-thread") {
+    val staleRequestTimeoutMillis = TimeUnit.MILLISECONDS.convert(staleRequestTimeoutMins, TimeUnit.MINUTES)
+
+    override def run = {
+      while (true) {
+        TimeUnit.MINUTES.sleep(staleRequestCleanupFrequencyMins)
+
+        import collection.jcl.Conversions._
+        requestMap.keySet.foreach { uuid =>
+          val request = requestMap.get(uuid)
+          if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) requestMap.remove(uuid)
+        }
+      }
+    }
+  }
+  cleanupThread.setDaemon(true)
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request]

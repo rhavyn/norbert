@@ -51,7 +51,7 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   p.addLast("frameEncoder", new LengthFieldPrepender(4))
   p.addLast("protobufEncoder", new ProtobufEncoder)
 
-  p.addLast("requestHandler", new ClientChannelHandler(messageRegistry))
+  p.addLast("requestHandler", new ClientChannelHandler(messageRegistry, clientConfig.staleRequestTimeoutMins, clientConfig.staleRequestCleanupFrequenceMins))
 
   val clusterIoClient = new NettyClusterIoClient(new ChannelPoolFactory(clientConfig.maxConnectionsPerNode, clientConfig.writeTimeoutMillis, bootstrap))
 

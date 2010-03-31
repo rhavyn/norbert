@@ -39,6 +39,8 @@ abstract class BaseNettyNetworkClient extends BaseNetworkClient {
     c.connectTimeoutMillis = config.getConnectTimeoutMillis
     c.writeTimeoutMillis = config.getWriteTimeoutMillis
     c.maxConnectionsPerNode = config.getMaxConnectionsPerNode
+    c.staleRequestTimeoutMins = config.getStaleRequestTimeoutMins
+    c.staleRequestCleanupFrequenceMins = config.getStaleRequestCleanupFrequencyMins
 
     c
   }

@@ -38,12 +38,12 @@ object NetworkDefaults {
   /**
    * The default frequency to clean up stale requests in minutes.
    */
-  val REQUEST_CLEANUP_FREQUENCY_MINS = 10
+  val STALE_REQUEST_CLEANUP_FREQUENCY_MINS = 10
 
   /**
    * The default length of time to wait before considering a request to be stale in minutes.
    */
-  val REQUEST_TIMEOUT_MINS = 10
+  val STALE_REQUEST_TIMEOUT_MINS = 10
 
   /**
    * The default number of core request threads.

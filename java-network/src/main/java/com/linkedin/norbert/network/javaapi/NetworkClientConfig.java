@@ -27,6 +27,8 @@ public class NetworkClientConfig {
   private int connectTimeoutMillis = NetworkDefaults.CONNECT_TIMEOUT_MILLIS();
   private int writeTimeoutMillis = NetworkDefaults.WRITE_TIMEOUT_MILLIS();
   private int maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE();
+  private int staleRequestTimeoutMins = NetworkDefaults.STALE_REQUEST_TIMEOUT_MINS();
+  private int staleRequestCleanupFrequencyMins = NetworkDefaults.STALE_REQUEST_CLEANUP_FREQUENCY_MINS();
 
   public ClusterClient getClusterClient() {
     return clusterClient;
@@ -82,5 +84,21 @@ public class NetworkClientConfig {
 
   public void setMaxConnectionsPerNode(int maxConnectionsPerNode) {
     this.maxConnectionsPerNode = maxConnectionsPerNode;
+  }
+
+  public int getStaleRequestTimeoutMins() {
+    return staleRequestTimeoutMins;
+  }
+
+  public void setStaleRequestTimeoutMins(int staleRequestTimeoutMins) {
+    this.staleRequestTimeoutMins = staleRequestTimeoutMins;
+  }
+
+  public int getStaleRequestCleanupFrequencyMins() {
+    return staleRequestCleanupFrequencyMins;
+  }
+
+  public void setStaleRequestCleanupFrequencyMins(int staleRequestCleanupFrequencyMins) {
+    this.staleRequestCleanupFrequencyMins = staleRequestCleanupFrequencyMins;
   }
 }
