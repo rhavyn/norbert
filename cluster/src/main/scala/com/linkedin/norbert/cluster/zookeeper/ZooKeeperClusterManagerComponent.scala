@@ -15,6 +15,7 @@
  */
 package com.linkedin.norbert.cluster.zookeeper
 
+import com.linkedin.norbert.cluster.common.ClusterManagerHelper
 import com.linkedin.norbert.logging.Logging
 import actors.Actor
 import Actor._
@@ -36,7 +37,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
   }
 
   class ZooKeeperClusterManager(connectString: String, sessionTimeout: Int, serviceName: String)
-          (implicit zooKeeperFactory: (String, Int, Watcher) => ZooKeeper) extends Actor with Logging {
+          (implicit zooKeeperFactory: (String, Int, Watcher) => ZooKeeper) extends Actor with ClusterManagerHelper with Logging {
     private val SERVICE_NODE = "/" + serviceName
     private val AVAILABILITY_NODE = SERVICE_NODE + "/available"
     private val MEMBERSHIP_NODE = SERVICE_NODE + "/members"
@@ -50,7 +51,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       log.ifDebug("Connecting to ZooKeeper...")
       startZooKeeper
 
-      while(true) {
+      while (true) {
         import ZooKeeperMessages._
         import ClusterManagerMessages._
 
@@ -366,8 +367,6 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         reply(ClusterManagerResponse(Some(new ClusterDisconnectedException("Error while %s, cluster is disconnected".format(exceptionDescription)))))
       }
     }
-
-    implicit def mapIntNodeToSeqNode(map: Map[Int, Node]): Seq[Node] = map.map { case (key, node) => node }.toSeq
   }
 
   protected implicit def defaultZooKeeperFactory(connectString: String, sessionTimeout: Int, watcher: Watcher) = new ZooKeeper(connectString, sessionTimeout, watcher)
