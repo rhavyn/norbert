@@ -53,10 +53,10 @@ object NetworkDefaults {
   /**
    * The default max number of core request threads.
    */
-  val REQUEST_THREAD_MAX_POOL_SIZE = CORE_REQUEST_THREAD_POOL_SIZE * 5
+  val REQUEST_THREAD_MAX_POOL_SIZE = REQUEST_THREAD_CORE_POOL_SIZE * 5
 
   /**
    * The default request thread timeout in seconds.
    */
-  val REQUEST_THREAD_TIMEOUT = 300
+  val REQUEST_THREAD_KEEP_ALIVE_TIME_SECS = 300
 }

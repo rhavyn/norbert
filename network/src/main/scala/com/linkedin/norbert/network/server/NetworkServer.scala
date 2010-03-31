@@ -20,6 +20,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import com.linkedin.norbert.util.Logging
 import com.linkedin.norbert.network.{NetworkShutdownException, NetworkingException, NetworkServerNotBoundException}
 import com.google.protobuf.Message
+import com.linkedin.norbert.network.netty.{NettyNetworkServer, NetworkServerConfig}
+
+object NetworkServer {
+  def apply(config: NetworkServerConfig): NetworkServer = new NettyNetworkServer(config)
+}
 
 trait NetworkServer extends Logging {
   this: ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent =>
@@ -50,7 +55,6 @@ trait NetworkServer extends Logging {
    * @param nodeId the id of the <code>Node</code> this server is associated with.
    *
    * @throws InvalidNodeException thrown if no <code>Node</code> with the specified <code>nodeId</code> exists
-   * @throws NetworkShutdownException thrown if the <code>NetworkServer</code> has been shut down
    * @throws NetworkingException thrown if unable to bind
    */
   def bind(nodeId: Int): Unit = bind(nodeId, true)
@@ -66,7 +70,6 @@ trait NetworkServer extends Logging {
    *
    * @throws InvalidNodeException thrown if no <code>Node</code> with the specified <code>nodeId</code> exists or if the
    * format of the <code>Node</code>'s url isn't hostname:port
-   * @throws NetworkShutdownException thrown if the <code>NetworkServer</code> has been shut down
    * @throws NetworkingException thrown if unable to bind
    */
   def bind(nodeId: Int, markAvailable: Boolean): Unit = doIfNotShutdown {
@@ -100,17 +103,11 @@ trait NetworkServer extends Logging {
    * Returns the <code>Node</code> associated with this server.
    *
    * @return the <code>Node</code> associated with this server
-   *
-   * @throws NetworkServerNotBoundException thrown if called before bind is called
-   * @throws NetworkShutdownException thrown if the <code>NetworkServer</code> has been shut down
    */
   def myNode: Node = doIfNotShutdown { nodeOption.getOrElse(throw new NetworkServerNotBoundException) }
 
   /**
    * Marks the node available in the cluster if the server is bound.
-   *
-   * @throws NetworkServerNotBoundException thrown if called before bind is called
-   * @throws NetworkShutdownException thrown if the <code>NetworkServer</code> has been shut down
    */
   def markAvailable: Unit = {
     clusterClient.markNodeAvailable(myNode.id)
@@ -119,9 +116,6 @@ trait NetworkServer extends Logging {
 
   /**
    * Marks the node unavailable in the cluster if bound.
-   *
-   * @throws NetworkServerNotBoundException thrown if called before bind is called
-   * @throws NetworkShutdownException thrown if the <code>NetworkServer</code> has been shut down
    */
   def markUnavailable: Unit = {
     clusterClient.markNodeUnavailable(myNode.id)
@@ -139,11 +133,15 @@ trait NetworkServer extends Logging {
 
       if (!fromCluster) {
         nodeOption.foreach { node =>
-          log.ifDebug("Unregistering from ClusterClient")
-          clusterClient.removeListener(listenerKey)
+          try {
+            log.ifDebug("Unregistering from ClusterClient")
+            clusterClient.removeListener(listenerKey)
 
-          log.ifDebug("Marking %s unavailable", node)
-          clusterClient.markNodeUnavailable(node.id)
+            log.ifDebug("Marking %s unavailable", node)
+            clusterClient.markNodeUnavailable(node.id)
+          } catch {
+            case ex: ClusterShutdownException => // cluster already shut down, ignore
+          }
         }
       }
 

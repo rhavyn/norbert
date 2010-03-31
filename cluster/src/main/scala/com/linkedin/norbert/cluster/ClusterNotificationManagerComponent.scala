@@ -126,6 +126,8 @@ trait ClusterNotificationManagerComponent {
       notifyListeners(ClusterEvents.Shutdown)
       listeners.values.foreach(_ ! 'quit)
       currentNodes = Nil
+
+      log.ifDebug("ClusterNotificationManager shut down")
       exit
     }
 

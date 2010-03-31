@@ -62,6 +62,7 @@ trait ClusterClient extends Logging {
           react {
             case ClusterEvents.Connected(_) => connectedLatch.countDown
             case ClusterEvents.Disconnected => connectedLatch = new CountDownLatch(1)
+            case 'quit => exit
             case _ => // do nothing
           }
         }

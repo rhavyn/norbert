@@ -19,14 +19,14 @@ import com.linkedin.norbert.cluster.ClusterDefaults;
 import com.linkedin.norbert.cluster.javaapi.ClusterClient;
 import com.linkedin.norbert.network.NetworkDefaults;
 
-public class NetworkClientConfig {
+public class NetworkServerConfig {
   private ClusterClient clusterClient;
   private String serviceName;
   private String zooKeeperConnectString;
   private int zooKeeperSessionTimeoutMillis = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT_MILLIS();
-  private int connectTimeoutMillis = NetworkDefaults.CONNECT_TIMEOUT_MILLIS();
-  private int writeTimeoutMillis = NetworkDefaults.WRITE_TIMEOUT_MILLIS();
-  private int maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE();
+  private int requestThreadCorePoolSize = NetworkDefaults.REQUEST_THREAD_CORE_POOL_SIZE();
+  private int requestThreadMaxPoolSize = NetworkDefaults.REQUEST_THREAD_MAX_POOL_SIZE();
+  private int requestThreadKeepAliveTimeSecs = NetworkDefaults.REQUEST_THREAD_KEEP_ALIVE_TIME_SECS();
 
   public ClusterClient getClusterClient() {
     return clusterClient;
@@ -60,27 +60,27 @@ public class NetworkClientConfig {
     this.zooKeeperSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
   }
 
-  public int getConnectTimeoutMillis() {
-    return connectTimeoutMillis;
+  public int getRequestThreadCorePoolSize() {
+    return requestThreadCorePoolSize;
   }
 
-  public void setConnectTimeoutMillis(int connectTimeoutMillis) {
-    this.connectTimeoutMillis = connectTimeoutMillis;
+  public void setRequestThreadCorePoolSize(int requestThreadCorePoolSize) {
+    this.requestThreadCorePoolSize = requestThreadCorePoolSize;
   }
 
-  public int getWriteTimeoutMillis() {
-    return writeTimeoutMillis;
+  public int getRequestThreadMaxPoolSize() {
+    return requestThreadMaxPoolSize;
   }
 
-  public void setWriteTimeoutMillis(int writeTimeoutMillis) {
-    this.writeTimeoutMillis = writeTimeoutMillis;
+  public void setRequestThreadMaxPoolSize(int requestThreadMaxPoolSize) {
+    this.requestThreadMaxPoolSize = requestThreadMaxPoolSize;
   }
 
-  public int getMaxConnectionsPerNode() {
-    return maxConnectionsPerNode;
+  public int getRequestThreadKeepAliveTimeSecs() {
+    return requestThreadKeepAliveTimeSecs;
   }
 
-  public void setMaxConnectionsPerNode(int maxConnectionsPerNode) {
-    this.maxConnectionsPerNode = maxConnectionsPerNode;
+  public void setRequestThreadKeepAliveTimeSecs(int requestThreadKeepAliveTimeSecs) {
+    this.requestThreadKeepAliveTimeSecs = requestThreadKeepAliveTimeSecs;
   }
 }

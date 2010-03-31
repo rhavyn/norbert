@@ -17,34 +17,73 @@ package com.linkedin.norbert.network.javaapi
 
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.Node
+import com.linkedin.norbert.cluster.javaapi.BaseClusterClient
 
 abstract class BaseNettyNetworkClient extends BaseNetworkClient {
-  val underlying: com.linkedin.nobert.network.common.BaseNetworkClient
+  val underlying: com.linkedin.norbert.network.common.BaseNetworkClient
 
   def shutdown = underlying.shutdown
 
-  def broadcastMessage(message: Message) = underlying.broadcaseMessage(message)
+  def broadcastMessage(message: Message) = underlying.broadcastMessage(message)
 
   def sendMessageToNode(message: Message, node: Node) = underlying.sendMessageToNode(message, node)
 
   def registerRequest(requestMessage: Message, responseMessage: Message) = underlying.registerRequest(requestMessage, responseMessage)
+
+  protected def convertConfig(config: NetworkClientConfig) = {
+    val c = new com.linkedin.norbert.network.client.NetworkClientConfig
+    if (config.getClusterClient != null) c.clusterClient = config.getClusterClient.asInstanceOf[BaseClusterClient].underlying
+    c.serviceName = config.getServiceName
+    c.zooKeeperConnectString = config.getZooKeeperConnectString
+    c.zooKeeperSessionTimeoutMillis = config.getZooKeeperSessionTimeoutMillis
+    c.connectTimeoutMillis = config.getConnectTimeoutMillis
+    c.writeTimeoutMillis = config.getWriteTimeoutMillis
+    c.maxConnectionsPerNode = config.getMaxConnectionsPerNode
+
+    c
+  }
 }
 
-class NettyNetworkClient(loadBalancerFactory: LoadBalancerFactory) extends BaseNettyNetworkClient with NetworkClient {
-  val underlying = com.linkedin.norbert.network.client.NetworkClient(null, new com.linkedin.norbert.network.client.loadbalancer.LoadBalancerFactory {
+class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory) extends BaseNettyNetworkClient with NetworkClient {
+  val underlying = com.linkedin.norbert.network.client.NetworkClient(convertConfig(config), new com.linkedin.norbert.network.client.loadbalancer.LoadBalancerFactory {
     def newLoadBalancer(nodes: Seq[Node]) = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancer {
       private val lb = loadBalancerFactory.newLoadBalancer(nodes.toArray)
 
-      def nextNode = lb match {
+      def nextNode = lb.nextNode match {
         case null => None
         case n => Some(n)
       }
     }
   })
-  
+
   underlying.start
 
   def sendMessage(message: Message) = underlying.sendMessage(message)
+}
 
-  def sendMessageToNode(message: Message, node: Node) = underlying.sendMessageToNode(message, node)
+class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]) extends BaseNettyNetworkClient
+    with PartitionedNetworkClient[PartitionedId] {
+  val underlying = com.linkedin.norbert.network.partitioned.PartitionedNetworkClient(convertConfig(config),
+    new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancerFactory[PartitionedId] {
+      def newLoadBalancer(nodes: Seq[Node]) = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancer[PartitionedId] {
+        private val lb = loadBalancerFactory.newLoadBalancer(nodes.toArray)
+
+        def nextNode(id: PartitionedId) = lb.nextNode(id) match {
+          case null => None
+          case n => Some(n)
+        }
+      }
+    })
+
+  underlying.start
+
+  def sendMessage[T](ids: Array[PartitionedId], message: Message, scatterGather: ScatterGatherHandler[T, PartitionedId]) = {
+    underlying.sendMessage(ids, message,
+      (message, node, ids) => scatterGather.customizeMessage(message, node, ids.toArray),
+      (message, responseIterator) => scatterGather.gatherResponses(message, responseIterator))
+  }
+
+  def sendMessage(ids: Array[PartitionedId], message: Message) = underlying.sendMessage(ids, message)
+
+  def sendMessage(id: PartitionedId, message: Message) = underlying.sendMessage(id, message)
 }

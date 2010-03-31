@@ -26,6 +26,7 @@ import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel.group.DefaultChannelGroup
 import com.linkedin.norbert.network.server.{NetworkServer, MessageHandlerRegistry, ThreadPoolMessageExecutor, MessageHandlerRegistryComponent}
+import com.linkedin.norbert.network.NetworkDefaults
 
 class NetworkServerConfig {
   var clusterClient: ClusterClient = _
@@ -33,9 +34,9 @@ class NetworkServerConfig {
   var zooKeeperConnectString: String = _
   var zooKeeperSessionTimeoutMillis = 30000
 
-  var requestThreadCorePoolSize = 5
-  var requestThreadMaxPoolSize = 10
-  var requestThreadKeepAliveTimeSeconds = 5
+  var requestThreadCorePoolSize = NetworkDefaults.REQUEST_THREAD_CORE_POOL_SIZE
+  var requestThreadMaxPoolSize = NetworkDefaults.REQUEST_THREAD_MAX_POOL_SIZE
+  var requestThreadKeepAliveTimeSecs = NetworkDefaults.REQUEST_THREAD_KEEP_ALIVE_TIME_SECS
 }
 
 class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent with MessageHandlerRegistryComponent {
@@ -44,7 +45,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   val messageHandlerRegistry = new MessageHandlerRegistry
   val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, serverConfig.requestThreadCorePoolSize, serverConfig.requestThreadMaxPoolSize,
-    serverConfig.requestThreadKeepAliveTimeSeconds)
+    serverConfig.requestThreadKeepAliveTimeSecs)
 
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))

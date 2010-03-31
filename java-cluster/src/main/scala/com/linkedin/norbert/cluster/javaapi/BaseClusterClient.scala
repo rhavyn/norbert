@@ -22,6 +22,8 @@ import com.linkedin.norbert.cluster.{ClusterEvents, ClusterEvent, ClusterListene
 abstract class BaseClusterClient extends ClusterClient {
   val underlying: com.linkedin.norbert.cluster.ClusterClient
 
+  def shutdown = underlying.shutdown
+
   def awaitConnectionUninterruptibly = underlying.awaitConnectionUninterruptibly
 
   def awaitConnection(timeout: Long, unit: TimeUnit) = underlying.awaitConnection(timeout, unit)

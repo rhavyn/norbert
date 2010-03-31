@@ -258,6 +258,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         case ex: Exception => log.error(ex, "Exception when closing connection to ZooKeeper")
       }
 
+      log.ifDebug("ZooKeeperClusterManager shut down")
       exit
     }
 

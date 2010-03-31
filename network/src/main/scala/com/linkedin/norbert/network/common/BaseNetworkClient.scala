@@ -148,7 +148,11 @@ trait BaseNetworkClient extends Logging {
 
       if (!fromCluster) {
         log.ifDebug("Unregistering from ClusterClient")
-        clusterClient.removeListener(listenerKey)
+        try {
+          clusterClient.removeListener(listenerKey)
+        } catch {
+          case ex: ClusterShutdownException => // oh well, cluster is already shut down
+        }
       }
 
       log.ifDebug("Closing sockets")

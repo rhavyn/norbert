@@ -155,4 +155,9 @@ public interface ClusterClient {
    * the connection and will swallow any <code>InterruptedException</code>s thrown while waiting.
    */
   void awaitConnectionUninterruptibly();
+
+  /**
+   * Shuts down the cluster client.
+   */
+  void shutdown();
 }

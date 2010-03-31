@@ -21,6 +21,7 @@ import com.google.protobuf.Message;
 import com.linkedin.norbert.cluster.ClusterDisconnectedException;
 import com.linkedin.norbert.cluster.InvalidClusterException;
 import com.linkedin.norbert.network.NoNodesAvailableException;
+import com.linkedin.norbert.network.ResponseIterator;
 
 public interface PartitionedNetworkClient<PartitionedId> extends BaseNetworkClient {
   /**

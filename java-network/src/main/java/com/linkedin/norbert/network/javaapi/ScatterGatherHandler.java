@@ -17,6 +17,7 @@ package com.linkedin.norbert.network.javaapi;
 
 import com.google.protobuf.Message;
 import com.linkedin.norbert.cluster.Node;
+import com.linkedin.norbert.network.ResponseIterator;
 
 /**
  * A <code>ScatterGatherHandler</code> is used to customize an outgoing <code>Message</code> and to
