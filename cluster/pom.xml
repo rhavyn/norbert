@@ -13,7 +13,7 @@
     <artifactId>norbert</artifactId>
     <version>1.0-SNAPSHOT</version>
   </parent>
-  
+
   <dependencies>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -26,13 +26,11 @@
       <artifactId>log4j</artifactId>
       <version>1.2.14</version>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>zookeeper</artifactId>
-      <version>3.2.1</version>
-      <scope>system</scope>
-      <systemPath>${basedir}/lib/zookeeper-3.2.1.jar</systemPath>
+      <version>3.3.0</version>
     </dependency>
   </dependencies>
 </project>
