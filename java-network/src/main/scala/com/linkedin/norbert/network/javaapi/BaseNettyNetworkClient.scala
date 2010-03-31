@@ -46,8 +46,10 @@ abstract class BaseNettyNetworkClient extends BaseNetworkClient {
   }
 }
 
-class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory) extends BaseNettyNetworkClient with NetworkClient {
-  val underlying = com.linkedin.norbert.network.client.NetworkClient(convertConfig(config), new com.linkedin.norbert.network.client.loadbalancer.LoadBalancerFactory {
+class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory, server: NetworkServer) extends BaseNettyNetworkClient with NetworkClient {
+  def this(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory) = this(config, loadBalancerFactory, null)
+
+  val lbf = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancerFactory {
     def newLoadBalancer(nodes: Seq[Node]) = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancer {
       private val lb = loadBalancerFactory.newLoadBalancer(nodes.toArray)
 
@@ -56,26 +58,39 @@ class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadB
         case n => Some(n)
       }
     }
-  })
+  }
+
+  val underlying = if (server == null) {
+    com.linkedin.norbert.network.client.NetworkClient(convertConfig(config), lbf)
+  } else {
+    com.linkedin.norbert.network.client.NetworkClient(convertConfig(config), lbf, server.asInstanceOf[NettyNetworkServer].underlying)
+  }
 
   underlying.start
 
   def sendMessage(message: Message) = underlying.sendMessage(message)
 }
 
-class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]) extends BaseNettyNetworkClient
-    with PartitionedNetworkClient[PartitionedId] {
-  val underlying = com.linkedin.norbert.network.partitioned.PartitionedNetworkClient(convertConfig(config),
-    new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancerFactory[PartitionedId] {
-      def newLoadBalancer(nodes: Seq[Node]) = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancer[PartitionedId] {
-        private val lb = loadBalancerFactory.newLoadBalancer(nodes.toArray)
+class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId],
+    server: NetworkServer) extends BaseNettyNetworkClient with PartitionedNetworkClient[PartitionedId] {
+  def this(config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]) = this(config, loadBalancerFactory, null)
 
-        def nextNode(id: PartitionedId) = lb.nextNode(id) match {
-          case null => None
-          case n => Some(n)
-        }
+  val lbf = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancerFactory[PartitionedId] {
+    def newLoadBalancer(nodes: Seq[Node]) = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancer[PartitionedId] {
+      private val lb = loadBalancerFactory.newLoadBalancer(nodes.toArray)
+
+      def nextNode(id: PartitionedId) = lb.nextNode(id) match {
+        case null => None
+        case n => Some(n)
       }
-    })
+    }
+  }
+
+  val underlying = if (server == null) {
+    com.linkedin.norbert.network.partitioned.PartitionedNetworkClient(convertConfig(config), lbf)
+  } else {
+    com.linkedin.norbert.network.partitioned.PartitionedNetworkClient(convertConfig(config), lbf, server.asInstanceOf[NettyNetworkServer].underlying)
+  }
 
   underlying.start
 
