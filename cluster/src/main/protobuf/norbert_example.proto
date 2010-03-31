@@ -1,0 +1,13 @@
+package norbert.example;
+
+option optimize_for = SPEED;
+option java_package = "com.linkedin.norbert.protos";
+option java_outer_classname = "NorbertExampleProtos";
+
+message Ping {
+  required int64 timestamp = 1;
+}
+
+message PingResponse {
+  required int64 timestamp = 1;
+}

@@ -13,8 +13,9 @@
     <module>network</module>
     <module>java-cluster</module>
     <module>java-network</module>
+    <module>examples</module>
   </modules>
-  
+
   <dependencies>
     <dependency>
       <groupId>org.scala-lang</groupId>
@@ -78,7 +79,7 @@
       <name>JBoss Maven 2 Repository</name>
       <url>http://repository.jboss.com/maven2</url>
     </repository>
-    
+
     <repository>
       <id>scala-tools.org</id>
       <name>scala-tools Maven 2 Repository</name>

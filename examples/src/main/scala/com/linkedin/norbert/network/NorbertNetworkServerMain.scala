@@ -17,15 +17,15 @@ package com.linkedin.norbert.network
 
 import netty.{NetworkServerConfig, NettyNetworkServer}
 import org.jboss.netty.logging.{InternalLoggerFactory, Log4JLoggerFactory}
-import com.linkedin.norbert.protos.NorbertProtos
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.ClusterClient
+import com.linkedin.norbert.protos.NorbertExampleProtos
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
 
   def main(args: Array[String]) {
-    val cc = ClusterClient("nimbus", "localhost:2181", 30000)
+    val cc = ClusterClient(args(0), args(1), 30000)
     cc.start
     cc.awaitConnectionUninterruptibly
     cc.removeNode(1)
@@ -36,7 +36,7 @@ object NorbertNetworkServerMain {
 
     val ns = new NettyNetworkServer(config)
 
-    ns.registerHandler(NorbertProtos.Ping.getDefaultInstance, NorbertProtos.PingResponse.getDefaultInstance, pingHandler _)
+    ns.registerHandler(NorbertExampleProtos.Ping.getDefaultInstance, NorbertExampleProtos.PingResponse.getDefaultInstance, pingHandler _)
 
     ns.bind(1)
 
@@ -48,7 +48,7 @@ object NorbertNetworkServerMain {
   }
 
   private def pingHandler(message: Message): Message = {
-    val ping = message.asInstanceOf[NorbertProtos.Ping]
-    NorbertProtos.PingResponse.newBuilder.setTimestamp(ping.getTimestamp).build
+    val ping = message.asInstanceOf[NorbertExampleProtos.Ping]
+    NorbertExampleProtos.PingResponse.newBuilder.setTimestamp(ping.getTimestamp).build
   }
 }

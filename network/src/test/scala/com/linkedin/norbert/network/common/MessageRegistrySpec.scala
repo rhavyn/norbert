@@ -20,12 +20,12 @@ import java.lang.NullPointerException
 import org.specs.mock.Mockito
 import com.linkedin.norbert.network.InvalidMessageException
 import com.google.protobuf.Message
-import com.linkedin.norbert.protos.NorbertProtos
+import com.linkedin.norbert.protos.NorbertExampleProtos
 
 class MessageRegistrySpec extends SpecificationWithJUnit with Mockito {
   val messageRegistry = new MessageRegistry
 
-  val proto = NorbertProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build
+  val proto = NorbertExampleProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build
 
   "MessageRegistry" should {
     "throw a NullPointerException if requestMessage is null" in {

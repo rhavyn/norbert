@@ -19,14 +19,6 @@ message NorbertMessage {
   optional string error_message = 13;
 }
 
-message Ping {
-  required int64 timestamp = 1;
-}
-
-message PingResponse {
-  required int64 timestamp = 1;
-}
-
 message Node {
   required int32 id = 1;
   required string url = 2;

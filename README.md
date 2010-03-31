@@ -35,7 +35,7 @@ Number 1 is most commonly the case that an administrator has specified the node 
 
 ### Defining the cluster
 
-The easiest way to define a cluster is to use the `NorbertNetworkClientMain` command line program which can be found in the examples sub-directory.  At the prompt you can type
+The easiest way to define a cluster is to use the `NorbertClusterClientMain` command line program which can be found in the examples sub-directory.  At the prompt you can type
 
 * nodes - lists all the nodes in the cluster
 * join nodeId hostname port partitionId1 partitionId2 ... - adds a new node to the cluster with the given id, host, port and partitions ids

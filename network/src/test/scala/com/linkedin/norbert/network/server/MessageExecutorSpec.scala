@@ -18,14 +18,14 @@ package com.linkedin.norbert.network.server
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
-import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.network.InvalidMessageException
 import org.specs.util.WaitFor
+import com.linkedin.norbert.protos.NorbertExampleProtos
 
 class MessageExecutorSpec extends SpecificationWithJUnit with Mockito with WaitFor {
   val messageHandlerRegistry = mock[MessageHandlerRegistry]
   val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 1, 1, 1)
-  val message = NorbertProtos.Ping.getDefaultInstance
+  val message = NorbertExampleProtos.Ping.getDefaultInstance
   var handlerCalled = false
   var either: Either[Exception, Message] = null
   def handler(e: Either[Exception, Message]) {
@@ -40,7 +40,7 @@ class MessageExecutorSpec extends SpecificationWithJUnit with Mockito with WaitF
       messageExecutor.executeMessage(message, either => null)
 
       waitFor(1.ms)
-      
+
       messageHandlerRegistry.handlerFor(message) was called
     }
 

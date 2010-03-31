@@ -19,7 +19,7 @@ import com.google.protobuf.Message;
 import com.linkedin.norbert.cluster.Node;
 import com.linkedin.norbert.cluster.javaapi.ClusterClient;
 import com.linkedin.norbert.cluster.javaapi.ZooKeeperClusterClient;
-import com.linkedin.norbert.protos.NorbertProtos;
+import com.linkedin.norbert.protos.NorbertExampleProtos;
 import org.jboss.netty.logging.InternalLoggerFactory;
 import org.jboss.netty.logging.Log4JLoggerFactory;
 
@@ -32,18 +32,19 @@ public class NorbertJavaNetworkClientMain {
   public static void main(String[] args) {
     InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory());
 
-    ClusterClient cc = new ZooKeeperClusterClient("nimbus", "localhost:2181", 30000);
+    ClusterClient cc = new ZooKeeperClusterClient(args[0], args[1], 30000);
     NetworkClientConfig config = new NetworkClientConfig();
     config.setClusterClient(cc);
     NetworkClient nc = new NettyNetworkClient(config, new RoundRobinLoadBalancerFactory());
 //    PartitionedNetworkClient<Integer> nc = new NettyPartitionedNetworkClient<Integer>(config, new IntegerConsistentHashPartitionedLoadBalancerFactory());
-    nc.registerRequest(NorbertProtos.Ping.getDefaultInstance(), NorbertProtos.PingResponse.getDefaultInstance());
+    nc.registerRequest(NorbertExampleProtos.Ping.getDefaultInstance(), NorbertExampleProtos.PingResponse.getDefaultInstance());
 
     Node node = cc.getNodeWithId(1);
 
-    Future<Message> f = nc.sendMessageToNode(NorbertProtos.Ping.newBuilder().setTimestamp(System.currentTimeMillis()).build(), node);
+    Future<Message> f = nc.sendMessageToNode(NorbertExampleProtos.Ping.newBuilder().setTimestamp(System.currentTimeMillis()).build(), node);
     try {
-      f.get(750, TimeUnit.MILLISECONDS);
+      NorbertExampleProtos.PingResponse response = (NorbertExampleProtos.PingResponse) f.get(750, TimeUnit.MILLISECONDS);
+      System.out.println(String.format("Ping took %dms", System.currentTimeMillis() - response.getTimestamp()));
     } catch (InterruptedException e) {
       e.printStackTrace();
     } catch (ExecutionException e) {

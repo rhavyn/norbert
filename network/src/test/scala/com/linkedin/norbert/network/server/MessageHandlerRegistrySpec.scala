@@ -16,14 +16,14 @@
 package com.linkedin.norbert.network.server
 
 import org.specs.SpecificationWithJUnit
-import com.linkedin.norbert.protos.NorbertProtos
 import com.google.protobuf.Message
 import com.linkedin.norbert.network.InvalidMessageException
 import org.specs.mock.Mockito
+import com.linkedin.norbert.protos.NorbertExampleProtos
 
 class MessageHandlerRegistrySpec extends SpecificationWithJUnit with Mockito {
   val messageHandlerRegistry = new MessageHandlerRegistry
-  val proto = NorbertProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build
+  val proto = NorbertExampleProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build
   var handled: Message = _
   val handler = (message: Message) => {
     handled = message
@@ -50,7 +50,7 @@ class MessageHandlerRegistrySpec extends SpecificationWithJUnit with Mockito {
 
     "return true if the provided response is a valid response for the given request" in {
       messageHandlerRegistry.registerHandler(proto, proto, handler)
-      messageHandlerRegistry.validResponseFor(proto, NorbertProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build) must beTrue
+      messageHandlerRegistry.validResponseFor(proto, NorbertExampleProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build) must beTrue
     }
 
     "return false if the provided response is not a valid response for the given request" in {
