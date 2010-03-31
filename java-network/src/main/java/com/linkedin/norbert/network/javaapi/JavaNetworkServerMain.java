@@ -16,7 +16,6 @@
 package com.linkedin.norbert.network.javaapi;
 
 import com.google.protobuf.Message;
-import com.linkedin.norbert.cluster.javaapi.ConsistentHashRouterFactory;
 import com.linkedin.norbert.network.NetworkingException;
 import com.linkedin.norbert.protos.NorbertProtos;
 

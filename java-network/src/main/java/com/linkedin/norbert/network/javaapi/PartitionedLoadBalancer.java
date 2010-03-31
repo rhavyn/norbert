@@ -13,13 +13,21 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert
+package com.linkedin.norbert.network.javaapi;
+
+import com.linkedin.norbert.cluster.Node;
 
 /**
- * Base exception class from which all other Norbert exceptions inherit.
+ * A <code>PartitionedLoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to
+ * based on a PartitionedId.
  */
-class NorbertException(message: String, cause: Throwable) extends RuntimeException(message, cause) {
-  def this() = this(null, null)
-  def this(message: String) = this(message, null)
-  def this(cause: Throwable) = this(cause.getMessage, cause)
+public interface PartitionedLoadBalancer<PartitionedId> {
+  /**
+   * Returns the next <code>Node</code> a message should be routed to based on the PartitionId provided.
+   *
+   * @param id the id to be used to calculate partitioning information.
+   *
+   * @return the <code>Node</code> to route the next message to
+   */
+  Node nextNode(PartitionedId id);
 }

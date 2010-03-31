@@ -20,8 +20,6 @@ import java.util.concurrent.TimeUnit;
 import com.google.protobuf.Message;
 import com.linkedin.norbert.NorbertException;
 import com.linkedin.norbert.cluster.Node;
-import com.linkedin.norbert.cluster.javaapi.Cluster;
-import com.linkedin.norbert.cluster.javaapi.ConsistentHashRouterFactory;
 import com.linkedin.norbert.protos.NorbertProtos;
 
 public class JavaNetworkClientMain
@@ -34,7 +32,7 @@ public class JavaNetworkClientMain
     Message[] messages = { NorbertProtos.Ping.getDefaultInstance() };
 
     try {
-      ClientConfig config = new ClientConfig();
+      NetworkClientConfig config = new NetworkClientConfig();
       config.setClusterName(clusterName);
       config.setZooKeeperUrls(zookeeperUrls);
       config.setResponseMessages(messages);

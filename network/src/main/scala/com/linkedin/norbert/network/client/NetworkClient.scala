@@ -17,21 +17,21 @@ package com.linkedin.norbert.network.client
 
 import com.google.protobuf.Message
 import java.util.concurrent.Future
-import com.linkedin.norbert.network.NoNodesAvailableException
 import com.linkedin.norbert.network.netty.NettyNetworkClient
 import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
 import com.linkedin.norbert.network.common._
 import com.linkedin.norbert.cluster._
+import com.linkedin.norbert.network.{NetworkDefaults, NoNodesAvailableException}
 
 class NetworkClientConfig {
   var clusterClient: ClusterClient = _
   var serviceName: String = _
   var zooKeeperConnectString: String = _
-  var zooKeeperSessionTimeoutMillis = 30000
+  var zooKeeperSessionTimeoutMillis = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT_MILLIS
 
-  var connectTimeoutMillis = 1000
-  var writeTimeoutMillis = 100
-  var maxConnectionsPerNode = 5
+  var connectTimeoutMillis = NetworkDefaults.CONNECT_TIMEOUT_MILLIS
+  var writeTimeoutMillis = NetworkDefaults.WRITE_TIMEOUT_MILLIS
+  var maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
 }
 
 object NetworkClient {
@@ -56,12 +56,11 @@ trait NetworkClient extends BaseNetworkClient {
    *
    * @param message the message to send
    *
-   * @returns a future which will become available when a response to the message is received
+   * @return a future which will become available when a response to the message is received
    * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
    * @throws NoNodesAvailableException thrown if the <code>LoadBalancer</code> was unable to provide a <code>Node</code>
    * to send the request to
-   * @throws ClusterDisconnectedException thrown if the <code>NetworkClient</code> is not connected to the cluster
-   * @throws ClusterShutdownException thrown if the cluster has been shut down
+   * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def sendMessage(message: Message): Future[Message] = doIfConnected {
     if (message == null) throw new NullPointerException

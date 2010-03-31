@@ -18,7 +18,8 @@ package com.linkedin.norbert.network.partitioned.loadbalancer
 import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
 
 /**
- * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to.
+ * A <code>PartitionedLoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to
+ * based on a PartitionedId.
  */
 trait PartitionedLoadBalancer[PartitionedId] {
   /**

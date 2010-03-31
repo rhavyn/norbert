@@ -23,32 +23,37 @@ object NetworkDefaults {
   /**
    * The default maximum number of connections to be opened per node.
    */
-  val MAX_CONNECTIONS_PER_NODE = 20
+  val MAX_CONNECTIONS_PER_NODE = 5
+
+  /**
+   * The default number of milliseconds to wait when opening a socket.
+   */
+  val CONNECT_TIMEOUT_MILLIS = 1000
 
   /**
    * The default write timeout in milliseconds.
    */
-  val WRITE_TIMEOUT = 150
+  val WRITE_TIMEOUT_MILLIS = 150
 
   /**
    * The default frequency to clean up stale requests in minutes.
    */
-  val REQUEST_CLEANUP_FREQUENCY = 10
+  val REQUEST_CLEANUP_FREQUENCY_MINS = 10
 
   /**
-   * The default lenght of time to wait before considering a request to be stale in minutes.
+   * The default length of time to wait before considering a request to be stale in minutes.
    */
-  val REQUEST_TIMEOUT = 10
+  val REQUEST_TIMEOUT_MINS = 10
 
   /**
    * The default number of core request threads.
    */
-  val CORE_REQUEST_THREAD_POOL_SIZE = Runtime.getRuntime.availableProcessors * 2
+  val REQUEST_THREAD_CORE_POOL_SIZE = Runtime.getRuntime.availableProcessors * 2
 
   /**
    * The default max number of core request threads.
    */
-  val MAX_REQUEST_THREAD_POOL_SIZE = CORE_REQUEST_THREAD_POOL_SIZE * 5
+  val REQUEST_THREAD_MAX_POOL_SIZE = CORE_REQUEST_THREAD_POOL_SIZE * 5
 
   /**
    * The default request thread timeout in seconds.

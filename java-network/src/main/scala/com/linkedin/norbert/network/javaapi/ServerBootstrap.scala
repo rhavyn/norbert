@@ -26,7 +26,7 @@ import com.linkedin.norbert.network.{NetworkDefaults, DefaultNetworkServerCompon
 /**
  * JavaBean which provides configuration properties exposed by <code>ServerBootstrap</code>.
  */
-class ServerConfig extends ClientConfig {
+class ServerConfig extends NetworkClientConfig {
 
   /**
    * The <code>MessageHandler</code>s to use to process incoming requests.

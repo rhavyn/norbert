@@ -15,8 +15,8 @@
  */
 package com.linkedin.norbert.network
 
-import java.util.concurrent.TimeUnit
 import com.google.protobuf.Message
+import java.util.concurrent.{TimeoutException, ExecutionException, TimeUnit}
 
 /**
  * An iterator over the responses from a network request.
@@ -43,8 +43,8 @@ trait ResponseIterator {
    *
    * @return a response
    * @throws ExecutionException thrown if there was an error
-   * @throws TimeoutException thrown if a response wasn't available before the specified timeout
    */
+  @throws(classOf[ExecutionException])
   def next: Message
 
   /**
@@ -56,6 +56,10 @@ trait ResponseIterator {
    * @return a response
    * @throws ExecutionException thrown if there was an error
    * @throws TimeoutException thrown if a response wasn't available before the specified timeout
+   * @throws InterruptedException thrown if the thread was interrupted while waiting for the next response
    */
+  @throws(classOf[ExecutionException])
+  @throws(classOf[TimeoutException])
+  @throws(classOf[InterruptedException])
   def next(timeout: Long, unit: TimeUnit): Message
 }

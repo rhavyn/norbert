@@ -355,8 +355,8 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
           val response = try {
             block(zk)
           } catch {
-            case ex: KeeperException => Some(new InvalidNodeException("Error while %s".format(exceptionDescription), ex))
-            case ex: Exception => Some(new InvalidNodeException("Unexpected exception while %s".format(exceptionDescription), ex))
+            case ex: KeeperException => Some(new ClusterException("Error while %s".format(exceptionDescription), ex))
+            case ex: Exception => Some(new ClusterException("Unexpected exception while %s".format(exceptionDescription), ex))
           }
 
           reply(ClusterManagerResponse(response))

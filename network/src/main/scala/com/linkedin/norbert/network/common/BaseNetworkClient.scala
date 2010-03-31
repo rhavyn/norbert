@@ -76,10 +76,9 @@ trait BaseNetworkClient extends Logging {
    * @param message the message to send
    * @param node the node to send the message to
    *
-   * @returns a future which will become available when a response to the message is received
+   * @return a future which will become available when a response to the message is received
    * @throws InvalidNodeException thrown if the node specified is not currently available
-   * @throws ClusterDisconnectedException thrown if the <code>NetworkClient</code> is not connected to the cluster
-   * @throws ClusterShutdownException thrown if the cluster has been shut down
+   * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def sendMessageToNode(message: Message, node: Node): Future[Message] = doIfConnected {
     if (message == null || node == null) throw new NullPointerException
@@ -97,10 +96,11 @@ trait BaseNetworkClient extends Logging {
   /**
    * Broadcasts a message to all the currently available nodes in the cluster.
    *
-   * @returns a <code>ResponseIterator</code> which will provide the responses from the nodes in the cluster
+   * @param message the message to send
+   *
+   * @return a <code>ResponseIterator</code> which will provide the responses from the nodes in the cluster
    * as they are received
-   * @throws ClusterDisconnectedException thrown if the <code>NetworkClient</code> is not connected to the cluster
-   * @throws ClusterShutdownException thrown if the cluster has been shut down
+   * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def broadcastMessage(message: Message): ResponseIterator = doIfConnected {
     if (message == null) throw new NullPointerException
@@ -114,6 +114,9 @@ trait BaseNetworkClient extends Logging {
     it
   }
 
+  /**
+   * Shuts down the <code>NetworkClient</code> and releases resources held.
+   */
   def shutdown: Unit = doShutdown(false)
 
   protected def updateLoadBalancer(nodes: Seq[Node]): Unit

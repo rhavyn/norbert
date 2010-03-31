@@ -13,27 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client.loadbalancer
+package com.linkedin.norbert.network.javaapi;
 
-import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
-
-/**
- * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to.
- */
-trait LoadBalancer {
-  /**
-   * Returns the next <code>Node</code> a message should be routed to.
-   *
-   * @return the <code>Some(node)</code> to route the next message to or <code>None</code> if there are no <code>Node</code>s
-   * available
-   */
-  def nextNode: Option[Node]
-}
+import com.linkedin.norbert.cluster.InvalidClusterException;
+import com.linkedin.norbert.cluster.Node;
 
 /**
  * A factory which can generate <code>LoadBalancer</code>s.
  */
-trait LoadBalancerFactory {
+public interface LoadBalancerFactory {
   /**
    * Create a new load balancer instance based on the currently available <code>Node</code>s.
    *
@@ -43,14 +31,5 @@ trait LoadBalancerFactory {
    * @throws InvalidClusterException thrown to indicate that the current cluster topology is invalid in some way and
    * it is impossible to create a <code>LoadBalancer</code>
    */
-  @throws(classOf[InvalidClusterException])
-  def newLoadBalancer(nodes: Seq[Node]): LoadBalancer
-}
-
-/**
- * A component which provides a <code>LoadBalancerFactory</code>.
- */
-trait LoadBalancerFactoryComponent {
-  val loadBalancerFactory: LoadBalancerFactory
-
+  LoadBalancer newLoadBalancer(Node[] nodes) throws InvalidClusterException;
 }

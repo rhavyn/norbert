@@ -15,25 +15,23 @@
  */
 package com.linkedin.norbert.cluster.javaapi;
 
-import com.linkedin.norbert.cluster.ClusterException;
 import com.linkedin.norbert.cluster.Node;
 
-public class JavaNorbertClusterMain {
-  public static void main(String[] args) {
-    try {
-      ClusterConfig config = new ClusterConfig();
-      config.setClusterName(args[0]);
-      config.setZooKeeperUrls(args[1]);
+public class ClusterListenerAdapter implements ClusterListener {
 
-      ClusterBootstrap bootstrap = new ClusterBootstrap(config);
-      Cluster cluster = bootstrap.getCluster();
-      cluster.awaitConnectionUninterruptibly();
-      for (Node node : cluster.getNodes()) {
-        System.out.println(node);
-      }
-      cluster.shutdown();
-    } catch (ClusterException ex) {
-      System.out.println("Caught exception: " + ex);
-    }
+  public void handleClusterConnected(Node[] nodes) {
+    // do nothing
+  }
+
+  public void handleClusterNodesChanged(Node[] nodes) {
+    // do nothing
+  }
+
+  public void handleClusterDisconnected() {
+    // do nothing
+  }
+
+  public void handleClusterShutdown() {
+    // do nothing
   }
 }

@@ -13,13 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert
+package com.linkedin.norbert.cluster.javaapi
 
-/**
- * Base exception class from which all other Norbert exceptions inherit.
- */
-class NorbertException(message: String, cause: Throwable) extends RuntimeException(message, cause) {
-  def this() = this(null, null)
-  def this(message: String) = this(message, null)
-  def this(cause: Throwable) = this(cause.getMessage, cause)
+class ZooKeeperClusterClient(serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends BaseClusterClient {
+  val underlying = com.linkedin.norbert.cluster.ClusterClient(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+  underlying.start
 }

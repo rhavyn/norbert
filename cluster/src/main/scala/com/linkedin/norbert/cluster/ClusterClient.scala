@@ -44,8 +44,6 @@ trait ClusterClient extends Logging {
 
   /**
    * Starts the cluster.  This method must be called before calling any other methods on the cluster.
-   *
-   * @throws ClusterShutdownException thrown if the cluster is shut down when the method is called
    */
   def start: Unit = {
     if (shutdownSwitch.get) throw new ClusterShutdownException
@@ -86,9 +84,7 @@ trait ClusterClient extends Logging {
    * Retrieves the current list of nodes registered with the cluster.
    *
    * @return the current list of nodes
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
-   * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
    */
   def nodes: Seq[Node] = doIfConnected {
     clusterNotificationManager !? ClusterNotificationMessages.GetCurrentNodes match {
@@ -99,10 +95,10 @@ trait ClusterClient extends Logging {
   /**
    * Looks up the node with the specified id.
    *
+   * @param nodeId the id of the node to find
+   *
    * @return <code>Some</code> with the node if found, otherwise <code>None</code>
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
-   * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
    */
   def nodeWithId(nodeId: Int): Option[Node] = nodeWith(_.id == nodeId)
 
@@ -110,10 +106,9 @@ trait ClusterClient extends Logging {
    * Adds a node to the cluster metadata.
    *
    * @param nodeId the id of the node to add
-   * @param address the address to be used to send requests to the node
+   * @param url the url to be used to send requests to the node
    *
    * @return the newly added node
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    * @throws InvalidNodeException thrown if there is an error adding the new node to the cluster metadata
    */
@@ -123,11 +118,10 @@ trait ClusterClient extends Logging {
    * Adds a node to the cluster metadata.
    *
    * @param nodeId the id of the node to add
-   * @param address the address to be used to send requests to the node
+   * @param url the url to be used to send requests to the node
    * @param partitions the partitions for which the node can process requests
    *
    * @return the newly added node
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    * @throws InvalidNodeException thrown if there is an error adding the new node to the cluster metadata
    */
@@ -146,9 +140,7 @@ trait ClusterClient extends Logging {
    *
    * @param nodeId the id of the node to remove
    *
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
-   * @throws InvalidNodeException thrown if there is an error removing the new node from the cluster metadata
    */
   def removeNode(nodeId: Int): Unit = handleClusterManagerResponse {
     clusterManager !? ClusterManagerMessages.RemoveNode(nodeId)
@@ -159,7 +151,6 @@ trait ClusterClient extends Logging {
    *
    * @param nodeId the id of the node to mark available
    *
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    */
   def markNodeAvailable(nodeId: Int): Unit = handleClusterManagerResponse {
@@ -171,7 +162,6 @@ trait ClusterClient extends Logging {
    *
    * @param nodeId the id of the node to mark unavailable
    *
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    */
   def markNodeUnavailable(nodeId: Int): Unit = handleClusterManagerResponse {
@@ -182,9 +172,6 @@ trait ClusterClient extends Logging {
    * Registers a <code>ClusterListener</code> with the <code>ClusterClient</code> to receive cluster events.
    *
    * @param listener the listener instance to register
-   *
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
-   * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
    */
   def addListener(listener: ClusterListener): ClusterListenerKey = doIfNotShutdown {
     if (listener == null) throw new NullPointerException
@@ -210,8 +197,7 @@ trait ClusterClient extends Logging {
    * @param key the key what was returned by <code>addListener</code> when the <code>ClusterListener</code> was
    * registered
    *
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
-   * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
+   * @return a <code>ClusterListenerKey</code> that can be used to unregister the listener
    */
   def removeListener(key: ClusterListenerKey): Unit = doIfNotShutdown {
     if (key == null) throw new NullPointerException
@@ -239,7 +225,6 @@ trait ClusterClient extends Logging {
    * Queries whether or not a connection to the cluster is established.
    *
    * @return true if connected, false otherwise
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
    */
   def isConnected: Boolean = doIfStarted { !isShutdown && connectedLatch.getCount == 0 }
 
@@ -256,17 +241,23 @@ trait ClusterClient extends Logging {
    * the connection.
    *
    * @throws InterruptedException thrown if the current thread is interrupted while waiting
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
-   * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
    */
   def awaitConnection: Unit = doIfNotShutdown(connectedLatch.await)
 
   /**
+   * Waits for the connection to the cluster to be established for the specified duration of time.
+   *
+   * @param timeout how long to wait before giving up, in terms of <code>unit</code>
+   * @param unit the <code>TimeUnit</code> that <code>timeout</code> should be interpreted in
+   *
+   * @return true if the connection was established before the timeout, false if the timeout occurred
+   * @throws InterruptedException thrown if the current thread is interrupted while waiting
+   */
+  def awaitConnection(timeout: Long, unit: TimeUnit): Boolean = doIfNotShutdown(connectedLatch.await(timeout, unit))
+
+  /**
    * Waits for the connection to the cluster to be established. This method will wait indefinitely for
    * the connection and will swallow any <code>InterruptedException</code>s thrown while waiting.
-   *
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
-   * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
    */
   def awaitConnectionUninterruptibly: Unit = doIfNotShutdown {
     var completed = false
@@ -280,18 +271,6 @@ trait ClusterClient extends Logging {
       }
     }
   }
-
-  /**
-   * Waits for the connection to the cluster to be established for the specified duration of time.
-   *
-   * @param timeout how long to wait before giving up, in terms of <code>unit</code>
-   * @param unit the <code>TimeUnit</code> that <code>timeout</code> should be interpreted in
-   *
-   * @return true if the connection was established before the timeout, false if the timeout occurred
-   * @throws ClusterNotStartedException thrown if the cluster has not been started with the method is called
-   * @throws ClusterShutdownException thrown if the cluster is shutdown when the method is called
-   */
-  def awaitConnection(timeout: Long, unit: TimeUnit): Boolean = doIfNotShutdown(connectedLatch.await(timeout, unit))
 
   private def doIfStarted[T](block: => T): T = if (startedSwitch.get) block else throw new ClusterNotStartedException
 

@@ -13,13 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert
+package com.linkedin.norbert.network.javaapi;
+
+import com.linkedin.norbert.cluster.Node;
 
 /**
- * Base exception class from which all other Norbert exceptions inherit.
+ * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to.
  */
-class NorbertException(message: String, cause: Throwable) extends RuntimeException(message, cause) {
-  def this() = this(null, null)
-  def this(message: String) = this(message, null)
-  def this(cause: Throwable) = this(cause.getMessage, cause)
+public interface LoadBalancer {
+  /**
+   * Returns the next <code>Node</code> a message should be routed to.
+   *
+   * @return the <code>Node</code> to route the next message to or null if there are no <code>Node</code>s available
+   */
+  Node nextNode();
 }
