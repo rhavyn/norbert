@@ -27,7 +27,7 @@ object NetworkServer {
 }
 
 trait NetworkServer extends Logging {
-  this: ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent =>
+  this: ClusterClientComponent with ClusterIoServerComponent with MessageExecutorComponent with MessageHandlerRegistryComponent =>
 
   @volatile private var markAvailableWhenConnected = true
   private var listenerKey: ClusterListenerKey = _

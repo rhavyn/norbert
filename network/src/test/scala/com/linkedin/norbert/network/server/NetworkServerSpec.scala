@@ -22,10 +22,12 @@ import com.linkedin.norbert.network.{NetworkServerNotBoundException, NetworkShut
 import com.google.protobuf.Message
 
 class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
-  val networkServer = new NetworkServer with ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent {
+  val networkServer = new NetworkServer with ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent
+      with MessageExecutorComponent {
     val clusterIoServer = mock[ClusterIoServer]
     val clusterClient = mock[ClusterClient]
     val messageHandlerRegistry = mock[MessageHandlerRegistry]
+    val messageExecutor = null
   }
 
   val node = Node(1, "", false)
@@ -179,7 +181,7 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
       networkServer.bind(1)
       listener.handleClusterEvent(ClusterEvents.Shutdown)
-      
+
       networkServer.clusterIoServer.shutdown was called
       networkServer.clusterClient.markNodeUnavailable(1) wasnt called
       networkServer.clusterClient.removeListener(listenerKey) wasnt called

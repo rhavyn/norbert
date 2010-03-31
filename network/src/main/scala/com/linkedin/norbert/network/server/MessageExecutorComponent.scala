@@ -25,7 +25,7 @@ import com.linkedin.norbert.util.NamedPoolThreadFactory
  * A component which submits incoming messages to their associated message handler.
  */
 trait MessageExecutorComponent {
-  def messageExecutor: MessageExecutor
+  val messageExecutor: MessageExecutor
 }
 
 trait MessageExecutor {

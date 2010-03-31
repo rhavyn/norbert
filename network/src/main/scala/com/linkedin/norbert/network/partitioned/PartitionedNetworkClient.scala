@@ -23,6 +23,7 @@ import com.linkedin.norbert.network.netty.NettyPartitionedNetworkClient
 import com.linkedin.norbert.cluster.{ClusterDisconnectedException, InvalidClusterException, ClusterClientComponent, Node}
 import com.linkedin.norbert.network.{NoNodesAvailableException, ResponseIterator}
 import com.linkedin.norbert.network.common._
+import com.linkedin.norbert.network.server.{MessageExecutorComponent, NetworkServer}
 
 object PartitionedNetworkClient {
   def apply[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]): PartitionedNetworkClient[PartitionedId] = {
@@ -30,6 +31,17 @@ object PartitionedNetworkClient {
     nc.start
     nc
   }
+
+  def apply[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId],
+      server: NetworkServer): PartitionedNetworkClient[PartitionedId] = {
+    val nc = new NettyPartitionedNetworkClient(config, loadBalancerFactory) with LocalMessageExecution with MessageExecutorComponent {
+      val messageExecutor = server.asInstanceOf[MessageExecutorComponent].messageExecutor
+      val myNode = server.myNode
+    }
+    nc.start
+    nc
+  }
+
 }
 
 /**

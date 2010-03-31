@@ -22,6 +22,7 @@ import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryCompo
 import com.linkedin.norbert.network.common._
 import com.linkedin.norbert.cluster._
 import com.linkedin.norbert.network.{NetworkDefaults, NoNodesAvailableException}
+import com.linkedin.norbert.network.server.{MessageExecutorComponent, NetworkServer}
 
 class NetworkClientConfig {
   var clusterClient: ClusterClient = _
@@ -39,6 +40,15 @@ class NetworkClientConfig {
 object NetworkClient {
   def apply(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory): NetworkClient = {
     val nc = new NettyNetworkClient(config, loadBalancerFactory)
+    nc.start
+    nc
+  }
+
+  def apply(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory, server: NetworkServer): NetworkClient = {
+    val nc = new NettyNetworkClient(config, loadBalancerFactory) with LocalMessageExecution with MessageExecutorComponent {
+      val messageExecutor = server.asInstanceOf[MessageExecutorComponent].messageExecutor
+      val myNode = server.myNode
+    }
     nc.start
     nc
   }

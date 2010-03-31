@@ -25,8 +25,8 @@ import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, Length
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
 import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel.group.DefaultChannelGroup
-import com.linkedin.norbert.network.server.{NetworkServer, MessageHandlerRegistry, ThreadPoolMessageExecutor, MessageHandlerRegistryComponent}
 import com.linkedin.norbert.network.NetworkDefaults
+import com.linkedin.norbert.network.server._
 
 class NetworkServerConfig {
   var clusterClient: ClusterClient = _
@@ -39,7 +39,8 @@ class NetworkServerConfig {
   var requestThreadKeepAliveTimeSecs = NetworkDefaults.REQUEST_THREAD_KEEP_ALIVE_TIME_SECS
 }
 
-class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent with MessageHandlerRegistryComponent {
+class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent
+    with MessageHandlerRegistryComponent with MessageExecutorComponent {
   val clusterClient = if (serverConfig.clusterClient != null) serverConfig.clusterClient else ClusterClient(serverConfig.serviceName, serverConfig.zooKeeperConnectString,
     serverConfig.zooKeeperSessionTimeoutMillis)
 

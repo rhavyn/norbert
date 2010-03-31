@@ -92,6 +92,8 @@ Norbert provides two ways to interact with the cluster.
 
 ### Configuration parameters
 
-* serviceName - the name of the service that runs on the cluster. This name will be used as the name of a ZooKeeper ZNode and so should be valid for that use
-* zooKeeperUrls - the connection string passed to ZooKeeper
-* zooKeeperSessionTimeout - the session timeout passed to ZooKeeper
+Both the Scala and Java `ClusterClient`s take three parameters:
+
+1. serviceName - the name of the service that runs on the cluster. This name will be used as the name of a ZooKeeper ZNode and so should be valid for that use
+2. zooKeeperUrls - the connection string passed to ZooKeeper
+3. zooKeeperSessionTimeout - the session timeout passed to ZooKeeper
