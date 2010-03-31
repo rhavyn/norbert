@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.network.common
 
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster._
 import java.util.concurrent.atomic.AtomicBoolean

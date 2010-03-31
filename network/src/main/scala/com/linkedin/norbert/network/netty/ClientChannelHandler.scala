@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.network.netty
 
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import com.linkedin.norbert.protos.NorbertProtos

@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.util
+package com.linkedin.norbert.logging
 
 import org.apache.log4j.{Level, Logger => l4jLogger}
 import Level._

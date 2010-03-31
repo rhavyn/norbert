@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.group.{ChannelGroup, DefaultChannelGroup}
 import org.jboss.netty.channel.{ChannelFutureListener, ChannelFuture, Channel}
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import java.util.concurrent.{TimeoutException, ArrayBlockingQueue, LinkedBlockingQueue}
 import java.net.InetSocketAddress
 

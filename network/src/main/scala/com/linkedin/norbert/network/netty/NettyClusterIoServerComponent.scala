@@ -21,7 +21,7 @@ import org.jboss.netty.bootstrap.ServerBootstrap
 import java.net.InetSocketAddress
 import org.jboss.netty.channel.{ChannelException, Channel}
 import com.linkedin.norbert.network.NetworkingException
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import org.jboss.netty.channel.group.ChannelGroup
 
 trait NettyClusterIoServerComponent extends ClusterIoServerComponent {

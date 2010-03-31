@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.cluster
 
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import actors.Actor
 
 trait ClusterNotificationManagerComponent {

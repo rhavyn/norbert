@@ -17,8 +17,9 @@ package com.linkedin.norbert.network.server
 
 import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
-import com.linkedin.norbert.util.{NamedPoolThreadFactory, Logging}
+import com.linkedin.norbert.logging.Logging
 import com.linkedin.norbert.network.InvalidMessageException
+import com.linkedin.norbert.util.NamedPoolThreadFactory
 
 /**
  * A component which submits incoming messages to their associated message handler.

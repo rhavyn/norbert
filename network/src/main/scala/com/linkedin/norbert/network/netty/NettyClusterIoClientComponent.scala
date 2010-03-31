@@ -19,7 +19,7 @@ import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.Node
 import java.net.InetSocketAddress
 import java.util.concurrent.{ConcurrentHashMap}
-import com.linkedin.norbert.util.{Logging}
+import com.linkedin.norbert.logging.Logging
 import com.linkedin.norbert.network.common.{MessageRegistryComponent, ClusterIoClientComponent}
 import org.jboss.netty.channel.{Channels, ChannelFactory, ChannelPipelineFactory}
 
@@ -60,7 +60,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
       }
 
       channelPoolFactory.shutdown
-      
+
       log.ifDebug("NettyClusterIoClient shut down")
     }
   }

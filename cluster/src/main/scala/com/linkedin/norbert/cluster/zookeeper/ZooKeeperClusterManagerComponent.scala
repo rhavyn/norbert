@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.cluster.zookeeper
 
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import actors.Actor
 import Actor._
 import java.io.IOException

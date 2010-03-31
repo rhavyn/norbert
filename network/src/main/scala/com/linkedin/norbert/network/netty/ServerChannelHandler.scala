@@ -16,7 +16,7 @@
 package com.linkedin.norbert.network.netty
 
 import org.jboss.netty.channel.group.ChannelGroup
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.network.InvalidMessageException
 import org.jboss.netty.channel._

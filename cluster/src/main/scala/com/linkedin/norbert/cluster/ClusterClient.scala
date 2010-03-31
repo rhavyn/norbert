@@ -18,8 +18,10 @@ package com.linkedin.norbert.cluster
 import actors.Actor._
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import zookeeper.ZooKeeperClusterClient
+import com.linkedin.norbert.jmx.JMX
+import com.linkedin.norbert.jmx.JMX.MBean
 
 /**
  * ClusterClient companion object provides factory methods for creating a <code>ClusterClient</code> instance.
@@ -41,6 +43,11 @@ trait ClusterClient extends Logging {
   @volatile private var connectedLatch = new CountDownLatch(1)
   private val shutdownSwitch = new AtomicBoolean
   private val startedSwitch = new AtomicBoolean
+
+  JMX.register(new MBean(classOf[ClusterClientMBean]) with ClusterClientMBean {
+    def getServiceName = serviceName
+    def getNodes = nodes.map(_.toString).toArray
+  })
 
   /**
    * Starts the cluster.  This method must be called before calling any other methods on the cluster.
@@ -287,4 +294,9 @@ trait ClusterClient extends Logging {
   }
 
   private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).firstOption)
+}
+
+trait ClusterClientMBean {
+  def getServiceName: String
+  def getNodes: Array[String]
 }

@@ -17,7 +17,7 @@ package com.linkedin.norbert.network.server
 
 import com.linkedin.norbert.cluster._
 import java.util.concurrent.atomic.AtomicBoolean
-import com.linkedin.norbert.util.Logging
+import com.linkedin.norbert.logging.Logging
 import com.linkedin.norbert.network.{NetworkShutdownException, NetworkingException, NetworkServerNotBoundException}
 import com.google.protobuf.Message
 import com.linkedin.norbert.network.netty.{NettyNetworkServer, NetworkServerConfig}
