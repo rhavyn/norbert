@@ -22,6 +22,8 @@ import org.jboss.netty.channel.{ChannelFutureListener, ChannelFuture, Channel}
 import com.linkedin.norbert.logging.Logging
 import java.util.concurrent.{TimeoutException, ArrayBlockingQueue, LinkedBlockingQueue}
 import java.net.InetSocketAddress
+import com.linkedin.norbert.jmx.JMX
+import com.linkedin.norbert.jmx.JMX.MBean
 
 class ChannelPoolClosedException extends Exception
 
@@ -40,6 +42,15 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
   private val waitingWrites = new LinkedBlockingQueue[Request]
   private val poolSize = new AtomicInteger(0)
   private val closed = new AtomicBoolean
+  private val requestsSent = new AtomicInteger(0)
+
+  JMX.register(new MBean(classOf[ChannelPoolMBean], "address=%s,port=%d".format(address.getHostName, address.getPort)) with ChannelPoolMBean {
+    def getWriteQueueSize = waitingWrites.size
+
+    def getOpenChannels = poolSize.get
+
+    def getNumberRequestsSent = requestsSent.get
+  })
 
   def sendRequest(request: Request): Unit = if (closed.get) {
     throw new ChannelPoolClosedException
@@ -120,10 +131,17 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
 
   private def writeRequestToChannel(request: Request, channel: Channel) {
     log.ifDebug("Writing to %s: %s", channel, request)
+    requestsSent.incrementAndGet
     channel.write(request).addListener(new ChannelFutureListener {
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
         request.responseCallback(Left(writeFuture.getCause))
       }
     })
   }
+}
+
+trait ChannelPoolMBean {
+  def getOpenChannels: Int
+  def getWriteQueueSize: Int
+  def getNumberRequestsSent: Int
 }
