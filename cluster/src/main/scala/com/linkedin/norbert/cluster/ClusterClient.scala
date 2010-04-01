@@ -44,9 +44,9 @@ trait ClusterClient extends Logging {
   private val shutdownSwitch = new AtomicBoolean
   private val startedSwitch = new AtomicBoolean
 
-  JMX.register(new MBean(classOf[ClusterClientMBean]) with ClusterClientMBean {
-    def getServiceName = serviceName
+  JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
     def getNodes = nodes.map(_.toString).toArray
+    def isConnected = ClusterClient.this.isConnected
   })
 
   /**
@@ -297,6 +297,6 @@ trait ClusterClient extends Logging {
 }
 
 trait ClusterClientMBean {
-  def getServiceName: String
   def getNodes: Array[String]
+  def isConnected: Boolean
 }

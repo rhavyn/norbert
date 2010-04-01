@@ -17,29 +17,28 @@ package com.linkedin.norbert.jmx
 
 import management.ManagementFactory
 import com.linkedin.norbert.logging.Logging
-import javax.management.{ObjectInstance, ObjectName, StandardMBean}
+import javax.management.{ObjectName, StandardMBean}
 
 object JMX extends Logging {
   private val mbeanServer = ManagementFactory.getPlatformMBeanServer
 
-  def register(bean: AnyRef, name: String): ObjectInstance = mbeanServer.registerMBean(bean, new ObjectName(name))
-
-  def register(mbean: MBean): ObjectInstance = {
-    try {
-      register(mbean, mbean.name)
-    } catch {
-      case ex: Exception =>
-        log.error(ex, "Error when registering mbean: %s".format(mbean))
-        null
-    }
+  def register(mbean: AnyRef, name: String): Unit = try {
+    mbeanServer.registerMBean(mbean, new ObjectName(name))
+  } catch {
+    case ex: Exception => log.error(ex, "Error when registering mbean: %s".format(mbean))
   }
 
-  class MBean(val klass: Class[_]) extends StandardMBean(klass) {
+  def register(mbean: MBean): Unit = register(mbean, mbean.name)
+
+  class MBean(klass: Class[_], namePropeties: String) extends StandardMBean(klass) {
+    def this(klass: Class[_]) = this(klass, null)
+
     def name: String = {
       val simpleName = klass.getSimpleName
       val mbeanIndex = simpleName.lastIndexOf("MBean")
 
-      "norbert:name=%s".format(if (mbeanIndex == -1) simpleName else simpleName.substring(0, mbeanIndex))
+      val base = "com.linkedin.norbert:type=%s".format(if (mbeanIndex == -1) simpleName else simpleName.substring(0, mbeanIndex))
+      if (namePropeties != null) "%s,%s".format(base, namePropeties) else base
     }
   }
 }
