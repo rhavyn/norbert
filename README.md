@@ -95,5 +95,177 @@ Norbert provides two ways to interact with the cluster.
 Both the Scala and Java `ClusterClient`s take three parameters:
 
 1. serviceName - the name of the service that runs on the cluster. This name will be used as the name of a ZooKeeper ZNode and so should be valid for that use
-2. zooKeeperUrls - the connection string passed to ZooKeeper
-3. zooKeeperSessionTimeout - the session timeout passed to ZooKeeper
+2. zooKeeperConnectString - the connection string passed to ZooKeeper
+3. zooKeeperSessionTimeoutMillis - the session timeout passed to ZooKeeper in milliseconds
+
+Using Norbert for client/server communication
+---------------------------------------------
+
+In addition to the cluster management, Norbert provides an API for building cluster aware client/server applications.
+
+### Defining the API
+
+Norbert's client/server library uses message passing semantics and, specifically, Protocol Buffers to encode those messages.  To use Norbert's client/server library, you will need to define the Protocol Buffers you will use as requests, and the associated Protocol Buffers that will be received as responses to those requests.
+
+### Load Balancers
+
+Norbert uses a software load balancer mechanism to route a request from a client to a server. Both partitioned and unpartitioned clusters are supported.
+ 
+If you are building a service which will use an unpartitioned cluster, you must provide your `NetworkClient` instance with a `LoadBalancerFactory`. The `LoadBalancerFactory` is used to create `LoadBalancer` instance that will be used to route requests.  A round robin load balancer factory is provided. 
+
+If you are building a partitioned cluster then you will want to use the `PartitionedNetworkClient` and a `PartitionedLoadBalancerFactory`. These are generic classes that have a PartitionedId type parameter. PartitionedId is the type of the id that you use to partition your cluster (e.g. a member id). A consistent hash load balancer factory is provided.
+
+### Writing a network server - the Scala version
+
+    object NorbertNetworkServer {
+      def main(args: Array[String]) {
+        val config = new NetworkServerConfig (1)
+        config.serviceName = "norbert"
+        config.zooKeeperConnectString = "localhost:2181"
+        config.zooKeeperSessionTimeoutMillis = 30000
+        config.requestThreadCorePoolSize = 5
+        config.requestThreadMaxPoolSize = 10
+        config.requestThreadKeepAliveTimeSecs = 300
+        
+        val server = NetworkServer(config) (2)
+        server.registerHandler(MyRequestMessage.getDefaultInstance, MyResponseMessage.getDefaultInstance, messageHandler _) (3)
+        server.bind(nodeId) (4)
+      }
+      
+      private def messageHandler(message: Message): Message = {
+        // application logic which returns a MyResponseMessage
+      }
+    }
+
+1. A `NetworkServerConfig` contains the configuration data for a `NetworkServer`.
+2. The `NetworkServer` companion object provides an easy to instantiate a new `NetworkServer` instance.
+3. The request message, response message and the handler to call when a request message is received must be registered before using the `NetworkServer`. A single `NetworkServer` instance can handle multiple request/response/handlers.
+4. Finally you bind the `NetworkServer` to the network by providing the id of the `Node` this server handles requests for. Bind will create a socket, bind it to the port specified in the `Node`'s url and mark the `Node` available in the cluster.  After this call the `NetworkServer` can begin to receive requests.
+
+### Writing a network server - the Java version
+
+    public class NorbertNetworkServer {
+      public static void main(String[] args) {
+        NetworkServerConfig config = new NetworkServerConfig();
+        config.setServiceName("norbert");
+        config.setZooKeeperConnectString("localhost:2181");
+        config.setZooKeeperSessionTimeoutMillis(30000);
+        config.setRequestThreadCorePoolSize(5);
+        config.setRequestThreadMaxPoolSize(10);
+        config.setRequestThreadKeepAliveTimeSecs(300);
+        
+        NetworkServer ns = new NettyNetworkServer(config);
+        ns.registerHandler(MyRequestMessage.getDefaultInstance(), MyResponseMessage.getDefaultInstance(), new MessageHandler());
+        ns.bind(nodeId);
+      }
+    }
+
+1. A `NetworkServerConfig` contains the configuration data for a `NetworkServer`.
+2. `NettyNetworkServer` is currently the only implementation of `NetworkServer`.
+3. The request message, response message and the handler to call when a request message is received must be registered before using the `NetworkServer`. A single `NetworkServer` instance can handle multiple request/response/handlers.
+4. Finally you bind the `NetworkServer` to the network by providing the id of the `Node` this server handles requests for. Bind will create a socket, bind it to the port specified in the `Node`'s url and mark the `Node` available in the cluster.  After this call the `NetworkServer` can begin to receive requests.
+
+### Server configuration Parameters
+
+* serverName - the name of the service that runs on the cluster
+* zooKeeperConnectString - the connection string passed to ZooKeeper
+* zooKeeperSessionTimeoutMillis - the session timeout passed to ZooKeeper in milliseconds
+* clusterClient - as an alternative the the prior configuration parameters, you can create a `ClusterClient` instance yourself and have the `NetworkServer` use that instance by setting this field
+* requestThreadCorePoolSize - the core size of the thread pool used to execute requests
+* requestThreadMaxPoolSize - the maximum size of the thread pool used to execute requests
+* requestThreadKeepAliveTimeSecs - the length of time in seconds to keep an idle request thread alive
+
+### Writing the client code - the Scala version
+
+    object NorbertNetworkClient {
+      def main(args: Array[String]) {
+        val config = new NetworkClientConfig (1)
+        config.serviceName = "norbert"
+        config.zooKeeperConnectString = "localhost:2181"
+        config.zooKeeperSessionTimeoutMillis = 30000
+        config.connectTimeoutMillis = 1000
+        config.writeTimeoutMillis = 150
+        config.maxConnectionsPerNode = 5
+        config.staleRequestTimeoutMins = 10
+        config.staleRequestCleanupFrequenceMins = 10
+    
+        val nc = NetworkClient(config, new RoundRobinLoadBalancerFactory) (2)
+        OR
+        val nc = PartitionedNetworkClient(config, new IntegerConsistentHashPartitionedLoadBalancerFactory)
+        
+        nc.registerRequest(MyRequestMessage.getDefaultInstance(), MyResponseMessage.getDefaultInstance()) (3)
+    
+        val f = nc.sendMessage(myRequestMessageInstance) (4)
+        OR
+        val f = nc.sendMessage(1210, myRequestMessageInstance)
+    
+        try {
+          val response = f.get(500, TimeUnit.MILLISECONDS).asInstanceOf[MyResponseMessage] (5)
+          // do something with the response
+        } catch {
+          case ex: TimeoutException => println("Timed out")
+          case ex: ExecutionException => println("Error: %s".format(ex.getCause))
+        }    
+      }
+    }
+
+1. A `NetworkClientConfig` contains the configuration data for a `NetworkClient`.
+2. The `NetworkClient` companion object provides an easy to instantiate a new `NetworkClient` instance. Alternatively the `PartitionedNetworkClient` companion object provides the same functionality for `PartitionedNetworkClient`s.
+3. The request messages and response messages must be registered before using the `NetworkClient`.
+4. At this point the client can be used to send messages. In the case of a `NetworkClient` the configured load balancer will be used to send the  provided message to an available `Node` in the cluster. In the case of a `PartitionedNetworkClient` the passed in id will be passed to the configured partitioned load balancer to calculate the correct node to send the message to.
+5. Finally, the response can be retrieved from the returned future.
+
+### Writing the client code - the Java version
+
+    public class NorbertNetworkClient {
+      public static void main(String[] args) {
+        NetworkClientConfig config = new NetworkClientConfig(); (1)
+        config.setServiceName("norbert");
+        config.setZooKeeperConnectString("localhost:2181");
+        config.setZooKeeperSessionTimeoutMillis(30000);
+        config.setConnectTimeoutMillis(1000);
+        config.setWriteTimeoutMillis(150);
+        config.setConnectionsPerNode(5);
+        config.setStaleRequestTimeoutMins(10);
+        config.setStaleRequestCleanupFrequenceMins10);
+
+        NetworkClient nc = new NettyNetworkClient(config, new RoundRobinLoadBalancerFactory()); (2)
+        OR
+        PartitionedNetworkClient<Integer> nc = new NettyPartitionedNetworkClient<Integer>(config, new IntegerConsistentHashPartitionedLoadBalancerFactory());
+        
+        nc.registerRequest(MyRequestMessage.getDefaultInstance(), MyResponseMessage.getDefaultInstance()); (3)
+
+        Future<Message> f = nc.sendMessage(myRequestMessageInstance); (4)
+        OR
+        Future<Message> f = nc.sendMessage(1210, myRequestMessageInstance);
+      
+        try {
+          MyResponseMessage response = (MyResponseMessage) f.get(500, TimeUnit.MILLISECONDS); (5)
+          // do something with the response
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        } catch (ExecutionException e) {
+          e.printStackTrace();
+        } catch (TimeoutException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+
+1. A `NetworkClientConfig` contains the configuration data for a `NetworkClient`.
+2. `NettyNetworkClient` and `NettyPartitionedNetworkClient` are currently the only implementations of `NetworkClient` and `PartitionedNetworkClient` respectively.
+3. The request messages and response messages must be registered before using the `NetworkClient`.
+4. At this point the client can be used to send messages. In the case of a `NetworkClient` the configured load balancer will be used to send the  provided message to an available `Node` in the cluster. In the case of a `PartitionedNetworkClient` the passed in id will be passed to the configured partitioned load balancer to calculate the correct node to send the message to.
+5. Finally, the response can be retrieved from the returned future.
+
+### Configuration Parameters
+
+* serverName - the name of the service that runs on the cluster
+* zooKeeperConnectString - the connection string passed to ZooKeeper
+* zooKeeperSessionTimeoutMillis - the session timeout passed to ZooKeeper in milliseconds
+* clusterClient - as an alternative the the prior configuration parameters, you can create a `ClusterClient` instance yourself and have the `NetworkServer` use that instance by setting this field
+* connectTimeoutMillis - the maximum number of milliseconds to allow a connection attempt to take 
+* writeTimeoutMillis - the number of milliseconds a request can be queued for write before it is considered stale
+* maxConnectionsPerNode - the maximum number of open connections to a node. The total number of connections that can be opened by a network client is maxConnectionsPerNode * number of nodes
+* staleRequestTimeoutMins - the number of minutes to keep a request that is waiting for a response
+* staleRequestCleanupFrequenceMins - the frequency to clean up stale requests

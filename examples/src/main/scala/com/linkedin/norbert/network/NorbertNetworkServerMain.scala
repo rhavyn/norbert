@@ -20,6 +20,7 @@ import org.jboss.netty.logging.{InternalLoggerFactory, Log4JLoggerFactory}
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.ClusterClient
 import com.linkedin.norbert.protos.NorbertExampleProtos
+import server.{NetworkServer, NetworkServer}
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
@@ -34,7 +35,7 @@ object NorbertNetworkServerMain {
     val config = new NetworkServerConfig
     config.clusterClient = cc
 
-    val ns = new NettyNetworkServer(config)
+    val ns = NetworkServer(config)
 
     ns.registerHandler(NorbertExampleProtos.Ping.getDefaultInstance, NorbertExampleProtos.PingResponse.getDefaultInstance, pingHandler _)
 
