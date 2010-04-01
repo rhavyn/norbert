@@ -30,7 +30,7 @@ public class NorbertJavaNetworkServerMain {
     config.setZooKeeperSessionTimeoutMillis(30000);
     final NetworkServer ns = new NettyNetworkServer(config);
     ns.registerHandler(NorbertExampleProtos.Ping.getDefaultInstance(), NorbertExampleProtos.PingResponse.getDefaultInstance(), new PingHandler());
-    ns.bind(1);
+    ns.bind(Integer.parseInt(args[2]));
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override

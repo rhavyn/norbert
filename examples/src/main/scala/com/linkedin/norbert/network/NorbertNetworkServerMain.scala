@@ -38,7 +38,7 @@ object NorbertNetworkServerMain {
 
     ns.registerHandler(NorbertExampleProtos.Ping.getDefaultInstance, NorbertExampleProtos.PingResponse.getDefaultInstance, pingHandler _)
 
-    ns.bind(1)
+    ns.bind(args(2).toInt)
 
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run = {
