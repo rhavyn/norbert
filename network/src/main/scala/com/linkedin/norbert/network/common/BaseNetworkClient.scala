@@ -137,9 +137,9 @@ trait BaseNetworkClient extends Logging {
   }
 
   private def updateCurrentState(nodes: Seq[Node]) {
-    // TODO: If a node goes away, it should be removed from the ClusterIoClient
     currentNodes = nodes
     updateLoadBalancer(nodes)
+    clusterIoClient.nodesChanged(nodes)
   }
 
   private def doShutdown(fromCluster: Boolean) {

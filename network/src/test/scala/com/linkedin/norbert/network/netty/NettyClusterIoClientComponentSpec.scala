@@ -56,6 +56,18 @@ class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mock
       channelPoolFactory.newChannelPool(address) was called.once
     }
 
+    "close an open ChannelPool if the Node is no longer available" in {
+      doNothing.when(channelPool).sendRequest(any[Request])
+      doNothing.when(channelPool).close
+      channelPoolFactory.newChannelPool(address) returns channelPool
+
+      clusterIoClient.sendMessage(node, mock[Message], e => null)
+      clusterIoClient.nodesChanged(Nil)
+
+      channelPoolFactory.newChannelPool(address) was called
+      channelPool.close was called
+    }
+
     "throw an InvalidNodeException if a Node with an invalid url is provided" in {
       channelPoolFactory.newChannelPool(address) returns channelPool
       clusterIoClient.sendMessage(Node(1, "foo", true), mock[Message], e => null) must throwA[InvalidNodeException]

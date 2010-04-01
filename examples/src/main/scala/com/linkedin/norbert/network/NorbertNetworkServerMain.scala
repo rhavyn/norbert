@@ -15,12 +15,12 @@
  */
 package com.linkedin.norbert.network
 
-import netty.{NetworkServerConfig, NettyNetworkServer}
+import netty.NetworkServerConfig
 import org.jboss.netty.logging.{InternalLoggerFactory, Log4JLoggerFactory}
 import com.google.protobuf.Message
 import com.linkedin.norbert.cluster.ClusterClient
 import com.linkedin.norbert.protos.NorbertExampleProtos
-import server.{NetworkServer, NetworkServer}
+import server.NetworkServer
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)

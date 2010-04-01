@@ -17,19 +17,27 @@ package com.linkedin.norbert.jmx
 
 import management.ManagementFactory
 import com.linkedin.norbert.logging.Logging
-import javax.management.{ObjectName, StandardMBean}
+import javax.management.{ObjectInstance, ObjectName, StandardMBean}
 
 object JMX extends Logging {
   private val mbeanServer = ManagementFactory.getPlatformMBeanServer
 
-  def register(mbean: AnyRef, name: String): Unit = try {
-    mbeanServer.registerMBean(mbean, new ObjectName(name))
+  def register(mbean: AnyRef, name: String): Option[ObjectInstance] = try {
+    Some(mbeanServer.registerMBean(mbean, new ObjectName(name)))
   } catch {
-    case ex: Exception => log.error(ex, "Error when registering mbean: %s".format(mbean))
+    case ex: Exception =>
+      log.error(ex, "Error when registering mbean: %s".format(mbean))
+      None
   }
 
-  def register(mbean: MBean): Unit = register(mbean, mbean.name)
+  def register(mbean: MBean): Option[ObjectInstance] = register(mbean, mbean.name)
 
+  def unregister(mbean: ObjectInstance) = try {
+    mbeanServer.unregisterMBean(mbean.getObjectName)
+  } catch {
+    case ex: Exception => log.error(ex, "Error while unregistering mbean: %s".format(mbean.getObjectName))
+  }
+  
   class MBean(klass: Class[_], namePropeties: String) extends StandardMBean(klass) {
     def this(klass: Class[_]) = this(klass, null)
 
