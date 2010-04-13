@@ -94,13 +94,32 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
 
   underlying.start
 
-  def sendMessage[T](ids: Array[PartitionedId], message: Message, scatterGather: ScatterGatherHandler[T, PartitionedId]) = {
-    underlying.sendMessage(ids, message,
-      (message, node, ids) => scatterGather.customizeMessage(message, node, ids.toArray),
+  def sendMessage[T](ids: java.util.List[PartitionedId], message: Message, scatterGather: ScatterGatherHandler[T, PartitionedId]) = {
+    underlying.sendMessage(toSeq(ids), message,
+      (message, node, ids) => scatterGather.customizeMessage(message, node, toList(ids)),
       (message, responseIterator) => scatterGather.gatherResponses(message, responseIterator))
   }
 
-  def sendMessage(ids: Array[PartitionedId], message: Message) = underlying.sendMessage(ids, message)
+  def sendMessage(ids: java.util.List[PartitionedId], message: Message) = underlying.sendMessage(toSeq(ids), message)
 
   def sendMessage(id: PartitionedId, message: Message) = underlying.sendMessage(id, message)
+
+  private def toSeq(ids: java.util.List[PartitionedId]): Seq[PartitionedId] = {
+    val seq = new Array[PartitionedId](ids.size())
+    var index = 0
+    val iterator = ids.iterator()
+    while (iterator.hasNext()) {
+      seq(index) = iterator.next()
+      index = index + 1
+    }
+    seq
+  }
+
+  private def toList(ids: Seq[PartitionedId]): java.util.List[PartitionedId] = {
+    val list = new java.util.ArrayList[PartitionedId]
+    for (id <- ids)
+      list.add(id)
+    list
+  }
+
 }

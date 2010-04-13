@@ -18,6 +18,8 @@ package com.linkedin.norbert.network.javaapi;
 import com.google.protobuf.Message;
 import com.linkedin.norbert.cluster.Node;
 import com.linkedin.norbert.network.ResponseIterator;
+import java.util.List;
+
 
 /**
  * A <code>ScatterGatherHandler</code> is used to customize an outgoing <code>Message</code> and to
@@ -36,7 +38,7 @@ public interface ScatterGatherHandler<T, PartitionedId> {
    * @return the customized message
    * @throws Exception any exception thrown will be passed on to the client
    */
-  Message customizeMessage(Message originalMessage, Node node, PartitionedId[] ids) throws Exception;
+  Message customizeMessage(Message originalMessage, Node node, List<PartitionedId> ids) throws Exception;
 
   /**
    * This method is called after all messages are sent and allows the user to aggregate the responses.
