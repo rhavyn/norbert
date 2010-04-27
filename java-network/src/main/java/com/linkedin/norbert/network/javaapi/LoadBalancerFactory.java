@@ -15,8 +15,10 @@
  */
 package com.linkedin.norbert.network.javaapi;
 
+import java.util.Set;
+
 import com.linkedin.norbert.cluster.InvalidClusterException;
-import com.linkedin.norbert.cluster.Node;
+import com.linkedin.norbert.cluster.javaapi.Node;
 
 /**
  * A factory which can generate <code>LoadBalancer</code>s.
@@ -31,5 +33,5 @@ public interface LoadBalancerFactory {
    * @throws InvalidClusterException thrown to indicate that the current cluster topology is invalid in some way and
    * it is impossible to create a <code>LoadBalancer</code>
    */
-  LoadBalancer newLoadBalancer(Node[] nodes) throws InvalidClusterException;
+  LoadBalancer newLoadBalancer(Set<Node> nodes) throws InvalidClusterException;
 }

@@ -94,7 +94,7 @@ trait ClusterClient extends Logging {
    * @return the current list of nodes
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  def nodes: Seq[Node] = doIfConnected {
+  def nodes: Set[Node] = doIfConnected {
     clusterNotificationManager !? ClusterNotificationMessages.GetCurrentNodes match {
       case ClusterNotificationMessages.CurrentNodes(nodes) => nodes
     }
@@ -120,7 +120,7 @@ trait ClusterClient extends Logging {
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    * @throws InvalidNodeException thrown if there is an error adding the new node to the cluster metadata
    */
-  def addNode(nodeId: Int, url: String): Node = addNode(nodeId, url, new Array[Int](0))
+  def addNode(nodeId: Int, url: String): Node = addNode(nodeId, url, Set[Int]())
 
   /**
    * Adds a node to the cluster metadata.
@@ -133,7 +133,7 @@ trait ClusterClient extends Logging {
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    * @throws InvalidNodeException thrown if there is an error adding the new node to the cluster metadata
    */
-  def addNode(nodeId: Int, url: String, partitions: Array[Int]): Node = doIfConnected {
+  def addNode(nodeId: Int, url: String, partitions: Set[Int]): Node = doIfConnected {
     if (url == null) throw new NullPointerException
 
     val node = Node(nodeId, url, partitions, false)
@@ -293,7 +293,7 @@ trait ClusterClient extends Logging {
     }
   }
 
-  private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).firstOption)
+  private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).toSeq.firstOption)
 }
 
 trait ClusterClientMBean {

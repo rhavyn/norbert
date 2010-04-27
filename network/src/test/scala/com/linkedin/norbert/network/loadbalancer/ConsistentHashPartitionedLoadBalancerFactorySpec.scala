@@ -36,24 +36,25 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends SpecificationWith
 
   "ConsistentHashPartitionedLoadBalancer" should {
     "nextNode returns the correct node for 1210" in {
-      val nodes = Array(
-        Node(0, "localhost:31313", Array(0, 1), true),
-        Node(1, "localhost:31313", Array(1, 2), true),
-        Node(2, "localhost:31313", Array(2, 3), true),
-        Node(3, "localhost:31313", Array(3, 4), true),
-        Node(4, "localhost:31313", Array(0, 4), true))
+      val nodes = Set(
+        Node(0, "localhost:31313", Set(0, 1), true),
+        Node(1, "localhost:31313", Set(1, 2), true),
+        Node(2, "localhost:31313", Set(2, 3), true),
+        Node(3, "localhost:31313", Set(3, 4), true),
+        Node(4, "localhost:31313", Set(0, 4), true))
 
       val lb = loadBalancerFactory.newLoadBalancer(nodes)
-      lb.nextNode(EId(1210)) must beSome[Node].which(Array(nodes(0), nodes(4)) must contain(_))
+      lb.nextNode(EId(1210)) must beSome[Node].which(Array(Node(0, "localhost:31313", Set(0, 1), true),
+        Node(4, "localhost:31313", Set(0, 4), true)) must contain(_))
     }
 
     "throw InvalidClusterException if a partition is not assigned to a node" in {
-      val nodes = Array(
-        Node(0, "localhost:31313", Array(0, 9), true),
-        Node(1, "localhost:31313", Array(1), true),
-        Node(2, "localhost:31313", Array(2, 7), true),
-        Node(3, "localhost:31313", Array(3, 6), true),
-        Node(4, "localhost:31313", Array(4, 5, 1), true))
+      val nodes = Set(
+        Node(0, "localhost:31313", Set(0, 9), true),
+        Node(1, "localhost:31313", Set(1), true),
+        Node(2, "localhost:31313", Set(2, 7), true),
+        Node(3, "localhost:31313", Set(3, 6), true),
+        Node(4, "localhost:31313", Set(4, 5, 1), true))
 
       new EIdConsistentHashLoadBalancerFactory(10).newLoadBalancer(nodes) must throwA[InvalidClusterException]
     }

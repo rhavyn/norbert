@@ -17,9 +17,12 @@ package com.linkedin.norbert.cluster.javaapi
 
 import java.lang.String
 import java.util.concurrent.TimeUnit
+import collection.jcl.Conversions._
 import com.linkedin.norbert.cluster.{ClusterEvents, ClusterEvent, ClusterListenerKey}
+import Implicits._
 
 abstract class BaseClusterClient extends ClusterClient {
+
   val underlying: com.linkedin.norbert.cluster.ClusterClient
 
   def shutdown = underlying.shutdown
@@ -40,8 +43,8 @@ abstract class BaseClusterClient extends ClusterClient {
     import ClusterEvents._
 
     def handleClusterEvent(event: ClusterEvent) = event match {
-      case Connected(nodes) => listener.handleClusterConnected(nodes.toArray)
-      case NodesChanged(nodes) => listener.handleClusterNodesChanged(nodes.toArray)
+      case Connected(nodes) => listener.handleClusterConnected(nodes)
+      case NodesChanged(nodes) => listener.handleClusterNodesChanged(nodes)
       case Disconnected => listener.handleClusterDisconnected
       case Shutdown => listener.handleClusterShutdown
     }
@@ -53,13 +56,16 @@ abstract class BaseClusterClient extends ClusterClient {
 
   def removeNode(nodeId: Int) = underlying.removeNode(nodeId)
 
-  def addNode(nodeId: Int, url: String, partitions: Array[Int]) = underlying.addNode(nodeId, url, partitions)
+  def addNode(nodeId: Int, url: String, partitions: java.util.Set[java.lang.Integer]) = {
+    val p = partitions.foldLeft(Set[Int]()) { (set, id) => set + id.asInstanceOf[Int] }
+    underlying.addNode(nodeId, url, p)
+  }
 
   def addNode(nodeId: Int, url: String) = underlying.addNode(nodeId, url)
 
   def getNodeWithId(nodeId: Int) = underlying.nodeWithId(nodeId).getOrElse(null)
 
-  def getNodes = underlying.nodes.toArray
+  def getNodes = underlying.nodes
 
   def getServiceName = underlying.serviceName
 }

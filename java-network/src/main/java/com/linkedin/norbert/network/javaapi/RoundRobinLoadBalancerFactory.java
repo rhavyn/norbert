@@ -16,25 +16,28 @@
 package com.linkedin.norbert.network.javaapi;
 
 import com.linkedin.norbert.cluster.InvalidClusterException;
-import com.linkedin.norbert.cluster.Node;
+import com.linkedin.norbert.cluster.javaapi.Node;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 public class RoundRobinLoadBalancerFactory implements LoadBalancerFactory {
-  public LoadBalancer newLoadBalancer(Node[] nodes) throws InvalidClusterException {
+  public LoadBalancer newLoadBalancer(Set<Node> nodes) throws InvalidClusterException {
     return new RoundRobinLoadBalancer(nodes);
   }
 
   private static class RoundRobinLoadBalancer implements LoadBalancer {
     private final Random random = new Random();
-    private final Node[] nodes;
+    private final List<Node> nodes;
 
-    private RoundRobinLoadBalancer(Node[] nodes) {
-      this.nodes = nodes;
+    private RoundRobinLoadBalancer(Set<Node> nodes) {
+      this.nodes = new ArrayList<Node>(nodes);
     }
 
     public Node nextNode() {
-      return nodes[random.nextInt(nodes.length)];
+      return nodes.get(random.nextInt(nodes.size()));
     }
   }
 }

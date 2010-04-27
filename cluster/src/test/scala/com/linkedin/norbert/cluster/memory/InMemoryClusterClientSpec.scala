@@ -25,16 +25,18 @@ class InMemoryClusterClientSpec extends SpecificationWithJUnit {
 
   "InMemoryClusterClient" should {
     "start with no nodes" in {
-      clusterClient.nodes.length must be_==(0)
+      clusterClient.nodes.size must be_==(0)
     }
 
     "add the node" in {
       clusterClient.addNode(1, "test") must notBeNull
       val nodes = clusterClient.nodes
-      nodes.length must be_==(1)
-      nodes(0).id must be_==(1)
-      nodes(0).url must be_==("test")
-      nodes(0).available must beFalse
+      nodes.size must be_==(1)
+      nodes.foreach { node =>
+        node.id must be_==(1)
+        node.url must be_==("test")
+        node.available must beFalse
+      }
     }
 
     "throw an InvalidNodeException if the node already exists" in {
@@ -46,33 +48,43 @@ class InMemoryClusterClientSpec extends SpecificationWithJUnit {
       clusterClient.markNodeAvailable(1)
       clusterClient.addNode(1, "test")
       val nodes = clusterClient.nodes
-      nodes(0).available must beTrue
+      nodes.foreach { node =>
+        node.available must beTrue
+      }
     }
 
     "remove the node" in {
       clusterClient.addNode(1, "test")
-      clusterClient.nodes.length must be_==(1)
+      clusterClient.nodes.size must be_==(1)
       clusterClient.removeNode(1)
-      clusterClient.nodes.length must be_==(0)
+      clusterClient.nodes.size must be_==(0)
     }
 
     "mark the node available" in {
       clusterClient.addNode(1, "test")
       var nodes = clusterClient.nodes
-      nodes(0).available must beFalse
+      nodes.foreach { node =>
+        node.available must beFalse
+      }
       clusterClient.markNodeAvailable(1)
       nodes = clusterClient.nodes
-      nodes(0).available must beTrue
+      nodes.foreach { node =>
+        node.available must beTrue
+      }
     }
 
     "mark the node unavailable" in {
       clusterClient.markNodeAvailable(1)
       clusterClient.addNode(1, "test")
       var nodes = clusterClient.nodes
-      nodes(0).available must beTrue
+      nodes.foreach { node =>
+        node.available must beTrue
+      }
       clusterClient.markNodeUnavailable(1)
       nodes = clusterClient.nodes
-      nodes(0).available must beFalse
+      nodes.foreach { node =>
+        node.available must beFalse
+      }
     }
   }
 }

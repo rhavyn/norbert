@@ -27,7 +27,7 @@ class NodeSpec extends SpecificationWithJUnit {
       builder.addPartition(0).addPartition(1)
       val bytes = builder.build.toByteArray
 
-      Node.nodeToByteArray(Node(1, "localhost:31313", Array(0, 1), false)) must containInOrder(bytes)
+      Node.nodeToByteArray(Node(1, "localhost:31313", Set(0, 1), false)) must containInOrder(bytes)
     }
 
     "deserialize into the corrent Node" in {
@@ -37,15 +37,15 @@ class NodeSpec extends SpecificationWithJUnit {
       builder.addPartition(0).addPartition(1)
       val bytes = builder.build.toByteArray
 
-      val node = Node(1, "localhost:31313", Array(0, 1), true)
+      val node = Node(1, "localhost:31313", Set(0, 1), true)
       Node(1, bytes, true) must be_==(node)
     }
 
     "have a sane equals method" in {
       val url = "localhost:31313"
-      val node1 = Node(1, url, Array(0, 1), true)
-      val node2 = Node(1, url, Array(2, 3), false)
-      val node3 = Node(1, url, Array(4, 5), true)
+      val node1 = Node(1, url, Set(0, 1), true)
+      val node2 = Node(1, url, Set(2, 3), false)
+      val node3 = Node(1, url, Set(4, 5), true)
 
       // Reflexive
       node1 must be_==(node1)
@@ -70,21 +70,21 @@ class NodeSpec extends SpecificationWithJUnit {
 
     "be equal to another node if they have the same id and url" in {
       val url = "localhost:31313"
-      val node1 = Node(1, url, Array(0, 1), true)
-      val node2 = Node(1, url, Array(1, 2), false)
+      val node1 = Node(1, url, Set(0, 1), true)
+      val node2 = Node(1, url, Set(1, 2), false)
       node1 must be_==(node2)
     }
 
     "not be equal to another node if they have a different id" in {
       val url = "localhost:31313"
-      val node1 = Node(1, url, Array(0, 1), true)
-      val node2 = Node(2, url, Array(1, 2), false)
+      val node1 = Node(1, url, Set(0, 1), true)
+      val node2 = Node(2, url, Set(1, 2), false)
       node1 must be_!=(node2)
     }
 
     "not be equal to another node if they have a different url" in {
-      val node1 = Node(1, "localhost:31313", Array(0, 1), true)
-      val node2 = Node(1, "localhost:16161", Array(0, 1), true)
+      val node1 = Node(1, "localhost:31313", Set(0, 1), true)
+      val node2 = Node(1, "localhost:16161", Set(0, 1), true)
       node1 must be_!=(node2)
     }
   }

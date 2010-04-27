@@ -13,25 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.javaapi;
+package com.linkedin.norbert.cluster.javaapi
 
-import java.util.Set;
+import reflect.BeanProperty
 
-public class ClusterListenerAdapter implements ClusterListener {
-
-  public void handleClusterConnected(Set<Node> nodes) {
-    // do nothing
-  }
-
-  public void handleClusterNodesChanged(Set<Node> nodes) {
-    // do nothing
-  }
-
-  public void handleClusterDisconnected() {
-    // do nothing
-  }
-
-  public void handleClusterShutdown() {
-    // do nothing
+object JavaNode {
+  def apply(node: com.linkedin.norbert.cluster.Node): Node = {
+    var s = new java.util.HashSet[Integer]
+    node.partitions.foreach { id => s.add(id.asInstanceOf[java.lang.Integer]) }
+    JavaNode(node.id, node.url, s, node.available)
   }
 }
+
+case class JavaNode(@BeanProperty id: Int, @BeanProperty url: String, @BeanProperty partitions: java.util.Set[java.lang.Integer],
+        @BeanProperty available: Boolean) extends Node

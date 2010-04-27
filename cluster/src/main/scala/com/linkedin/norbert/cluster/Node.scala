@@ -34,7 +34,7 @@ object Node {
    *
    * @return a new <code>Node</code> instance
    */
-  def apply(id: Int, url: String, available: Boolean): Node = apply(id, url, new Array[Int](0), available)
+  def apply(id: Int, url: String, available: Boolean): Node = apply(id, url, Set[Int](), available)
 
   /**
    * Creates a <code>Node</code> instance using the serialized state of a node.
@@ -51,8 +51,7 @@ object Node {
 
     try {
       val node = NorbertProtos.Node.newBuilder.mergeFrom(bytes).build
-      val partitions = new Array[Int](node.getPartitionCount)
-      node.getPartitionList.asInstanceOf[java.util.List[Int]].copyToArray(partitions, 0)
+      val partitions = node.getPartitionList.foldLeft(Set[Int]()) { (set, i) => set + i.asInstanceOf[Int] }
 
       Node(node.getId, node.getUrl, partitions, available)
     } catch {
@@ -84,8 +83,7 @@ object Node {
  * @param partitions the partitions for which the node can handle requests
  * @param available whether or not the node is currently able to process requests
  */
-final case class Node(@BeanProperty id: Int, @BeanProperty url: String,
-        @BeanProperty partitions: Array[Int], @BeanProperty available: Boolean) {
+final case class Node(id: Int, url: String, partitions: Set[Int], available: Boolean) {
   if (url == null) throw new NullPointerException("url must not be null")
   if (partitions == null) throw new NullPointerException("partitions must not be null")
   

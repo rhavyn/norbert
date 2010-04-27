@@ -65,7 +65,7 @@ object NorbertNetworkClientMain {
     command match {
       case "nodes" =>
         val nodes = cc.nodes
-        if (nodes.length > 0) println(nodes.mkString("\n")) else println("The cluster has no nodes")
+        if (nodes.size > 0) println(nodes.mkString("\n")) else println("The cluster has no nodes")
 
       case "join" =>
         args match {
@@ -74,7 +74,7 @@ object NorbertNetworkClientMain {
             println("Joined Norbert cluster")
 
           case nodeId :: url :: partitions =>
-            cc.addNode(nodeId.toInt, url, partitions.map(_.toInt).toArray)
+            cc.addNode(nodeId.toInt, url, Set() ++ partitions.map(_.toInt))
             println("Joined Norbert cluster")
 
           case _ => println("Error: Invalid syntax: join nodeId url partition1 partition2...")

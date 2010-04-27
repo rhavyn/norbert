@@ -97,7 +97,7 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
         networkServer.bind(1)
 
-        listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+        listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
         networkServer.clusterClient.markNodeAvailable(1) was called
       }
@@ -109,7 +109,7 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
         networkServer.bind(1, false)
 
-        listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+        listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
         networkServer.clusterClient.markNodeAvailable(1) wasnt called
       }
@@ -128,13 +128,13 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
       networkServer.bind(1, false)
 
-      listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+      listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
       networkServer.markAvailable
 
       networkServer.clusterClient.markNodeAvailable(1) was called
 
-      listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+      listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
       networkServer.clusterClient.markNodeAvailable(1) was called.twice
     }
@@ -147,13 +147,13 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
       networkServer.bind(1)
 
-      listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+      listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
       networkServer.clusterClient.markNodeAvailable(1) was called
 
       networkServer.markUnavailable
 
-      listener.handleClusterEvent(ClusterEvents.Connected(Nil))
+      listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
       networkServer.clusterClient.markNodeAvailable(1) was called
       networkServer.clusterClient.markNodeUnavailable(1) was called

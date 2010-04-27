@@ -17,21 +17,9 @@ package com.linkedin.norbert.cluster.javaapi;
 
 import java.util.Set;
 
-public class ClusterListenerAdapter implements ClusterListener {
-
-  public void handleClusterConnected(Set<Node> nodes) {
-    // do nothing
-  }
-
-  public void handleClusterNodesChanged(Set<Node> nodes) {
-    // do nothing
-  }
-
-  public void handleClusterDisconnected() {
-    // do nothing
-  }
-
-  public void handleClusterShutdown() {
-    // do nothing
-  }
+public interface Node {
+  int getId();
+  String getUrl();
+  Set<Integer> getPartitions();
+  boolean isAvailable();
 }

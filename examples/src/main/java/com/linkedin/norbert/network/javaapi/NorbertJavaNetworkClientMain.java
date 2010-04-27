@@ -16,8 +16,8 @@
 package com.linkedin.norbert.network.javaapi;
 
 import com.google.protobuf.Message;
-import com.linkedin.norbert.cluster.Node;
 import com.linkedin.norbert.cluster.javaapi.ClusterClient;
+import com.linkedin.norbert.cluster.javaapi.Node;
 import com.linkedin.norbert.cluster.javaapi.ZooKeeperClusterClient;
 import com.linkedin.norbert.protos.NorbertExampleProtos;
 import org.jboss.netty.logging.InternalLoggerFactory;

@@ -26,18 +26,18 @@ trait ClusterNotificationManagerComponent {
   object ClusterNotificationMessages {
     case class AddListener(listener: Actor) extends ClusterNotificationMessage
     case class AddedListener(key: ClusterListenerKey) extends ClusterNotificationMessage
-    case class Connected(nodes: Seq[Node]) extends ClusterNotificationMessage
+    case class Connected(nodes: Set[Node]) extends ClusterNotificationMessage
     case object Disconnected extends ClusterNotificationMessage
-    case class NodesChanged(nodes: Seq[Node]) extends ClusterNotificationMessage
+    case class NodesChanged(nodes: Set[Node]) extends ClusterNotificationMessage
     case class RemoveListener(key: ClusterListenerKey) extends ClusterNotificationMessage
     case object Shutdown extends ClusterNotificationMessage
 
     case object GetCurrentNodes extends ClusterNotificationMessage
-    case class CurrentNodes(nodes: Seq[Node]) extends ClusterNotificationMessage
+    case class CurrentNodes(nodes: Set[Node]) extends ClusterNotificationMessage
   }
 
   class ClusterNotificationManager extends Actor with Logging {
-    private var currentNodes: Seq[Node] = Nil
+    private var currentNodes: Set[Node] = Set()
     private var listeners = Map[ClusterListenerKey, Actor]()
     private var connected = false
     private var listenerId: Long = 0
@@ -71,7 +71,7 @@ trait ClusterNotificationManagerComponent {
       reply(ClusterNotificationMessages.AddedListener(key))
     }
 
-    private def handleConnected(nodes: Seq[Node]) {
+    private def handleConnected(nodes: Set[Node]) {
       log.ifDebug("Handling Connected(%s) message", nodes)
 
       if (connected) {
@@ -89,7 +89,7 @@ trait ClusterNotificationManagerComponent {
 
       if (connected) {
         connected = false
-        currentNodes = Nil
+        currentNodes = Set()
 
         notifyListeners(ClusterEvents.Disconnected)
       } else {
@@ -97,7 +97,7 @@ trait ClusterNotificationManagerComponent {
       }
     }
 
-    private def handleNodesChanged(nodes: Seq[Node]) {
+    private def handleNodesChanged(nodes: Set[Node]) {
       log.ifDebug("Handling NodesChanged(%s) message", nodes)
 
       if (connected) {
@@ -125,7 +125,7 @@ trait ClusterNotificationManagerComponent {
 
       notifyListeners(ClusterEvents.Shutdown)
       listeners.values.foreach(_ ! 'quit)
-      currentNodes = Nil
+      currentNodes = Set()
 
       log.ifDebug("ClusterNotificationManager shut down")
       exit

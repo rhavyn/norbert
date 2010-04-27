@@ -15,12 +15,12 @@
  */
 package com.linkedin.norbert.cluster.javaapi;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.linkedin.norbert.cluster.ClusterDisconnectedException;
 import com.linkedin.norbert.cluster.ClusterListenerKey;
 import com.linkedin.norbert.cluster.InvalidNodeException;
-import com.linkedin.norbert.cluster.Node;
 
 public interface ClusterClient {
   /**
@@ -36,7 +36,7 @@ public interface ClusterClient {
    * @return the current list of nodes
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  Node[] getNodes() throws ClusterDisconnectedException;
+  Set<Node> getNodes() throws ClusterDisconnectedException;
 
   /**
    * Looks up the node with the specified id.
@@ -71,7 +71,7 @@ public interface ClusterClient {
    * @throws InvalidNodeException thrown if there is an error adding the new node to the cluster metadata
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    */
-  Node addNode(int nodeId, String url, int[] partitions) throws ClusterDisconnectedException;
+  Node addNode(int nodeId, String url, Set<Integer> partitions) throws ClusterDisconnectedException;
 
   /**
    * Removes a node from the cluster metadata.

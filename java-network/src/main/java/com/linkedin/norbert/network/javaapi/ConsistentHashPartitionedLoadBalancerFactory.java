@@ -16,12 +16,12 @@
 package com.linkedin.norbert.network.javaapi;
 
 import com.linkedin.norbert.cluster.InvalidClusterException;
-import com.linkedin.norbert.cluster.Node;
+import com.linkedin.norbert.cluster.javaapi.Node;
 
 import java.util.*;
 
 public abstract class ConsistentHashPartitionedLoadBalancerFactory<PartitionedId> implements PartitionedLoadBalancerFactory<PartitionedId> {
-  public PartitionedLoadBalancer<PartitionedId> newLoadBalancer(Node[] nodes) throws InvalidClusterException {
+  public PartitionedLoadBalancer<PartitionedId> newLoadBalancer(Set<Node> nodes) throws InvalidClusterException {
     return new ConsistentHashLoadBalancer(nodes);
   }
 
@@ -31,7 +31,7 @@ public abstract class ConsistentHashPartitionedLoadBalancerFactory<PartitionedId
     private final Map<Integer, List<Node>> nodeMap = new HashMap<Integer, List<Node>>();
     private final Random random = new Random();
 
-    private ConsistentHashLoadBalancer(Node[] nodes) {
+    private ConsistentHashLoadBalancer(Set<Node> nodes) {
       for (Node node : nodes) {
         for (int partitionId : node.getPartitions()) {
           List<Node> nodeList = nodeMap.get(partitionId);

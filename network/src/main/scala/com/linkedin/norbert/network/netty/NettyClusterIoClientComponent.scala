@@ -53,12 +53,10 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
       }
     }
 
-    def nodesChanged(nodes: Seq[Node]) = {
-      val nodeSet = Set(nodes: _*)
-
+    def nodesChanged(nodes: Set[Node]) = {
       import scala.collection.jcl.Conversions._
       channelPools.keySet.foreach { node =>
-        if (!nodeSet.contains(node)) {
+        if (!nodes.contains(node)) {
           val pool = channelPools.remove(node)
           pool.close
           log.ifDebug("Closing pool for unavailable node: %s", node)

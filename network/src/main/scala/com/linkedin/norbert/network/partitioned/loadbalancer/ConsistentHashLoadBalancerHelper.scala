@@ -39,7 +39,7 @@ trait ConsistentHashLoadBalancerHelper {
    * @throws InvalidClusterException thrown if every partition doesn't have at least one available <code>Node</code>
    * assigned to it
    */
-  protected def generatePartitionToNodeMap(nodes: Seq[Node], numPartitions: Int): Map[Int, Seq[Node]] = {
+  protected def generatePartitionToNodeMap(nodes: Set[Node], numPartitions: Int): Map[Int, Seq[Node]] = {
     val partitionToNodeMap = (for (n <- nodes; p <- n.partitions) yield (p, n)).foldLeft(Map.empty[Int, List[Node]].withDefaultValue(Nil)) {
       case (map, (partitionId, node)) => map(partitionId) = node :: map(partitionId)
     }
