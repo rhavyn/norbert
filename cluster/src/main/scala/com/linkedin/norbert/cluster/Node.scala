@@ -15,7 +15,6 @@
  */
 package com.linkedin.norbert.cluster
 
-import scala.reflect.BeanProperty
 import com.google.protobuf.InvalidProtocolBufferException
 import com.linkedin.norbert.protos.NorbertProtos
 
@@ -23,7 +22,7 @@ import com.linkedin.norbert.protos.NorbertProtos
  * The <code>Node</code> companion object. Provides factory methods and implicits.
  */
 object Node {
-  
+
   /**
    * Creates a <code>Node</code> instance with no partitions assigned to it.
    *
@@ -86,7 +85,7 @@ object Node {
 final case class Node(id: Int, url: String, partitions: Set[Int], available: Boolean) {
   if (url == null) throw new NullPointerException("url must not be null")
   if (partitions == null) throw new NullPointerException("partitions must not be null")
-  
+
   override def hashCode = id.hashCode
 
   override def equals(other: Any) = other match {
