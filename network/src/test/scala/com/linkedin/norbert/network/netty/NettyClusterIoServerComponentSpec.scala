@@ -42,7 +42,7 @@ class NettyClusterIoServerComponentSpec extends SpecificationWithJUnit with Mock
 
       clusterIoServer.bind(Node(1, "localhost:31313", false), true)
 
-      bootstrap.bind(address) was called
+      there was one(bootstrap).bind(address)
     }
 
     "shutdown should shutdown opened sockets" in {
@@ -59,11 +59,13 @@ class NettyClusterIoServerComponentSpec extends SpecificationWithJUnit with Mock
       clusterIoServer.bind(Node(1, "localhost:31313", false), true)
       clusterIoServer.shutdown
 
-      channel.close was called
-      socketFuture.awaitUninterruptibly was called
+      got {
+        one(channel).close
+        one(socketFuture).awaitUninterruptibly
 
-      channelGroup.close was called
-      groupFuture.awaitUninterruptibly was called
+        one(channelGroup).close
+        one(groupFuture).awaitUninterruptibly
+      }
     }
   }
 }

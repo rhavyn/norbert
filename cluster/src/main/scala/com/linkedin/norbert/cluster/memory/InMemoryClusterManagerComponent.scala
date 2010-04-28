@@ -60,7 +60,7 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent with Clust
 
           case MarkNodeAvailable(nodeId) =>
             currentNodes.get(nodeId).foreach { node =>
-              currentNodes = currentNodes.update(nodeId, Node(node.id, node.url, node.partitions, true))
+              currentNodes = currentNodes.updated(nodeId, Node(node.id, node.url, node.partitions, true))
             }
             available += nodeId
             clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
@@ -68,7 +68,7 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent with Clust
 
           case MarkNodeUnavailable(nodeId) =>
             currentNodes.get(nodeId).foreach { node =>
-              currentNodes = currentNodes.update(nodeId, Node(node.id, node.url, node.partitions, false))
+              currentNodes = currentNodes.updated(nodeId, Node(node.id, node.url, node.partitions, false))
             }
             available -= nodeId
             clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)

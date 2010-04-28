@@ -35,6 +35,6 @@ object Implicits {
   }
 
   implicit def javaSetToImmutableSet[T](nodes: java.util.Set[T]): Set[T] = {
-    collection.jcl.Conversions.convertSet(nodes).foldLeft(Set[T]()) { (set, n) => set + n }
+    collection.JavaConversions.asSet(nodes).foldLeft(Set[T]()) { (set, n) => set + n }
   }
 }

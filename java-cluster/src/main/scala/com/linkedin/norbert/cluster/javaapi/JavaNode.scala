@@ -22,9 +22,9 @@ object JavaNode {
     if (node == null) {
       null
     } else {
-      var s = new java.util.HashSet[Integer]
+      var s = new java.util.HashSet[java.lang.Integer]
       if (node.partitions != null) {
-        node.partitions.foreach {id => s.add(id.asInstanceOf[java.lang.Integer])}
+        node.partitions.foreach {id => s.add(id)}
       }
       JavaNode(node.id, node.url, s, node.available)
     }
@@ -32,4 +32,6 @@ object JavaNode {
 }
 
 case class JavaNode(@BeanProperty id: Int, @BeanProperty url: String, @BeanProperty partitions: java.util.Set[java.lang.Integer],
-        @BeanProperty available: Boolean) extends Node
+        @BeanProperty available: Boolean) extends Node {
+  def isAvailable = available
+}

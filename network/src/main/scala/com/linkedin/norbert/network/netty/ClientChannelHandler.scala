@@ -35,7 +35,7 @@ class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeout
       while (true) {
         TimeUnit.MINUTES.sleep(staleRequestCleanupFrequencyMins)
 
-        import collection.jcl.Conversions._
+        import collection.JavaConversions._
         requestMap.keySet.foreach { uuid =>
           val request = requestMap.get(uuid)
           if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) requestMap.remove(uuid)

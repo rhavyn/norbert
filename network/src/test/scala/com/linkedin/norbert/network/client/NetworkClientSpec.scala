@@ -73,7 +73,7 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
       networkClient.start
       networkClient.sendMessage(message) must notBeNull
 
-      networkClient.lb.nextNode was called
+      there was one(networkClient.lb).nextNode
 //      clusterIoClient.sendMessage(node, message, null) was called
     }
 
@@ -99,7 +99,7 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
       networkClient.start
       networkClient.sendMessage(message) must throwA[NoNodesAvailableException]
 
-      networkClient.lb.nextNode was called
+      there was one(networkClient.lb).nextNode
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
     }
   }

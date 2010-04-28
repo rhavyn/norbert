@@ -53,10 +53,7 @@ class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadB
     def newLoadBalancer(nodes: Set[com.linkedin.norbert.cluster.Node]) = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancer {
       private val lb = loadBalancerFactory.newLoadBalancer(nodes)
 
-      def nextNode = lb.nextNode match {
-        case null => None
-        case n => Some(n)
-      }
+      def nextNode = Option(lb.nextNode)
     }
   }
 
@@ -79,10 +76,7 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
     def newLoadBalancer(nodes: Set[com.linkedin.norbert.cluster.Node]) = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancer[PartitionedId] {
       private val lb = loadBalancerFactory.newLoadBalancer(nodes)
 
-      def nextNode(id: PartitionedId) = lb.nextNode(id) match {
-        case null => None
-        case n => Some(n)
-      }
+      def nextNode(id: PartitionedId) = Option(lb.nextNode(id))
     }
   }
 

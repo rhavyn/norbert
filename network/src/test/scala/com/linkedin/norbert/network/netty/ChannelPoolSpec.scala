@@ -38,8 +38,10 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
 
       channelPool.close
 
-      channelGroup.close was called
-      future.awaitUninterruptibly was called
+      got {
+        one(channelGroup).close
+        one(future).awaitUninterruptibly
+      }
     }
 
     "throw a ChannelPoolClosedException if sendRequest is called after close is called" in {
@@ -57,7 +59,7 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
 
       channelPool.sendRequest(mock[Request])
 
-      bootstrap.connect(address) was called
+      there was one(bootstrap).connect(address)
     }
 
     "not open a new channel if the max number of channels are already in the pool" in {
@@ -74,8 +76,10 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
 
       channelPool.sendRequest(mock[Request])
 
-      channelGroup.add(channel) was called.once
-      bootstrap.connect(address) was called.once
+      got {
+        one(channelGroup).add(channel)
+        one(bootstrap).connect(address)
+      }
     }
 
     "open a new channel if the max number of channels are already in the pool but a channel is closed" in {
@@ -93,8 +97,10 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      channelGroup.add(channel) was called.twice
-      bootstrap.connect(address) was called.twice
+      got {
+        two(channelGroup).add(channel)
+        two(bootstrap).connect(address)
+      }
     }
 
     "write all queued requests" in {
@@ -112,8 +118,10 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      channel.write(any[Request]) was called.times(3)
-      bootstrap.connect(address) was called.once
+      got {
+        three(channel).write(any[Request])
+        one(bootstrap).connect(address)
+      }
     }
 
     "properly handle a failed write" in {
@@ -155,9 +163,11 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       channelPool.sendRequest(goodRequest)
       future.listener.operationComplete(future)
 
-      channel.write(goodRequest) was called.times(2)
-      channel.write(badRequest) wasnt called
-      bootstrap.connect(address) was called.once
+      got {
+        two(channel).write(goodRequest)
+        one(bootstrap).connect(address)
+      }
+      there was no(channel).write(badRequest)
       either must notBeNull
       either.isLeft must beTrue
       either.left.get must haveClass[TimeoutException]
@@ -178,8 +188,8 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      channel.write(any[Request]) wasnt called
-      bootstrap.connect(address) was called.once
+      there was no(channel).write(any[Request])
+      there was one(bootstrap).connect(address)
     }
   }
 

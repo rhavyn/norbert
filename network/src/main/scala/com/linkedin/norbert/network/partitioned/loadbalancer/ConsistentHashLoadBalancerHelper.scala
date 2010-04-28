@@ -41,11 +41,12 @@ trait ConsistentHashLoadBalancerHelper {
    */
   protected def generatePartitionToNodeMap(nodes: Set[Node], numPartitions: Int): Map[Int, Seq[Node]] = {
     val partitionToNodeMap = (for (n <- nodes; p <- n.partitions) yield (p, n)).foldLeft(Map.empty[Int, List[Node]].withDefaultValue(Nil)) {
-      case (map, (partitionId, node)) => map(partitionId) = node :: map(partitionId)
+      case (map, (partitionId, node)) => map.updated(partitionId, node :: map(partitionId))
     }
 
-    for (i <- 0 until numPartitions)
-      if (!partitionToNodeMap.isDefinedAt(i)) throw new InvalidClusterException("Partition %d is not assigned a node".format(i))
+    for (i <- 0 until numPartitions) {
+      if (partitionToNodeMap(i).size == 0) throw new InvalidClusterException("Partition %d is not assigned a node".format(i))
+    }
 
     partitionToNodeMap
   }

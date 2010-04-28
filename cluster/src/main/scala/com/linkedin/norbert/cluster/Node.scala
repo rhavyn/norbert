@@ -46,7 +46,7 @@ object Node {
    * @return a new <code>Node</code> instance
    */
   def apply(id: Int, bytes: Array[Byte], available: Boolean): Node = {
-    import collection.jcl.Conversions._
+    import collection.JavaConversions._
 
     try {
       val node = NorbertProtos.Node.newBuilder.mergeFrom(bytes).build

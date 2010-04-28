@@ -17,6 +17,7 @@ package com.linkedin.norbert.network.server
 
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
+import org.mockito.Matchers._
 import com.linkedin.norbert.cluster._
 import com.linkedin.norbert.network.{NetworkServerNotBoundException, NetworkShutdownException}
 import com.google.protobuf.Message
@@ -60,7 +61,6 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
       networkServer.registerHandler(request, response, h)
 
-      // TODO: doesn't seem to work in scala 2.7.7
 //      networkServer.messageHandlerRegistry.registerHandler(request, response, h) was called
     }
 
@@ -71,9 +71,11 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
         networkServer.bind(1)
 
-        networkServer.clusterClient.start was called
-        networkServer.clusterClient.awaitConnectionUninterruptibly was called
-        networkServer.clusterClient.addListener(any[ClusterListener]) was called
+        got {
+          one(networkServer.clusterClient).start
+          one(networkServer.clusterClient).awaitConnectionUninterruptibly
+          one(networkServer.clusterClient).addListener(any[ClusterListener])
+        }
       }
 
       "bind to the socket" in {
@@ -81,7 +83,7 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
         networkServer.bind(1)
 
-        networkServer.clusterIoServer.bind(node, true) was called
+        there was one(networkServer.clusterIoServer).bind(node, true)
       }
 
       "throw an InvalidNodeException if the nodeId doesn't exist" in {
@@ -99,7 +101,7 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
         listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
-        networkServer.clusterClient.markNodeAvailable(1) was called
+        there was one(networkServer.clusterClient).markNodeAvailable(1)
       }
 
       "if markAvailable is false, not mark the node available when a Connection message is received" in {
@@ -111,7 +113,7 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
         listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
-        networkServer.clusterClient.markNodeAvailable(1) wasnt called
+        there was no(networkServer.clusterClient).markNodeAvailable(1)
       }
     }
 
@@ -132,11 +134,11 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
       networkServer.markAvailable
 
-      networkServer.clusterClient.markNodeAvailable(1) was called
+      there was one(networkServer.clusterClient).markNodeAvailable(1)
 
       listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
-      networkServer.clusterClient.markNodeAvailable(1) was called.twice
+      there were two(networkServer.clusterClient).markNodeAvailable(1)
     }
 
     "mark the node unavailable and ensure it is not marked available when Connected events are received for markUnavailable" in {
@@ -149,14 +151,16 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
 
       listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
-      networkServer.clusterClient.markNodeAvailable(1) was called
+      there was one(networkServer.clusterClient).markNodeAvailable(1)
 
       networkServer.markUnavailable
 
       listener.handleClusterEvent(ClusterEvents.Connected(Set()))
 
-      networkServer.clusterClient.markNodeAvailable(1) was called
-      networkServer.clusterClient.markNodeUnavailable(1) was called
+      got {
+        one(networkServer.clusterClient).markNodeAvailable(1)
+        one(networkServer.clusterClient).markNodeUnavailable(1)
+      }
     }
 
     "shutdown the cluster io server, mark unavailable, and remove the cluster listener if shutdown is called" in {
@@ -167,9 +171,11 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
       networkServer.bind(1)
       networkServer.shutdown
 
-      networkServer.clusterIoServer.shutdown was called
-      networkServer.clusterClient.markNodeUnavailable(1) was called
-      networkServer.clusterClient.removeListener(listenerKey) was called
+      got {
+        one(networkServer.clusterIoServer).shutdown
+        one(networkServer.clusterClient).markNodeUnavailable(1)
+        one(networkServer.clusterClient).removeListener(listenerKey)
+      }
     }
 
     "shutdown the cluster io server if a Shutdown event is received" in {
@@ -182,9 +188,9 @@ class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
       networkServer.bind(1)
       listener.handleClusterEvent(ClusterEvents.Shutdown)
 
-      networkServer.clusterIoServer.shutdown was called
-      networkServer.clusterClient.markNodeUnavailable(1) wasnt called
-      networkServer.clusterClient.removeListener(listenerKey) wasnt called
+      there was one(networkServer.clusterIoServer).shutdown
+      there was no(networkServer.clusterClient).markNodeUnavailable(1)
+      there was no(networkServer.clusterClient).removeListener(listenerKey)
     }
   }
 }

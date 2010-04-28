@@ -293,7 +293,7 @@ trait ClusterClient extends Logging {
     }
   }
 
-  private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).toSeq.firstOption)
+  private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).toSeq.headOption)
 }
 
 trait ClusterClientMBean {

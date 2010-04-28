@@ -41,7 +41,7 @@ class MessageExecutorSpec extends SpecificationWithJUnit with Mockito with WaitF
 
       waitFor(1.ms)
 
-      messageHandlerRegistry.handlerFor(message) was called
+      there was one(messageHandlerRegistry).handlerFor(message)
     }
 
     "execute the handler associated with the specified message" in {

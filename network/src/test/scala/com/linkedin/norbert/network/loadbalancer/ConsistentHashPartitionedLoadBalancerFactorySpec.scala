@@ -44,7 +44,7 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends SpecificationWith
         Node(4, "localhost:31313", Set(0, 4), true))
 
       val lb = loadBalancerFactory.newLoadBalancer(nodes)
-      lb.nextNode(EId(1210)) must beSome[Node].which(Array(Node(0, "localhost:31313", Set(0, 1), true),
+      lb.nextNode(EId(1210)) must beSome[Node].which(List(Node(0, "localhost:31313", Set(0, 1), true),
         Node(4, "localhost:31313", Set(0, 4), true)) must contain(_))
     }
 

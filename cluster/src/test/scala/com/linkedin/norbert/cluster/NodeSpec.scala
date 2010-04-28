@@ -27,7 +27,7 @@ class NodeSpec extends SpecificationWithJUnit {
       builder.addPartition(0).addPartition(1)
       val bytes = builder.build.toByteArray
 
-      Node.nodeToByteArray(Node(1, "localhost:31313", Set(0, 1), false)) must containInOrder(bytes)
+      List(Node.nodeToByteArray(Node(1, "localhost:31313", Set(0, 1), false)): _*) must containInOrder(List(bytes: _*))
     }
 
     "deserialize into the corrent Node" in {

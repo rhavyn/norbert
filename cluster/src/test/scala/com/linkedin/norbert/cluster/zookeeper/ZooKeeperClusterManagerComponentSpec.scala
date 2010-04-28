@@ -80,7 +80,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
           clusterManager ! Connected
 
-          znodes.foreach(mockZooKeeper.exists(_, false) was called)
+          znodes.foreach(there was one(mockZooKeeper).exists(_, false))
         }
 
         "creating the cluster, membership and availability znodes if they do not already exist" in {
@@ -93,8 +93,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           waitFor(10.ms)
 
           znodes.foreach { path =>
-            mockZooKeeper.exists(path, false) was called
-            mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT) was called
+            there was one(mockZooKeeper).exists(path, false)
+            there was one(mockZooKeeper).create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
           }
         }
       }
@@ -120,11 +120,13 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         clusterManager ! Connected
         waitFor(10.ms)
 
-        mockZooKeeper.getChildren(membershipNode, true) was called
-        nodes.foreach { node =>
-          mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) was called
+        got {
+          one(mockZooKeeper).getChildren(membershipNode, true)
+          nodes.foreach {node =>
+            one(mockZooKeeper).getData("%s/%d".format(membershipNode, node.id), false, null)
+          }
+          one(mockZooKeeper).getChildren(availabilityNode, true)
         }
-        mockZooKeeper.getChildren(availabilityNode, true) was called
       }
 
       "send a notification to the notification manager actor" in {
@@ -227,7 +229,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
             if (n.id == 2) n.available must beFalse else n.available must beTrue
           }
 
-          mockZooKeeper.getChildren(availabilityNode, true) was called.twice
+          there were two(mockZooKeeper).getChildren(availabilityNode, true)
         }
 
         "handle the case that all nodes are unavailable" in {
@@ -251,9 +253,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
           nodesReceived.size must eventually(be_==(3))
           nodesReceived must containAll(nodes)
-          nodesReceived.foreach { n =>
-            if (n.id == 2) n.available must beTrue else n.available must beFalse
-          }
+          nodesReceived.foreach { _.available must beTrue }
 
           clusterManager ! NodeChildrenChanged(availabilityNode)
 
@@ -262,7 +262,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           nodesReceived must containAll(nodes)
           nodesReceived.foreach { n => n.available must beFalse }
 
-          mockZooKeeper.getChildren(availabilityNode, true) was called.twice
+          there were two(mockZooKeeper).getChildren(availabilityNode, true)
         }
 
         "do nothing if not connected" in {
@@ -304,8 +304,10 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           nodesReceived.size must be_==(3)
           nodesReceived must containAll(updatedNodes)
 
-          mockZooKeeper.getChildren(availabilityNode, true) was called.twice
-          mockZooKeeper.getChildren(membershipNode, true) was called.twice
+          got {
+            two(mockZooKeeper).getChildren(availabilityNode, true)
+            two(mockZooKeeper).getChildren(membershipNode, true)
+          }
         }
 
         "do nothing if not connected" in {
@@ -332,7 +334,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
         waitFor(10.ms)
         callCount must eventually(be_==(1))
-        mockZooKeeper.close was called
+        there was one(mockZooKeeper).close
       }
     }
 
@@ -355,7 +357,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           case ClusterManagerResponse(r) => r must beSome[ClusterException].which(_ must haveClass[InvalidNodeException])
         }
 
-        mockZooKeeper.exists(path, false) was called
+        there was one(mockZooKeeper).exists(path, false)
       }
 
       "add the node to ZooKeeper" in {
@@ -368,8 +370,10 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           case ClusterManagerResponse(r) => r must beNone
         }
 
-        mockZooKeeper.exists(path, false) was called
-        mockZooKeeper.create(path, node, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT) was called
+        got {
+          one(mockZooKeeper).exists(path, false)
+          one(mockZooKeeper).create(path, node, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+        }
       }
 
       "notify listeners that the node list changed" in {
@@ -397,7 +401,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           case ClusterManagerResponse(r) => r must beNone
         }
 
-        mockZooKeeper.exists(membershipNode + "/1", false) was called
+        there was one(mockZooKeeper).exists(membershipNode + "/1", false)
       }
 
       "remove the znode from ZooKeeper if the node exists" in {
@@ -411,7 +415,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           case ClusterManagerResponse(r) => r must beNone
         }
 
-        mockZooKeeper.delete(path, -1) was called
+        there was one(mockZooKeeper).delete(path, -1)
       }
 
       "notify listeners that the node list changed" in {
@@ -461,8 +465,10 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           case ClusterManagerResponse(r) => r must beNone
         }
 
-        mockZooKeeper.exists(path, false) was called
-        mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) was called
+        got {
+          one(mockZooKeeper).exists(path, false)
+          one(mockZooKeeper).create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+        }
       }
 
       "do nothing if the znode already exists" in {
@@ -479,8 +485,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           case ClusterManagerResponse(r) => r must beNone
         }
 
-        mockZooKeeper.exists(path, false) was called
-        mockZooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL) wasnt called
+        there was one(mockZooKeeper).exists(path, false)
+        there was no(mockZooKeeper).create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
       }
 
       "notify listeners that the node list changed" in {
@@ -532,7 +538,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           case ClusterManagerResponse(r) => r must beNone
         }
 
-        mockZooKeeper.exists(availabilityNode + "/1", false) was called
+        there was one(mockZooKeeper).exists(availabilityNode + "/1", false)
       }
 
       "remove the znode from ZooKeeper if the node exists" in {
@@ -546,7 +552,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           case ClusterManagerResponse(r) => r must beNone
         }
 
-        mockZooKeeper.delete(path, -1) was called
+        there was one(mockZooKeeper).delete(path, -1)
       }
 
       "notify listeners that the node list changed" in {

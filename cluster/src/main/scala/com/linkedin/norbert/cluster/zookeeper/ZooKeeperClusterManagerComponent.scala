@@ -122,7 +122,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       log.ifDebug("Handling an availability changed event")
 
       doIfConnectedWithZooKeeper("an availability changed event") { zk =>
-        import scala.collection.jcl.Conversions._
+        import scala.collection.JavaConversions._
 
         val availableSet = zk.getChildren(AVAILABILITY_NODE, true).foldLeft(Set[Int]()) { (set, i) => set + i.toInt }
         if (availableSet.size == 0) {
@@ -278,7 +278,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     }
 
     private def lookupCurrentNodes(zk: ZooKeeper) {
-      import scala.collection.jcl.Conversions._
+      import scala.collection.JavaConversions._
 
       val members = zk.getChildren(MEMBERSHIP_NODE, true)
       val available = zk.getChildren(AVAILABILITY_NODE, true)

@@ -216,7 +216,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
 
     ids.foldLeft(Map[Node, Set[PartitionedId]]().withDefaultValue(Set())) { (map, id) =>
       val node = lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id)))
-      map(node) = map(node) + id
+      map.updated(node, map(node) + id)
     }
   }
 }

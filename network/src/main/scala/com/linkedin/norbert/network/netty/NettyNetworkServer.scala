@@ -57,7 +57,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   val p = bootstrap.getPipeline
   p.addFirst("logging", new LoggingHandler)
 
-  p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
+  p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Int.MaxValue, 0, 4, 0, 4))
   p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
 
   p.addLast("frameEncoder", new LengthFieldPrepender(4))

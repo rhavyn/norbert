@@ -54,7 +54,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
     }
 
     def nodesChanged(nodes: Set[Node]) = {
-      import scala.collection.jcl.Conversions._
+      import scala.collection.JavaConversions._
       channelPools.keySet.foreach { node =>
         if (!nodes.contains(node)) {
           val pool = channelPools.remove(node)
@@ -65,7 +65,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
     }
 
     def shutdown = {
-      import scala.collection.jcl.Conversions._
+      import scala.collection.JavaConversions._
 
       channelPools.keySet.foreach { key =>
         channelPools.get(key) match {

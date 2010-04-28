@@ -34,7 +34,7 @@ object HashFunctions {
 
     def fnv(key: Array[Byte], hash: Long): Int = {
       if (key.length == 0) hash.toInt
-      else fnv(key.drop(1), (hash ^ (0xFF & key.first)) * FNV_PRIME)
+      else fnv(key.drop(1), (hash ^ (0xFF & key.head)) * FNV_PRIME)
     }
 
     fnv(bytes, FNV_BASIS)
