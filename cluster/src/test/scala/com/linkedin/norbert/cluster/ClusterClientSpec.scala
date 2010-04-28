@@ -249,11 +249,13 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
     "when handling nodeWithId" in {
       "return the node that matches the specified id" in {
         clusterActor ! ClusterEvents.Connected(currentNodes)
+        waitFor(10.ms)
         cluster.nodeWithId(2) must beSome[Node].which(currentNodes must contain(_))
       }
 
       "return None if no matching id" in {
         clusterActor ! ClusterEvents.Connected(currentNodes)
+        waitFor(10.ms)
         cluster.nodeWithId(4) must beNone
       }
     }

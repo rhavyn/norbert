@@ -376,7 +376,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         clusterManager ! Connected
         clusterManager !? AddNode(node)
 
-        nodesChangedCount must be_==(1)
+        nodesChangedCount must eventually(be_==(1))
         nodesReceived.size must be_==(1)
         nodesReceived must contain(node)
       }
