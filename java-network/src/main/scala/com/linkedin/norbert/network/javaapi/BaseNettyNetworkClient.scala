@@ -107,10 +107,4 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
   def sendMessage(ids: java.util.Set[PartitionedId], message: Message) = underlying.sendMessage(ids, message)
 
   def sendMessage(id: PartitionedId, message: Message) = underlying.sendMessage(id, message)
-
-  private implicit def javaSetPartitionedIdToScala(ids: java.util.Set[PartitionedId]): Set[PartitionedId] = {
-    import collection.jcl.Conversions._
-
-    ids.foldLeft(Set[PartitionedId]()) { (set, id) => set + id }    
-  }
 }

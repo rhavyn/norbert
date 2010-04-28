@@ -19,8 +19,6 @@ import com.linkedin.norbert.cluster.javaapi.{Node => JNode}
 import com.linkedin.norbert.cluster.{Node => SNode}
 
 object Implicits {
-  import collection.jcl.Conversions._
-
   implicit def scalaNodeToJavaNode(node: SNode): JNode = {
     if (node == null) null else JavaNode(node)
   }
@@ -36,7 +34,7 @@ object Implicits {
     s
   }
 
-  implicit def javaNodeSetToScalaNodeSet(nodes: java.util.Set[JNode]): Set[SNode] = {
-    nodes.foldLeft(Set[SNode]()) { (set, n) => set + n }
+  implicit def javaSetToImmutableSet[T](nodes: java.util.Set[T]): Set[T] = {
+    collection.jcl.Conversions.convertSet(nodes).foldLeft(Set[T]()) { (set, n) => set + n }
   }
 }

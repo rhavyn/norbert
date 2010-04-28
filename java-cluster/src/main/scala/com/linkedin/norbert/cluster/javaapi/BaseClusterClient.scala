@@ -17,7 +17,6 @@ package com.linkedin.norbert.cluster.javaapi
 
 import java.lang.String
 import java.util.concurrent.TimeUnit
-import collection.jcl.Conversions._
 import com.linkedin.norbert.cluster.{ClusterEvents, ClusterEvent, ClusterListenerKey}
 import Implicits._
 
@@ -57,8 +56,7 @@ abstract class BaseClusterClient extends ClusterClient {
   def removeNode(nodeId: Int) = underlying.removeNode(nodeId)
 
   def addNode(nodeId: Int, url: String, partitions: java.util.Set[java.lang.Integer]) = {
-    val p = partitions.foldLeft(Set[Int]()) { (set, id) => set + id.asInstanceOf[Int] }
-    underlying.addNode(nodeId, url, p)
+    underlying.addNode(nodeId, url, partitions.asInstanceOf[java.util.Set[Int]])
   }
 
   def addNode(nodeId: Int, url: String) = underlying.addNode(nodeId, url)
