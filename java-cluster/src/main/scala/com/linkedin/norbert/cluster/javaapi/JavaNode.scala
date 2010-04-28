@@ -19,9 +19,15 @@ import reflect.BeanProperty
 
 object JavaNode {
   def apply(node: com.linkedin.norbert.cluster.Node): Node = {
-    var s = new java.util.HashSet[Integer]
-    node.partitions.foreach { id => s.add(id.asInstanceOf[java.lang.Integer]) }
-    JavaNode(node.id, node.url, s, node.available)
+    if (node == null) {
+      null
+    } else {
+      var s = new java.util.HashSet[Integer]
+      if (node.partitions != null) {
+        node.partitions.foreach {id => s.add(id.asInstanceOf[java.lang.Integer])}
+      }
+      JavaNode(node.id, node.url, s, node.available)
+    }
   }
 }
 
