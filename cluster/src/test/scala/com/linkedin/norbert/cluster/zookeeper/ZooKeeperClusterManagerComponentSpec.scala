@@ -150,7 +150,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         connectedCount must eventually(be_==(1))
         nodesReceived.size must be_==(3)
         nodesReceived must containAll(nodes)
-        nodes.zip(nodesReceived.toArray).foreach { case (n1, n2) => n1.available must be_==(n2.available) }
+        nodesReceived.foreach { node => node must be_==(nodes(node.id - 1)) }
       }
     }
 

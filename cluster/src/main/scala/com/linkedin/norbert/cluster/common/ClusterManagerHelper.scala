@@ -18,5 +18,5 @@ package com.linkedin.norbert.cluster.common
 import com.linkedin.norbert.cluster.Node
 
 trait ClusterManagerHelper {
-  implicit def mapIntNodeToSetNode(map: Map[Int, Node]): Set[Node] = map.foldLeft(Set[Node]()) { case (set, (key, node)) => set + node }
+  implicit def mapIntNodeToSetNode(map: collection.Map[Int, Node]): Set[Node] = map.foldLeft(Set[Node]()) { case (set, (key, node)) => set + node }
 }

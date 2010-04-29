@@ -82,9 +82,6 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
     }
   }
 
-  protected implicit def defaultBootstrapFactory(channelFactory: ChannelFactory, remoteAddress: InetSocketAddress, connectTimeoutMillis: Int) = {
-  }
-
   private class NorbertChannelPipelineFactory extends ChannelPipelineFactory {
     val p = Channels.pipeline
 
