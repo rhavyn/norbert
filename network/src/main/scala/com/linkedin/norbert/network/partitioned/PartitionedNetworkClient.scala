@@ -13,17 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned
+package com.linkedin.norbert
+package network
+package partitioned
 
 import com.google.protobuf.Message
 import java.util.concurrent.Future
-import com.linkedin.norbert.network.client.NetworkClientConfig
-import loadbalancer.{PartitionedLoadBalancer, PartitionedLoadBalancerFactory, PartitionedLoadBalancerFactoryComponent}
-import com.linkedin.norbert.network.netty.NettyPartitionedNetworkClient
-import com.linkedin.norbert.cluster.{ClusterDisconnectedException, InvalidClusterException, ClusterClientComponent, Node}
-import com.linkedin.norbert.network.{NoNodesAvailableException, ResponseIterator}
-import com.linkedin.norbert.network.common._
-import com.linkedin.norbert.network.server.{MessageExecutorComponent, NetworkServer}
+import common._
+import loadbalancer.{PartitionedLoadBalancer, PartitionedLoadBalancerFactoryComponent, PartitionedLoadBalancerFactory}
+import server.{MessageExecutorComponent, NetworkServer}
+import netty.NettyPartitionedNetworkClient
+import client.NetworkClientConfig
+import cluster.{Node, ClusterDisconnectedException, InvalidClusterException, ClusterClientComponent}
 
 object PartitionedNetworkClient {
   def apply[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]): PartitionedNetworkClient[PartitionedId] = {

@@ -13,10 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert
+package cluster
 
 import com.google.protobuf.InvalidProtocolBufferException
-import com.linkedin.norbert.protos.NorbertProtos
+import protos.NorbertProtos
 
 /**
  * The <code>Node</code> companion object. Provides factory methods and implicits.

@@ -13,7 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert
+package network
 
 import com.google.protobuf.Message
 import java.util.concurrent.{TimeoutException, ExecutionException, TimeUnit}

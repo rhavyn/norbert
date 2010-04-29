@@ -13,16 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert
+package network
+package common
 
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
-import com.linkedin.norbert.network.client.{NetworkClient, NetworkClientSpec}
-import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancer, LoadBalancerFactory}
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.server.{MessageExecutor, MessageExecutorComponent}
-import java.lang.Exception
-import com.linkedin.norbert.cluster.{ClusterClient, Node, ClusterClientComponent}
+import client.NetworkClient
+import client.loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
+import server.{MessageExecutorComponent, MessageExecutor}
+import cluster.{Node, ClusterClientComponent, ClusterClient}
 
 class LocalMessageExecutionSpec extends SpecificationWithJUnit with Mockito {
   val clusterClient = mock[ClusterClient]

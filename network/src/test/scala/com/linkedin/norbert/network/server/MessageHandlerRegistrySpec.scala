@@ -13,13 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
 import org.specs.SpecificationWithJUnit
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.InvalidMessageException
 import org.specs.mock.Mockito
-import com.linkedin.norbert.protos.NorbertExampleProtos
+import protos.NorbertExampleProtos
 
 class MessageHandlerRegistrySpec extends SpecificationWithJUnit with Mockito {
   val messageHandlerRegistry = new MessageHandlerRegistry

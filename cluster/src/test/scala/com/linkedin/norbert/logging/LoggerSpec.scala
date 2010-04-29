@@ -13,7 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.logging
+package com.linkedin.norbert
+package logging
 
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.{ClassMocker, JMocker}

@@ -13,10 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.InvalidMessageException
 
 trait MessageHandlerRegistryComponent {
   val messageHandlerRegistry: MessageHandlerRegistry

@@ -13,13 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert
+package network
+package common
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster._
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
-import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancer, LoadBalancerFactory}
+import cluster._
 
 abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit with Mockito {
   val clusterClient = mock[ClusterClient]

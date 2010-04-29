@@ -13,22 +13,24 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import org.jboss.netty.handler.logging.LoggingHandler
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
-import com.linkedin.norbert.protos.NorbertProtos
 import java.util.concurrent.Executors
-import com.linkedin.norbert.cluster.{ClusterClientComponent, ClusterClient}
-import com.linkedin.norbert.util.NamedPoolThreadFactory
-import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactory, LoadBalancerFactoryComponent}
-import com.linkedin.norbert.network.client.{NetworkClientConfig, NetworkClient}
-import com.linkedin.norbert.network.partitioned.PartitionedNetworkClient
-import com.linkedin.norbert.network.partitioned.loadbalancer.{PartitionedLoadBalancerFactory, PartitionedLoadBalancerFactoryComponent}
-import com.linkedin.norbert.network.common.{BaseNetworkClient, MessageRegistry, MessageRegistryComponent}
+import partitioned.loadbalancer.{PartitionedLoadBalancerFactoryComponent, PartitionedLoadBalancerFactory}
+import partitioned.PartitionedNetworkClient
+import client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancerFactory}
+import client.{NetworkClient, NetworkClientConfig}
+import common.{MessageRegistry, MessageRegistryComponent, BaseNetworkClient}
+import cluster.{ClusterClient, ClusterClientComponent}
+import protos.NorbertProtos
+import util.NamedPoolThreadFactory
 
 abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with MessageRegistryComponent {
   val messageRegistry = new MessageRegistry

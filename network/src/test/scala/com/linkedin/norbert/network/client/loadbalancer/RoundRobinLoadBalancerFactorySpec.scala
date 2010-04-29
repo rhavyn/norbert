@@ -13,10 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client.loadbalancer
+package com.linkedin.norbert
+package network
+package client
+package loadbalancer
 
 import org.specs.SpecificationWithJUnit
-import com.linkedin.norbert.cluster.Node
+import cluster.Node
 
 class RoundRobinLoadBalancerFactorySpec extends SpecificationWithJUnit {
   "RoundRobinLoadBalancerFactory" should {

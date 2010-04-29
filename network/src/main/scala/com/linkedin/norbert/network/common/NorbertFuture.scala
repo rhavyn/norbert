@@ -13,11 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert
+package network
+package common
 
 import com.google.protobuf.Message
 import java.util.concurrent._
-import com.linkedin.norbert.network.ResponseIterator
 import atomic.AtomicInteger
 
 class NorbertFuture extends Future[Message] with ResponseHelper {

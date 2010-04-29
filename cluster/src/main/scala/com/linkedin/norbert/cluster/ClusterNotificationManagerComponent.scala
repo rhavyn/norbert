@@ -13,10 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert
+package cluster
 
-import com.linkedin.norbert.logging.Logging
 import actors.Actor
+import logging.Logging
 
 trait ClusterNotificationManagerComponent {
   val clusterNotificationManager: Actor

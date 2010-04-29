@@ -13,14 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
-import org.mockito.Matchers._
-import com.linkedin.norbert.cluster._
-import com.linkedin.norbert.network.{NetworkServerNotBoundException, NetworkShutdownException}
 import com.google.protobuf.Message
+import cluster._
 
 class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
   val networkServer = new NetworkServer with ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent

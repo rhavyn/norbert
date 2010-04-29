@@ -13,7 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert
+package cluster
 
 object NorbertClusterClientMain {
   private var cluster: ClusterClient = _
@@ -53,7 +54,7 @@ object NorbertClusterClientMain {
             cluster.addNode(nodeId.toInt, url)
             println("Joined Norbert cluster")
 
-          case nodeId :: url :: partitions => 
+          case nodeId :: url :: partitions =>
             cluster.addNode(nodeId.toInt, url, Set() ++ partitions.map(_.toInt))
             println("Joined Norbert cluster")
 

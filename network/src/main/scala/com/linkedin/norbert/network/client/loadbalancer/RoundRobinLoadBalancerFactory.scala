@@ -13,9 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client.loadbalancer
+package com.linkedin.norbert
+package network
+package client
+package loadbalancer
 
-import com.linkedin.norbert.cluster.Node
+import cluster.Node
 
 class RoundRobinLoadBalancerFactory extends LoadBalancerFactory {
   def newLoadBalancer(nodes: Set[Node]) = new LoadBalancer {

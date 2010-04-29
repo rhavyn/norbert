@@ -13,16 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
-import com.linkedin.norbert.network.server.ClusterIoServerComponent
-import com.linkedin.norbert.cluster.Node
 import org.jboss.netty.bootstrap.ServerBootstrap
 import java.net.InetSocketAddress
 import org.jboss.netty.channel.{ChannelException, Channel}
-import com.linkedin.norbert.network.NetworkingException
-import com.linkedin.norbert.logging.Logging
 import org.jboss.netty.channel.group.ChannelGroup
+import server.ClusterIoServerComponent
+import logging.Logging
+import cluster.Node
 
 trait NettyClusterIoServerComponent extends ClusterIoServerComponent {
   class NettyClusterIoServer(bootstrap: ServerBootstrap, channelGroup: ChannelGroup) extends ClusterIoServer with UrlParser with Logging {

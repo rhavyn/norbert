@@ -13,9 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.zookeeper
-
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterNotificationManagerComponent}
+package com.linkedin.norbert
+package cluster
+package zookeeper
 
 class ZooKeeperClusterClient(val serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends ClusterClient
     with ClusterNotificationManagerComponent with ZooKeeperClusterManagerComponent {

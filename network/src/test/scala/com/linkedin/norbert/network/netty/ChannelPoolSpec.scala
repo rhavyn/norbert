@@ -13,7 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import org.specs.SpecificationWithJUnit
 import org.jboss.netty.bootstrap.ClientBootstrap

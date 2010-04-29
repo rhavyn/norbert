@@ -13,16 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
-import com.linkedin.norbert.logging.Logging
 import java.util.UUID
-import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel._
 import com.google.protobuf.InvalidProtocolBufferException
-import com.linkedin.norbert.network.common.MessageRegistry
-import com.linkedin.norbert.network.{InvalidMessageException, RemoteException}
 import java.util.concurrent.{TimeUnit, ConcurrentHashMap}
+import common.MessageRegistry
+import protos.NorbertProtos
+import logging.Logging
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeoutMins: Int, staleRequestCleanupFrequencyMins: Int) extends SimpleChannelHandler with Logging {

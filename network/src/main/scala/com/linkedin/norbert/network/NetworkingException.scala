@@ -13,9 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
-
-import com.linkedin.norbert.NorbertException
+package com.linkedin.norbert
+package network
 
 /**
  * Base class from which Norbert's networking related exceptions inherit.

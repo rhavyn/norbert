@@ -13,15 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
 import org.jboss.netty.bootstrap.ServerBootstrap
-import com.linkedin.norbert.cluster.{InvalidNodeException, Node}
 import java.net.InetSocketAddress
 import org.jboss.netty.channel.{ChannelFuture, Channel}
 import org.jboss.netty.channel.group.{ChannelGroupFuture, ChannelGroup}
+import cluster.{InvalidNodeException, Node}
 
 class NettyClusterIoServerComponentSpec extends SpecificationWithJUnit with Mockito with NettyClusterIoServerComponent {
   val bootstrap = mock[ServerBootstrap]

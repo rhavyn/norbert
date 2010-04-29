@@ -13,15 +13,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert
+package cluster
 
 import actors.Actor._
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-import com.linkedin.norbert.logging.Logging
+import jmx.JMX.MBean
+import jmx.JMX
+import logging.Logging
 import zookeeper.ZooKeeperClusterClient
-import com.linkedin.norbert.jmx.JMX
-import com.linkedin.norbert.jmx.JMX.MBean
 
 /**
  * ClusterClient companion object provides factory methods for creating a <code>ClusterClient</code> instance.

@@ -13,14 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert
+package network
 
 import netty.NetworkServerConfig
 import org.jboss.netty.logging.{InternalLoggerFactory, Log4JLoggerFactory}
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.ClusterClient
-import com.linkedin.norbert.protos.NorbertExampleProtos
 import server.NetworkServer
+import protos.NorbertExampleProtos
+import cluster.ClusterClient
 
 object NorbertNetworkServerMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)

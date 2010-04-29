@@ -13,9 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned.loadbalancer
+package com.linkedin.norbert
+package network
+package partitioned
+package loadbalancer
 
-import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
+import cluster.{InvalidClusterException, Node}
 
 /**
  * A <code>PartitionedLoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to

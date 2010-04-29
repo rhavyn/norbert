@@ -13,13 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client
+package com.linkedin.norbert
+package network
+package client
 
-import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster._
-import com.linkedin.norbert.network.common.{BaseNetworkClientSpecification, MessageRegistry, MessageRegistryComponent, ClusterIoClientComponent}
-import com.linkedin.norbert.network.{NetworkShutdownException, InvalidMessageException, NoNodesAvailableException}
+import common.{MessageRegistry, MessageRegistryComponent, ClusterIoClientComponent, BaseNetworkClientSpecification}
+import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
+import cluster.{InvalidClusterException, ClusterDisconnectedException, ClusterClientComponent}
 
 class NetworkClientSpec extends BaseNetworkClientSpecification {
   val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {

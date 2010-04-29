@@ -13,14 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned
+package com.linkedin.norbert
+package network
+package partitioned
 
+import common.{MessageRegistry, MessageRegistryComponent, ClusterIoClientComponent, BaseNetworkClientSpecification}
 import loadbalancer.{PartitionedLoadBalancerFactory, PartitionedLoadBalancer, PartitionedLoadBalancerFactoryComponent}
-import com.linkedin.norbert.network.common.{MessageRegistry, ClusterIoClientComponent, MessageRegistryComponent, BaseNetworkClientSpecification}
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster._
 import java.util.concurrent.ExecutionException
-import com.linkedin.norbert.network.{NetworkShutdownException, ResponseIterator, NoNodesAvailableException, InvalidMessageException}
+import cluster.{Node, InvalidClusterException, ClusterDisconnectedException, ClusterClientComponent}
 
 class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
   val networkClient = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent

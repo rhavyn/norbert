@@ -13,7 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned.loadbalancer
+package com.linkedin.norbert
+package network
+package partitioned
+package loadbalancer
 
 /**
  * Object which provides hash function implementations.

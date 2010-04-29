@@ -13,15 +13,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.zookeeper
+package com.linkedin.norbert
+package cluster
+package zookeeper
 
-import com.linkedin.norbert.cluster.common.ClusterManagerHelper
-import com.linkedin.norbert.logging.Logging
+import common.ClusterManagerHelper
+import logging.Logging
 import actors.Actor
 import Actor._
 import java.io.IOException
 import org.apache.zookeeper._
-import com.linkedin.norbert.cluster._
 
 trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
   this: ClusterNotificationManagerComponent =>

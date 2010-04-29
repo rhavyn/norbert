@@ -13,14 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert
+package network
+package common
 
-import com.linkedin.norbert.logging.Logging
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster._
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.Future
-import com.linkedin.norbert.network.{NetworkShutdownException, InvalidMessageException, ResponseIterator, NetworkNotStartedException}
+import cluster._
+import logging.Logging
 
 trait BaseNetworkClient extends Logging {
   this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent =>

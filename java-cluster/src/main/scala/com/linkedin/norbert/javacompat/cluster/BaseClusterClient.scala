@@ -16,7 +16,6 @@
 package com.linkedin.norbert.javacompat
 package cluster
 
-import java.lang.String
 import java.util.concurrent.TimeUnit
 import com.linkedin.norbert.cluster.{ClusterEvents, ClusterEvent, ClusterListenerKey}
 

@@ -13,15 +13,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import org.jboss.netty.channel.group.ChannelGroup
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.protos.NorbertProtos
-import com.linkedin.norbert.network.InvalidMessageException
 import org.jboss.netty.channel._
-import com.linkedin.norbert.network.server.{MessageExecutor, MessageHandlerRegistry}
 import com.google.protobuf.{InvalidProtocolBufferException, Message}
+import server.{MessageExecutor, MessageHandlerRegistry}
+import protos.NorbertProtos
+import logging.Logging
 
 @ChannelPipelineCoverage("all")
 class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {

@@ -13,14 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
-import com.linkedin.norbert.cluster._
 import java.util.concurrent.atomic.AtomicBoolean
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.network.{NetworkShutdownException, NetworkingException, NetworkServerNotBoundException}
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.netty.{NettyNetworkServer, NetworkServerConfig}
+import netty.{NettyNetworkServer, NetworkServerConfig}
+import cluster._
+import logging.Logging
 
 object NetworkServer {
   def apply(config: NetworkServerConfig): NetworkServer = new NettyNetworkServer(config)

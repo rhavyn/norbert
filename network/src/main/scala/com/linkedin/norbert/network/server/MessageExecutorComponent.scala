@@ -13,13 +13,14 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
 import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.network.InvalidMessageException
-import com.linkedin.norbert.util.NamedPoolThreadFactory
+import util.NamedPoolThreadFactory
+import logging.Logging
 
 /**
  * A component which submits incoming messages to their associated message handler.

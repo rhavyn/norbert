@@ -13,15 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.Node
 import java.net.InetSocketAddress
 import java.util.concurrent.{ConcurrentHashMap}
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.network.common.{MessageRegistryComponent, ClusterIoClientComponent}
-import org.jboss.netty.channel.{Channels, ChannelFactory, ChannelPipelineFactory}
+import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
+import common.{MessageRegistryComponent, ClusterIoClientComponent}
+import cluster.Node
+import logging.Logging
 
 /**
  * A <code>ClusterIoClientComponent</code> implementation that uses Netty for network communication.

@@ -13,10 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.util
+package com.linkedin.norbert
+package util
 
 import java.util.concurrent.ThreadFactory
-import java.lang.Runnable
 import java.util.concurrent.atomic.AtomicInteger
 
 class NamedPoolThreadFactory(poolName: String) extends ThreadFactory {

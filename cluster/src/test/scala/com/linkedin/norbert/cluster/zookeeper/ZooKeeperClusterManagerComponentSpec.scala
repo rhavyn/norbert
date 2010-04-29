@@ -13,7 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.zookeeper
+package com.linkedin.norbert
+package cluster
+package zookeeper
 
 import org.specs.SpecificationWithJUnit
 import org.specs.mock.Mockito
@@ -23,7 +25,6 @@ import org.specs.util.WaitFor
 import org.apache.zookeeper.data.Stat
 import org.apache.zookeeper._
 import java.util.ArrayList
-import com.linkedin.norbert.cluster._
 
 class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ZooKeeperClusterManagerComponent
         with ClusterNotificationManagerComponent {

@@ -13,12 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.memory
+package com.linkedin.norbert
+package cluster
+package memory
 
 import actors.Actor
 import Actor._
-import com.linkedin.norbert.cluster.{InvalidNodeException, Node, ClusterNotificationManagerComponent, ClusterManagerComponent}
-import com.linkedin.norbert.cluster.common.ClusterManagerHelper
+import common.ClusterManagerHelper
 
 trait InMemoryClusterManagerComponent extends ClusterManagerComponent with ClusterManagerHelper {
   this: ClusterNotificationManagerComponent =>

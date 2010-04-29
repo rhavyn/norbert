@@ -13,20 +13,21 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterClientComponent}
 import java.util.concurrent.Executors
-import com.linkedin.norbert.util.NamedPoolThreadFactory
 import org.jboss.netty.bootstrap.ServerBootstrap
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
 import org.jboss.netty.handler.logging.LoggingHandler
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
-import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel.group.DefaultChannelGroup
-import com.linkedin.norbert.network.NetworkDefaults
-import com.linkedin.norbert.network.server._
+import server._
+import cluster.{ClusterClient, ClusterClientComponent}
+import protos.NorbertProtos
+import util.NamedPoolThreadFactory
 
 class NetworkServerConfig {
   var clusterClient: ClusterClient = _
