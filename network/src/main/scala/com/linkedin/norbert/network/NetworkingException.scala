@@ -42,7 +42,7 @@ class RemoteException(className: String, errorMsg: String) extends NetworkingExc
 class InvalidMessageException(errorMsg: String) extends NetworkingException(errorMsg)
 
 /**
- * Exception that indicates that a malformed response was received. 
+ * Exception that indicates that a malformed response was received.
  */
 class InvalidResponseException(errorMsg: String) extends NetworkingException(errorMsg)
 

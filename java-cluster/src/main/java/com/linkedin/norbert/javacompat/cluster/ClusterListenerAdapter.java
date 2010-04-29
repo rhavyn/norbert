@@ -13,17 +13,25 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert.javacompat.cluster;
 
-import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.Node
+import java.util.Set;
 
-trait ClusterIoClientComponent {
-  val clusterIoClient: ClusterIoClient
+public class ClusterListenerAdapter implements ClusterListener {
 
-  trait ClusterIoClient {
-    def sendMessage(node: Node, message: Message, responseCallback: Either[Throwable, Message] => Unit): Unit
-    def nodesChanged(nodes: Set[Node])
-    def shutdown: Unit
+  public void handleClusterConnected(Set<Node> nodes) {
+    // do nothing
+  }
+
+  public void handleClusterNodesChanged(Set<Node> nodes) {
+    // do nothing
+  }
+
+  public void handleClusterDisconnected() {
+    // do nothing
+  }
+
+  public void handleClusterShutdown() {
+    // do nothing
   }
 }

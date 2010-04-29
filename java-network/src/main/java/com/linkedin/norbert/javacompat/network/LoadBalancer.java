@@ -13,17 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert.javacompat.network;
 
-import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.Node
+import com.linkedin.norbert.javacompat.cluster.Node;
 
-trait ClusterIoClientComponent {
-  val clusterIoClient: ClusterIoClient
-
-  trait ClusterIoClient {
-    def sendMessage(node: Node, message: Message, responseCallback: Either[Throwable, Message] => Unit): Unit
-    def nodesChanged(nodes: Set[Node])
-    def shutdown: Unit
-  }
+/**
+ * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to.
+ */
+public interface LoadBalancer {
+  /**
+   * Returns the next <code>Node</code> a message should be routed to.
+   *
+   * @return the <code>Node</code> to route the next message to or null if there are no <code>Node</code>s available
+   */
+  Node nextNode();
 }

@@ -13,17 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert.javacompat.cluster;
 
-import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.Node
+import java.util.Set;
 
-trait ClusterIoClientComponent {
-  val clusterIoClient: ClusterIoClient
-
-  trait ClusterIoClient {
-    def sendMessage(node: Node, message: Message, responseCallback: Either[Throwable, Message] => Unit): Unit
-    def nodesChanged(nodes: Set[Node])
-    def shutdown: Unit
-  }
+public interface Node {
+  int getId();
+  String getUrl();
+  Set<Integer> getPartitionIds();
+  boolean isAvailable();
 }
