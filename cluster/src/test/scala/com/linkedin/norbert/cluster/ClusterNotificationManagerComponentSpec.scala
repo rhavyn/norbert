@@ -25,9 +25,9 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
 
   clusterNotificationManager.start
 
-  val shortNodes = Set(Node(1, "localhost:31313", Set(1, 2), false))
-  val nodes = shortNodes ++ List(Node(2, "localhost:31314", Set(3, 4), true),
-    Node(3, "localhost:31315", Set(5, 6), false))
+  val shortNodes = Set(Node(1, "localhost:31313", false, Set(1, 2)))
+  val nodes = shortNodes ++ List(Node(2, "localhost:31314", true, Set(3, 4)),
+    Node(3, "localhost:31315", false, Set(5, 6)))
 
   "ClusterNotificationManager" should {
     import ClusterNotificationMessages._

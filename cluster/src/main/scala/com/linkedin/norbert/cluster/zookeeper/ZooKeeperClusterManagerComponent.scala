@@ -126,7 +126,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
 
         val availableSet = zk.getChildren(AVAILABILITY_NODE, true).foldLeft(Set[Int]()) { (set, i) => set + i.toInt }
         if (availableSet.size == 0) {
-          currentNodes.transform { case (id, n) => Node(n.id, n.url, n.partitions, false) }
+          currentNodes.foreach { case (id, _) => makeNodeUnavailable(id) }
         } else {
           val (available, unavailable) = currentNodes.partition { case (id, _) => availableSet.contains(id) }
           available.foreach { case (id, _) => makeNodeAvailable(id) }
@@ -290,15 +290,11 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     }
 
     private def makeNodeAvailable(nodeId: Int) {
-      currentNodes.get(nodeId).foreach { n =>
-        if (!n.available) currentNodes.update(n.id, Node(n.id, n.url, n.partitions, true))
-      }
+      currentNodes.get(nodeId).foreach { n => if (!n.available) currentNodes.update(n.id, n.copy(available = true)) }
     }
 
     private def makeNodeUnavailable(nodeId: Int) {
-      currentNodes.get(nodeId).foreach { n =>
-        if (n.available) currentNodes.update(n.id, Node(n.id, n.url, n.partitions, false))
-      }
+      currentNodes.get(nodeId).foreach { n => if (n.available) currentNodes.update(n.id, n.copy(available = false)) }
     }
 
     private def doIfConnected(what: String)(block: => Unit) {

@@ -108,8 +108,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(2)
 
-        val nodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-          Node(2, "localhost:31314", Set(2, 3), false), Node(3, "localhost:31315", Set(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+          Node(2, "localhost:31314", false, Set(2, 3)), Node(3, "localhost:31315", true, Set(2, 3)))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>
@@ -138,8 +138,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(1)
 
-        val nodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-          Node(2, "localhost:31314", Set(2, 3), false), Node(3, "localhost:31315", Set(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+          Node(2, "localhost:31314", false, Set(2, 3)), Node(3, "localhost:31315", true, Set(2, 3)))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>
@@ -203,8 +203,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           newAvailability.add("1")
           newAvailability.add("3")
 
-          val nodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-            Node(2, "localhost:31314", Set(2, 3), true), Node(3, "localhost:31315", Set(2, 3), false))
+          val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+            Node(2, "localhost:31314", true, Set(2, 3)), Node(3, "localhost:31315", false, Set(2, 3)))
 
           mockZooKeeper.getChildren(membershipNode, true) returns membership
           nodes.foreach { node =>
@@ -240,8 +240,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
 
           val newAvailability = new ArrayList[String]
 
-          val nodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-            Node(2, "localhost:31314", Set(2, 3), true), Node(3, "localhost:31315", Set(2, 3), false))
+          val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+            Node(2, "localhost:31314", true, Set(2, 3)), Node(3, "localhost:31315", false, Set(2, 3)))
 
           mockZooKeeper.getChildren(membershipNode, true) returns membership
           nodes.foreach { node =>
@@ -283,8 +283,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
           newMembership.add("2")
           newMembership.add("3")
 
-          val updatedNodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-            Node(2, "localhost:31314", Set(2, 3), true), Node(3, "localhost:31315", Set(2, 3), false))
+          val updatedNodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+            Node(2, "localhost:31314", true, Set(2, 3)), Node(3, "localhost:31315", false, Set(2, 3)))
           val nodes = updatedNodes.slice(0, 2)
 
           mockZooKeeper.getChildren(membershipNode, true) returns membership thenReturns newMembership
@@ -339,7 +339,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
     }
 
     "when a AddNode message is received" in {
-      val node = Node(1, "localhost:31313", Set(1, 2), false)
+      val node = Node(1, "localhost:31313", false, Set(1, 2))
 
       "throw a ClusterDisconnectedException if not connected" in {
 
@@ -427,8 +427,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(2)
 
-        val nodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-          Node(2, "localhost:31314", Set(2, 3), false), Node(3, "localhost:31315", Set(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+          Node(2, "localhost:31314", false, Set(2, 3)), Node(3, "localhost:31315", true, Set(2, 3)))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>
@@ -498,8 +498,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(2)
 
-        val nodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-          Node(2, "localhost:31314", Set(2, 3), false), Node(3, "localhost:31315", Set(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+          Node(2, "localhost:31314", false, Set(2, 3)), Node(3, "localhost:31315", true, Set(2, 3)))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>
@@ -564,8 +564,8 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         val availability = membership.clone.asInstanceOf[ArrayList[String]]
         availability.remove(2)
 
-        val nodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-          Node(2, "localhost:31314", Set(2, 3), false), Node(3, "localhost:31315", Set(2, 3), true))
+        val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+          Node(2, "localhost:31314", false, Set(2, 3)), Node(3, "localhost:31315", true, Set(2, 3)))
 
         mockZooKeeper.getChildren(membershipNode, true) returns membership
         nodes.foreach { node =>

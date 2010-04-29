@@ -24,18 +24,6 @@ import com.linkedin.norbert.protos.NorbertProtos
 object Node {
 
   /**
-   * Creates a <code>Node</code> instance with no partitions assigned to it.
-   *
-   * @param id the id of the node
-   * @param address the <code>InetSocketAddress</code> on which requests can be sent to the node
-   * @param partitions the partitions for which the node can handle requests
-   * @param available whether or not the node is currently able to process requests
-   *
-   * @return a new <code>Node</code> instance
-   */
-  def apply(id: Int, url: String, available: Boolean): Node = apply(id, url, Set[Int](), available)
-
-  /**
    * Creates a <code>Node</code> instance using the serialized state of a node.
    *
    * @param id the id of the node
@@ -50,9 +38,9 @@ object Node {
 
     try {
       val node = NorbertProtos.Node.newBuilder.mergeFrom(bytes).build
-      val partitions = node.getPartitionList.foldLeft(Set[Int]()) { (set, i) => set + i.asInstanceOf[Int] }
+      val partitions = node.getPartitionList.asInstanceOf[java.util.List[Int]].foldLeft(Set[Int]()) { (set, i) => set + i }
 
-      Node(node.getId, node.getUrl, partitions, available)
+      Node(node.getId, node.getUrl, available, partitions)
     } catch {
       case ex: InvalidProtocolBufferException => throw new InvalidNodeException("Error deserializing node", ex)
     }
@@ -68,7 +56,7 @@ object Node {
   implicit def nodeToByteArray(node: Node): Array[Byte] = {
     val builder = NorbertProtos.Node.newBuilder
     builder.setId(node.id).setUrl(node.url)
-    node.partitions.foreach(builder.addPartition(_))
+    node.partitionIds.foreach(builder.addPartition(_))
 
     builder.build.toByteArray
   }
@@ -78,13 +66,13 @@ object Node {
  * A representation of a physical node in the cluster.
  *
  * @param id the id of the node
- * @param address the <code>InetSocketAddress</code> on which requests can be sent to the node
- * @param partitions the partitions for which the node can handle requests
+ * @param address the url to which requests can be sent to the node
  * @param available whether or not the node is currently able to process requests
+ * @param partitions the partitions for which the node can handle requests
  */
-final case class Node(id: Int, url: String, partitions: Set[Int], available: Boolean) {
+final case class Node(id: Int, url: String, available: Boolean, partitionIds: Set[Int] = Set()) {
   if (url == null) throw new NullPointerException("url must not be null")
-  if (partitions == null) throw new NullPointerException("partitions must not be null")
+  if (partitionIds == null) throw new NullPointerException("partitions must not be null")
 
   override def hashCode = id.hashCode
 
@@ -93,5 +81,5 @@ final case class Node(id: Int, url: String, partitions: Set[Int], available: Boo
     case _ => false
   }
 
-  override def toString = "Node(%d,%s,[%s],%b)".format(id, url, partitions.mkString(","), available)
+  override def toString = "Node(%d,%s,[%s],%b)".format(id, url, partitionIds.mkString(","), available)
 }

@@ -24,8 +24,8 @@ object Implicits {
   }
 
   implicit def javaNodeToScalaNode(node: JNode): SNode = {
-    if (node == null) null else SNode(node.getId, node.getUrl,
-      node.getPartitions.asInstanceOf[java.util.Set[Int]].foldLeft(Set[Int]()) { (set, id) => set + id }, node.isAvailable)
+    if (node == null) null else SNode(node.getId, node.getUrl, node.isAvailable,
+      node.getPartitionIds.asInstanceOf[java.util.Set[Int]].foldLeft(Set[Int]()) { (set, id) => set + id })
   }
 
   implicit def scalaNodeSetToJavaNodeSet(nodes: Set[SNode]): java.util.Set[JNode] = {

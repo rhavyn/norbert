@@ -23,15 +23,15 @@ object JavaNode {
       null
     } else {
       var s = new java.util.HashSet[java.lang.Integer]
-      if (node.partitions != null) {
-        node.partitions.foreach {id => s.add(id)}
+      if (node.partitionIds != null) {
+        node.partitionIds.foreach {id => s.add(id)}
       }
-      JavaNode(node.id, node.url, s, node.available)
+      JavaNode(node.id, node.url, node.available, s)
     }
   }
 }
 
-case class JavaNode(@BeanProperty id: Int, @BeanProperty url: String, @BeanProperty partitions: java.util.Set[java.lang.Integer],
-        @BeanProperty available: Boolean) extends Node {
+case class JavaNode(@BeanProperty id: Int, @BeanProperty url: String, @BeanProperty available: Boolean,
+        @BeanProperty partitionIds: java.util.Set[java.lang.Integer]) extends Node {
   def isAvailable = available
 }

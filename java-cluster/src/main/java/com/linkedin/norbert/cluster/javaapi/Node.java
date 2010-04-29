@@ -20,6 +20,6 @@ import java.util.Set;
 public interface Node {
   int getId();
   String getUrl();
-  Set<Integer> getPartitions();
+  Set<Integer> getPartitionIds();
   boolean isAvailable();
 }

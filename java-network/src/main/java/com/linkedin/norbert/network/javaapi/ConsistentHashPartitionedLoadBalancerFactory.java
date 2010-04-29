@@ -33,7 +33,7 @@ public abstract class ConsistentHashPartitionedLoadBalancerFactory<PartitionedId
 
     private ConsistentHashLoadBalancer(Set<Node> nodes) {
       for (Node node : nodes) {
-        for (int partitionId : node.getPartitions()) {
+        for (int partitionId : node.getPartitionIds()) {
           List<Node> nodeList = nodeMap.get(partitionId);
           if (nodeList == null) {
             nodeList = new ArrayList<Node>();

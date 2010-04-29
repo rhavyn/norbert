@@ -136,7 +136,7 @@ trait ClusterClient extends Logging {
   def addNode(nodeId: Int, url: String, partitions: Set[Int]): Node = doIfConnected {
     if (url == null) throw new NullPointerException
 
-    val node = Node(nodeId, url, partitions, false)
+    val node = Node(nodeId, url, false, partitions)
     clusterManager !? ClusterManagerMessages.AddNode(node) match {
       case ClusterManagerMessages.ClusterManagerResponse(Some(ex)) => throw ex
       case ClusterManagerMessages.ClusterManagerResponse(None) => node
