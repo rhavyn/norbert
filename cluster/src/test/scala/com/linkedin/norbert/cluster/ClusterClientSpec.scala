@@ -16,6 +16,7 @@
 package com.linkedin.norbert
 package cluster
 
+import common.{ClusterNotificationManagerComponent, ClusterManagerComponent}
 import java.util.concurrent.TimeUnit
 import org.specs.Specification
 import actors.Actor

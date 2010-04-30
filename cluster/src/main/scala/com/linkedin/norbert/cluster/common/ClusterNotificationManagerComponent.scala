@@ -15,6 +15,7 @@
  */
 package com.linkedin.norbert
 package cluster
+package common
 
 import actors.Actor
 import logging.Logging

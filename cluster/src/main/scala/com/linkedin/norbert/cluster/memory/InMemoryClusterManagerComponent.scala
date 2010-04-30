@@ -19,7 +19,7 @@ package memory
 
 import actors.Actor
 import Actor._
-import common.ClusterManagerHelper
+import common.{ClusterManagerComponent, ClusterNotificationManagerComponent, ClusterManagerHelper}
 
 trait InMemoryClusterManagerComponent extends ClusterManagerComponent with ClusterManagerHelper {
   this: ClusterNotificationManagerComponent =>

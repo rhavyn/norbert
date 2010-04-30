@@ -17,6 +17,7 @@ package com.linkedin.norbert
 package cluster
 package zookeeper
 
+import common.ClusterNotificationManagerComponent
 import org.specs.Specification
 import org.specs.mock.Mockito
 import actors.Actor

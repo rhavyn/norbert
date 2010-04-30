@@ -15,6 +15,7 @@
  */
 package com.linkedin.norbert
 package cluster
+package common
 
 import org.specs.Specification
 import org.specs.mock.Mockito

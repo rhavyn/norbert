@@ -17,7 +17,7 @@ package com.linkedin.norbert
 package cluster
 package zookeeper
 
-import common.ClusterManagerHelper
+import common.{ClusterNotificationManagerComponent, ClusterManagerComponent, ClusterManagerHelper}
 import logging.Logging
 import actors.Actor
 import Actor._

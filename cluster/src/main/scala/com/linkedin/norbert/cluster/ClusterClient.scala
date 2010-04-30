@@ -17,6 +17,7 @@ package com.linkedin.norbert
 package cluster
 
 import actors.Actor._
+import common.{ClusterNotificationManagerComponent, ClusterManagerComponent}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import jmx.JMX.MBean
@@ -187,7 +188,7 @@ trait ClusterClient extends Logging {
 
     val a = actor {
       loop {
-        receive {
+        react {
           case event: ClusterEvent => listener.handleClusterEvent(event)
           case 'quit => exit
           case m => log.error("Received invalid message: " + m)
