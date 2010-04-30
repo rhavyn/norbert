@@ -17,13 +17,13 @@ package com.linkedin.norbert
 package network
 package server
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
 import org.specs.util.WaitFor
 import protos.NorbertExampleProtos
 
-class MessageExecutorSpec extends SpecificationWithJUnit with Mockito with WaitFor {
+class MessageExecutorSpec extends Specification with Mockito with WaitFor {
   val messageHandlerRegistry = mock[MessageHandlerRegistry]
   val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 1, 1, 1)
   val message = NorbertExampleProtos.Ping.getDefaultInstance

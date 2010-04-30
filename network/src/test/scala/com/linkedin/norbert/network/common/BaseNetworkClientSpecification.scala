@@ -18,11 +18,11 @@ package network
 package common
 
 import com.google.protobuf.Message
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import org.specs.mock.Mockito
 import cluster._
 
-abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit with Mockito {
+abstract class BaseNetworkClientSpecification extends Specification with Mockito {
   val clusterClient = mock[ClusterClient]
   val networkClient: BaseNetworkClient
 

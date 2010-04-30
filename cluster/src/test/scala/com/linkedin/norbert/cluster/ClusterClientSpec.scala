@@ -17,13 +17,13 @@ package com.linkedin.norbert
 package cluster
 
 import java.util.concurrent.TimeUnit
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import actors.Actor
 import Actor._
 import org.specs.util.WaitFor
 import org.specs.mock.Mockito
 
-class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor {
+class ClusterClientSpec extends Specification with Mockito with WaitFor {
 
   val clusterListenerKey = ClusterListenerKey(10101L)
   val currentNodes = Set(Node(1, "localhost:31313", true, Set(0, 1)),

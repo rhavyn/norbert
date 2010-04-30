@@ -17,12 +17,12 @@ package com.linkedin.norbert
 package network
 package server
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
 import cluster._
 
-class NetworkServerSpec extends SpecificationWithJUnit with Mockito {
+class NetworkServerSpec extends Specification with Mockito {
   val networkServer = new NetworkServer with ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent
       with MessageExecutorComponent {
     val clusterIoServer = mock[ClusterIoServer]

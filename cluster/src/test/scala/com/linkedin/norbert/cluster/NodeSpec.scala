@@ -16,10 +16,10 @@
 package com.linkedin.norbert
 package cluster
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import protos.NorbertProtos
 
-class NodeSpec extends SpecificationWithJUnit {
+class NodeSpec extends Specification {
   "Node" should {
     "serialize into the correct format" in {
       val builder = NorbertProtos.Node.newBuilder

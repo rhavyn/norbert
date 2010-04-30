@@ -17,7 +17,7 @@ package com.linkedin.norbert
 package cluster
 package zookeeper
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import org.specs.mock.Mockito
 import actors.Actor
 import Actor._
@@ -26,7 +26,7 @@ import org.apache.zookeeper.data.Stat
 import org.apache.zookeeper._
 import java.util.ArrayList
 
-class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with Mockito with WaitFor with ZooKeeperClusterManagerComponent
+class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito with WaitFor with ZooKeeperClusterManagerComponent
         with ClusterNotificationManagerComponent {
   import ZooKeeperMessages._
   import ClusterManagerMessages._

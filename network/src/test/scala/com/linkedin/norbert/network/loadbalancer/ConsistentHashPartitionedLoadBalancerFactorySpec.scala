@@ -18,10 +18,10 @@ package network
 package partitioned
 package loadbalancer
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import cluster.{InvalidClusterException, Node}
 
-class ConsistentHashPartitionedLoadBalancerFactorySpec extends SpecificationWithJUnit {
+class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
   case class EId(id: Int)
   implicit def eId2ByteArray(eId: EId): Array[Byte] = BigInt(eId.id).toByteArray
 

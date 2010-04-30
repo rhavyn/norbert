@@ -17,12 +17,12 @@ package com.linkedin.norbert
 package network
 package common
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import com.google.protobuf.Message
 import org.specs.mock.Mockito
 import java.util.concurrent.{TimeoutException, ExecutionException, TimeUnit}
 
-class NorbertFutureSpec extends SpecificationWithJUnit with Mockito {
+class NorbertFutureSpec extends Specification with Mockito {
   val future = new NorbertFuture
 
   "NorbertFuture" should {
@@ -55,7 +55,7 @@ class NorbertFutureSpec extends SpecificationWithJUnit with Mockito {
   }
 }
 
-class NorbertResponseIteratorSpec extends SpecificationWithJUnit with Mockito {
+class NorbertResponseIteratorSpec extends Specification with Mockito {
   val it = new NorbertResponseIterator(2)
 
   "NorbertResponseIterator" should {

@@ -17,12 +17,12 @@ package com.linkedin.norbert
 package network
 package common
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
 import protos.NorbertExampleProtos
 
-class MessageRegistrySpec extends SpecificationWithJUnit with Mockito {
+class MessageRegistrySpec extends Specification with Mockito {
   val messageRegistry = new MessageRegistry
 
   val proto = NorbertExampleProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build
