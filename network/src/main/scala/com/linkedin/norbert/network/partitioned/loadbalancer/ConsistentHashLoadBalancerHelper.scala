@@ -29,7 +29,7 @@ trait ConsistentHashLoadBalancerHelper {
   /**
    * A mapping from partition id to the <code>Node</code>s which can service that partition.
    */
-  protected val partitionToNodeMap: Map[Int, Seq[Node]]
+  protected val partitionToNodeMap: Map[Int, IndexedSeq[Node]]
 
   /**
    * Given the currently available <code>Node</code>s and the total number of partitions in the cluster, this method
@@ -42,13 +42,13 @@ trait ConsistentHashLoadBalancerHelper {
    * @throws InvalidClusterException thrown if every partition doesn't have at least one available <code>Node</code>
    * assigned to it
    */
-  protected def generatePartitionToNodeMap(nodes: Set[Node], numPartitions: Int): Map[Int, Seq[Node]] = {
-    val partitionToNodeMap = (for (n <- nodes; p <- n.partitionIds) yield (p, n)).foldLeft(Map.empty[Int, List[Node]].withDefaultValue(Nil)) {
-      case (map, (partitionId, node)) => map.updated(partitionId, node :: map(partitionId))
+  protected def generatePartitionToNodeMap(nodes: Set[Node], numPartitions: Int): Map[Int, IndexedSeq[Node]] = {
+    val partitionToNodeMap = (for (n <- nodes; p <- n.partitionIds) yield(p, n)).foldLeft(Map.empty[Int, IndexedSeq[Node]]) {
+      case (map, (partitionId, node)) => map + (partitionId -> (node +: map.get(partitionId).getOrElse(Vector.empty[Node])))
     }
 
     for (i <- 0 until numPartitions) {
-      if (partitionToNodeMap(i).size == 0) throw new InvalidClusterException("Partition %d is not assigned a node".format(i))
+      if (!partitionToNodeMap.contains(i)) throw new InvalidClusterException("Partition %d is not assigned a node".format(i))
     }
 
     partitionToNodeMap
