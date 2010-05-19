@@ -68,6 +68,7 @@ class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeout
     requestMap.get(requestId) match {
       case null => log.warn("Received a response message [%s] without a corresponding request", message)
       case request =>
+        requestMap.remove(requestId)
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           try {
             if (messageRegistry.validResponseFor(request.message, message.getMessageName)) {
