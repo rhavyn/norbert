@@ -25,6 +25,10 @@ import Level._
 class Logger(wrapped: l4jLogger) {
   private val fqcn = this.getClass.getName
 
+  def traceEnabled: Boolean = wrapped.isTraceEnabled
+  def debugEnabled: Boolean = wrapped.isDebugEnabled
+  def infoEnabled: Boolean = wrapped.isInfoEnabled
+
   /**
    * Logs a message at trace level if that level is enabled.
    *
