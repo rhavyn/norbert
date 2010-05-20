@@ -33,7 +33,7 @@ trait NettyClusterIoServerComponent extends ClusterIoServerComponent {
       val (_, port) = parseUrl(node.url)
       try {
         val address = new InetSocketAddress(port)
-        log.ifDebug("Binding server socket to %s", address)
+        log.debug("Binding server socket to %s".format(address))
         serverChannel = bootstrap.bind(address)
       } catch {
         case ex: ChannelException => throw new NetworkingException("Unable to bind to %s".format(node), ex)

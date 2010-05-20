@@ -45,7 +45,7 @@ trait ClusterNotificationManagerComponent {
     private var listenerId: Long = 0
 
     def act() = {
-      log.ifDebug("ClusterNotificationManager started")
+      log.debug("ClusterNotificationManager started")
 
       while(true) {
         import ClusterNotificationMessages._
@@ -58,13 +58,13 @@ trait ClusterNotificationManagerComponent {
           case RemoveListener(key) => handleRemoveListener(key)
           case Shutdown => handleShutdown
           case GetCurrentNodes => reply(CurrentNodes(currentNodes))
-          case m => log.error("Received unknown message: %s", m)
+          case m => log.error("Received unknown message: %s".format(m))
         }
       }
     }
 
     private def handleAddListener(listener: Actor) {
-      log.ifDebug("Handling AddListener(%s) message", listener)
+      log.debug("Handling AddListener(%s) message".format(listener))
 
       listenerId += 1
       val key = ClusterListenerKey(listenerId)
@@ -74,7 +74,7 @@ trait ClusterNotificationManagerComponent {
     }
 
     private def handleConnected(nodes: Set[Node]) {
-      log.ifDebug("Handling Connected(%s) message", nodes)
+      log.debug("Handling Connected(%s) message".format(nodes))
 
       if (connected) {
         log.error("Received a Connected event when already connected")
@@ -87,7 +87,7 @@ trait ClusterNotificationManagerComponent {
     }
 
     private def handleDisconnected {
-      log.ifDebug("Handling Disconnected message")
+      log.debug("Handling Disconnected message")
 
       if (connected) {
         connected = false
@@ -100,7 +100,7 @@ trait ClusterNotificationManagerComponent {
     }
 
     private def handleNodesChanged(nodes: Set[Node]) {
-      log.ifDebug("Handling NodesChanged(%s) message", nodes)
+      log.debug("Handling NodesChanged(%s) message".format(nodes))
 
       if (connected) {
         currentNodes = nodes
@@ -112,24 +112,24 @@ trait ClusterNotificationManagerComponent {
     }
 
     private def handleRemoveListener(key: ClusterListenerKey) {
-      log.ifDebug("Handling RemoveListener(%s) message", key)
+      log.debug("Handling RemoveListener(%s) message".format(key))
       listeners.get(key) match {
         case Some(a) =>
           a ! 'quit
           listeners -= key
 
-        case None => log.ifInfo("Attempt to remove an unknown listener with key: %s", key)
+        case None => log.info("Attempt to remove an unknown listener with key: %s".format(key))
       }
     }
 
     private def handleShutdown {
-      log.ifDebug("Handling Shutdown message")
+      log.debug("Handling Shutdown message")
 
       notifyListeners(ClusterEvents.Shutdown)
       listeners.values.foreach(_ ! 'quit)
       currentNodes = Set()
 
-      log.ifDebug("ClusterNotificationManager shut down")
+      log.debug("ClusterNotificationManager shut down")
       exit
     }
 

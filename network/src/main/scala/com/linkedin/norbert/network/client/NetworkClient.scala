@@ -94,12 +94,12 @@ trait NetworkClient extends BaseNetworkClient {
         Some(Right(loadBalancerFactory.newLoadBalancer(nodes)))
       } catch {
         case ex: InvalidClusterException =>
-          log.ifInfo(ex, "Unable to create new router instance")
+          log.info(ex, "Unable to create new router instance")
           Some(Left(ex))
 
         case ex: Exception =>
           val msg = "Exception while creating new router instance"
-          log.ifError(ex, msg)
+          log.error(ex, msg)
           Some(Left(new InvalidClusterException(msg, ex)))
       }
     } else {

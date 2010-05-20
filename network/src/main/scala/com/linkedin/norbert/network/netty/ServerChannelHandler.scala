@@ -28,23 +28,23 @@ import logging.Logging
 class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
   override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     val channel = e.getChannel
-    log.ifTrace("channelOpen: " + channel)
+    log.trace("channelOpen: " + channel)
     channelGroup.add(channel)
   }
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val channel = e.getChannel
     val norbertMessage = e.getMessage.asInstanceOf[NorbertProtos.NorbertMessage]
-    log.ifTrace("messageRecieved [%s]: %s", channel, norbertMessage)
+    log.trace("messageRecieved [%s]: %s".format(channel, norbertMessage))
 
     if (norbertMessage.getStatus != NorbertProtos.NorbertMessage.Status.OK) {
-      log.warn("Received invalid message: %s", norbertMessage)
+      log.warn("Received invalid message: %s".format(norbertMessage))
       channel.write(newErrorMessage(norbertMessage, new InvalidMessageException("Recieved a request in the error state")))
     } else {
       try {
         val di = messageHandlerRegistry.requestMessageDefaultInstanceFor(norbertMessage.getMessageName)
         val message = di.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
-        log.ifDebug("Queuing to MessageExecutor: %s", message)
+        log.debug("Queuing to MessageExecutor: %s".format(message))
         messageExecutor.executeMessage(message, either => responseHandler(norbertMessage, channel, either))
       } catch {
         case ex: InvalidMessageException => log.error(ex, "Recieved invalid message")
@@ -64,7 +64,7 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
           build
     }
 
-    log.ifDebug("Sending response: %s", message)
+    log.debug("Sending response: %s".format(message))
 
     channel.write(message)
   }

@@ -35,7 +35,7 @@ trait BaseNetworkClient extends Logging {
 
   def start {
     if (startedSwitch.compareAndSet(false, true)) {
-      log.ifDebug("Ensuring cluster is started")
+      log.debug("Ensuring cluster is started")
       clusterClient.start
       clusterClient.awaitConnectionUninterruptibly
       updateCurrentState(clusterClient.nodes)
@@ -145,10 +145,10 @@ trait BaseNetworkClient extends Logging {
 
   private def doShutdown(fromCluster: Boolean) {
     if (shutdownSwitch.compareAndSet(false, true) && startedSwitch.get) {
-      log.ifInfo("Shutting down NetworkClient")
+      log.info("Shutting down NetworkClient")
 
       if (!fromCluster) {
-        log.ifDebug("Unregistering from ClusterClient")
+        log.debug("Unregistering from ClusterClient")
         try {
           clusterClient.removeListener(listenerKey)
         } catch {
@@ -156,10 +156,10 @@ trait BaseNetworkClient extends Logging {
         }
       }
 
-      log.ifDebug("Closing sockets")
+      log.debug("Closing sockets")
       clusterIoClient.shutdown
 
-      log.ifInfo("NetworkClient shut down")
+      log.info("NetworkClient shut down")
     }
   }
 }

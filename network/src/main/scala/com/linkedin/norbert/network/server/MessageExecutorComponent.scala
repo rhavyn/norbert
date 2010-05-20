@@ -43,7 +43,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     threadPool.execute(new Runnable  {
       def run {
         try {
-          log.ifDebug("Executing message: %s", message)
+          log.debug("Executing message: %s".format(message))
           val handler = messageHandlerRegistry.handlerFor(message)
 
           try {
@@ -63,8 +63,8 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
               responseHandler(Left(ex))
           }
         } catch {
-          case ex: InvalidMessageException => log.error(ex, "Received an invalid message: %s", message)
-          case ex: Exception => log.error(ex, "Unexpected error while handling message: %s", message)
+          case ex: InvalidMessageException => log.error(ex, "Received an invalid message: %s".format(message))
+          case ex: Exception => log.error(ex, "Unexpected error while handling message: %s".format(message))
         }
       }
     })
@@ -72,6 +72,6 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
 
   def shutdown {
     threadPool.shutdown
-    log.ifDebug("MessageExecutor shut down")
+    log.debug("MessageExecutor shut down")
   }
 }

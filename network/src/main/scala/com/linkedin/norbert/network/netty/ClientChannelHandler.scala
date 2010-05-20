@@ -48,7 +48,7 @@ class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeout
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request]
-    log.ifDebug("Writing request: %s", request)
+    log.debug("Writing request: %s".format(request))
 
     if (messageRegistry.hasResponse(request.message)) requestMap.put(request.id, request)
 
@@ -63,11 +63,11 @@ class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeout
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val message = e.getMessage.asInstanceOf[NorbertProtos.NorbertMessage]
-    log.ifDebug("Received message: %s", message)
+    log.debug("Received message: %s".format(message))
     val requestId = new UUID(message.getRequestIdMsb, message.getRequestIdLsb)
 
     requestMap.get(requestId) match {
-      case null => log.warn("Received a response message [%s] without a corresponding request", message)
+      case null => log.warn("Received a response message [%s] without a corresponding request".format(message))
       case request =>
         requestMap.remove(requestId)
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {

@@ -61,7 +61,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
         if (!nodes.contains(node)) {
           val pool = channelPools.remove(node)
           pool.close
-          log.ifDebug("Closing pool for unavailable node: %s", node)
+          log.debug("Closing pool for unavailable node: %s".format(node))
         }
       }
     }
@@ -80,7 +80,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
 
       channelPoolFactory.shutdown
 
-      log.ifDebug("NettyClusterIoClient shut down")
+      log.debug("NettyClusterIoClient shut down")
     }
   }
 

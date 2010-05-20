@@ -58,12 +58,12 @@ trait ClusterClient extends Logging {
     if (shutdownSwitch.get) throw new ClusterShutdownException
 
     if (startedSwitch.compareAndSet(false, true)) {
-      log.ifInfo("Starting ClusterClient...")
+      log.info("Starting ClusterClient...")
 
-      log.ifDebug("Starting ClusterNotificationManager...")
+      log.debug("Starting ClusterNotificationManager...")
       clusterNotificationManager.start
 
-      log.ifDebug("Starting ClusterManager...")
+      log.debug("Starting ClusterManager...")
       clusterManager.start
 
       val a = actor {
@@ -79,7 +79,7 @@ trait ClusterClient extends Logging {
 
       clusterNotificationManager !? ClusterNotificationMessages.AddListener(a)
 
-      log.ifInfo("Cluster started")
+      log.info("Cluster started")
     }
   }
 
@@ -221,13 +221,13 @@ trait ClusterClient extends Logging {
    */
   def shutdown: Unit = {
     if (shutdownSwitch.compareAndSet(false, true)) {
-      log.ifDebug("Shutting down ZooKeeperManager...")
+      log.debug("Shutting down ZooKeeperManager...")
       clusterManager ! ClusterManagerMessages.Shutdown
 
-      log.ifDebug("Shutting down ClusterNotificationManager...")
+      log.debug("Shutting down ClusterNotificationManager...")
       clusterNotificationManager ! ClusterNotificationMessages.Shutdown
 
-      log.ifInfo("Cluster shut down")
+      log.info("Cluster shut down")
     }
   }
 
