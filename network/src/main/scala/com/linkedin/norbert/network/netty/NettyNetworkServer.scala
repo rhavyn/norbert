@@ -28,6 +28,7 @@ import server._
 import cluster.{ClusterClient, ClusterClientComponent}
 import protos.NorbertProtos
 import util.NamedPoolThreadFactory
+import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
 
 class NetworkServerConfig {
   var clusterClient: ClusterClient = _
@@ -51,21 +52,35 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
+  val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
+
   bootstrap.setOption("reuseAddress", true)
   bootstrap.setOption("tcpNoDelay", true)
   bootstrap.setOption("child.tcpNoDelay", true)
   bootstrap.setOption("child.reuseAddress", true)
-  val p = bootstrap.getPipeline
-  p.addFirst("logging", new LoggingHandler)
+  bootstrap.setPipelineFactory(new ChannelPipelineFactory {
+    private val loggingHandler = new LoggingHandler
+    private val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
+    private val frameEncoder = new LengthFieldPrepender(4)
+    private val protobufEncoder = new ProtobufEncoder
+    private val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
 
-  p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Int.MaxValue, 0, 4, 0, 4))
-  p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
+    def getPipeline = {
+      val p = Channels.pipeline
 
-  p.addLast("frameEncoder", new LengthFieldPrepender(4))
-  p.addLast("protobufEncoder", new ProtobufEncoder)
+      p.addFirst("logging", loggingHandler)
 
-  val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
-  p.addLast("requestHandler", new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor))
+      p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Int.MaxValue, 0, 4, 0, 4))
+      p.addLast("protobufDecoder", protobufDecoder)
+
+      p.addLast("frameEncoder", frameEncoder)
+      p.addLast("protobufEncoder", protobufEncoder)
+
+      p.addLast("requestHandler", handler)
+
+      p
+    }
+  })
 
   val clusterIoServer = new NettyClusterIoServer(bootstrap, channelGroup)
 
