@@ -23,6 +23,8 @@ import com.google.protobuf.{InvalidProtocolBufferException, Message}
 import server.{MessageExecutor, MessageHandlerRegistry}
 import protos.NorbertProtos
 import logging.Logging
+import java.util.UUID
+import common.RequestContext
 
 @ChannelPipelineCoverage("all")
 class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
@@ -37,15 +39,18 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
     val norbertMessage = e.getMessage.asInstanceOf[NorbertProtos.NorbertMessage]
     log.trace("messageRecieved [%s]: %s".format(channel, norbertMessage))
 
+    val requestId = new UUID(norbertMessage.getRequestIdMsb, norbertMessage.getRequestIdLsb)
+
     if (norbertMessage.getStatus != NorbertProtos.NorbertMessage.Status.OK) {
       log.warn("Received invalid message: %s".format(norbertMessage))
-      channel.write(newErrorMessage(norbertMessage, new InvalidMessageException("Recieved a request in the error state")))
+      channel.write(ResponseHelper.errorResponse(requestId, new InvalidMessageException("Recieved a request in the error state")))
     } else {
       try {
         val di = messageHandlerRegistry.requestMessageDefaultInstanceFor(norbertMessage.getMessageName)
         val message = di.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
         log.debug("Queuing to MessageExecutor: %s".format(message))
-        messageExecutor.executeMessage(message, either => responseHandler(norbertMessage, channel, either))
+        val context = RequestContext(requestId, System.currentTimeMillis, message)
+        messageExecutor.executeMessage(message, either => responseHandler(context, channel, either))
       } catch {
         case ex: InvalidMessageException => log.error(ex, "Recieved invalid message")
         case ex: InvalidProtocolBufferException => log.error(ex, "Error deserializing message")
@@ -55,31 +60,31 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in network layer")
 
-  def responseHandler(norbertMessage: NorbertProtos.NorbertMessage, channel: Channel, either: Either[Exception, Message]) {
+  def responseHandler(context: RequestContext, channel: Channel, either: Either[Exception, Message]) {
     val message = either match {
-      case Left(ex) => newErrorMessage(norbertMessage, ex)
-      case Right(message) => newBuilder(norbertMessage).
-          setMessageName(message.getDescriptorForType.getFullName).
-          setMessage(message.toByteString).
-          build
+      case Left(ex) => ResponseHelper.errorResponse(context.requestId, ex)
+      case Right(message) => ResponseHelper.responseBuilder(context.requestId)
+              .setMessageName(message.getDescriptorForType.getFullName)
+              .setMessage(message.toByteString)
+              .build
     }
 
     log.debug("Sending response: %s".format(message))
 
     channel.write(message)
   }
+}
 
-  private def newBuilder(norbertMessage: NorbertProtos.NorbertMessage) = {
-    val builder = NorbertProtos.NorbertMessage.newBuilder()
-    builder.setRequestIdMsb(norbertMessage.getRequestIdMsb)
-    builder.setRequestIdLsb(norbertMessage.getRequestIdLsb)
-    builder
+private[netty] object ResponseHelper {
+  def responseBuilder(requestId: UUID) = {
+    NorbertProtos.NorbertMessage.newBuilder.setRequestIdMsb(requestId.getMostSignificantBits).setRequestIdLsb(requestId.getLeastSignificantBits)
   }
 
-  private def newErrorMessage(norbertMessage: NorbertProtos.NorbertMessage, ex: Exception) = {
-    newBuilder(norbertMessage).setMessageName(ex.getClass.getName).
-        setStatus(NorbertProtos.NorbertMessage.Status.ERROR).
-        setErrorMessage(if (ex.getMessage == null) "" else ex.getMessage).
-        build
+  def errorResponse(requestId: UUID, ex: Exception) = {
+    responseBuilder(requestId)
+            .setMessageName(ex.getClass.getName)
+            .setStatus(NorbertProtos.NorbertMessage.Status.ERROR)
+            .setErrorMessage(if (ex.getMessage == null) "" else ex.getMessage)
+            .build
   }
 }
