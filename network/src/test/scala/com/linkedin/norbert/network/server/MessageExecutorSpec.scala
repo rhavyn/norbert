@@ -94,7 +94,9 @@ class MessageExecutorSpec extends Specification with Mockito with WaitFor {
 
       waitFor(5.ms)
 
-      handlerCalled must beFalse
+      handlerCalled must eventually(beTrue)
+      either.isLeft must beTrue
+      either.left.get must haveClass[InvalidMessageException]
     }
 
     "execute the responseHandler with Left(InvalidMessageException) if the response message is of the wrong type" in {

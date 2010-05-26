@@ -21,6 +21,8 @@ import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import util.NamedPoolThreadFactory
 import logging.Logging
+import jmx.JMX
+import jmx.JMX.MBean
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -39,39 +41,60 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
     new NamedPoolThreadFactory("norbert-message-executor"))
 
+  JMX.register(new MBean(classOf[RequestProcessorMBean]) with RequestProcessorMBean {
+    def getQueueSize = threadPool.getQueue.size
+    def getAverageWaitTime = 0
+    def getAverageProcessingTime = 0
+  })
+
   def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
-    threadPool.execute(new Runnable  {
-      def run {
-        try {
-          log.debug("Executing message: %s".format(message))
-          val handler = messageHandlerRegistry.handlerFor(message)
-
-          try {
-            val response = handler(message)
-
-            if (messageHandlerRegistry.validResponseFor(message, response)) {
-              if (response != null) responseHandler(Right(response))
-            } else {
-              val name = if (response == null) "<null>" else response.getDescriptorForType.getFullName
-              val errorMsg = "Message handler returned an invalid response message of type %s".format(name)
-              log.error(errorMsg)
-              responseHandler(Left(new InvalidMessageException(errorMsg)))
-            }
-          } catch {
-            case ex: Exception =>
-              log.error(ex, "Message handler threw an exception while processing message")
-              responseHandler(Left(ex))
-          }
-        } catch {
-          case ex: InvalidMessageException => log.error(ex, "Received an invalid message: %s".format(message))
-          case ex: Exception => log.error(ex, "Unexpected error while handling message: %s".format(message))
-        }
-      }
-    })
+    threadPool.execute(new RequestRunner(message, responseHandler))
   }
 
   def shutdown {
     threadPool.shutdown
     log.debug("MessageExecutor shut down")
   }
+
+  private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, queuedAt: Long = System.currentTimeMillis) extends Runnable {
+    def run = {
+      log.debug("Executing message: %s".format(message))
+
+      val response: Option[Either[Exception, Message]] = try {
+        val handler = messageHandlerRegistry.handlerFor(message)
+
+        try {
+          val response = handler(message)
+          if (messageHandlerRegistry.validResponseFor(message, response)) {
+            if (response == null) None else Some(Right(response))
+          } else {
+            val name = if (response == null) "<null>" else response.getDescriptorForType.getFullName
+            val errorMsg = "Message handler returned an invalid response message of type %s".format(name)
+            log.error(errorMsg)
+            Some(Left(new InvalidMessageException(errorMsg)))
+          }
+        } catch {
+          case ex: Exception =>
+            log.error(ex, "Message handler threw an exception while processing message")
+            Some(Left(ex))
+        }
+      } catch {
+        case ex: InvalidMessageException =>
+          log.error(ex, "Received an invalid message: %s".format(message))
+          Some(Left(ex))
+
+        case ex: Exception =>
+          log.error(ex, "Unexpected error while handling message: %s".format(message))
+          Some(Left(ex))
+      }
+
+      response.foreach(responseHandler)
+    }
+  }
+}
+
+trait RequestProcessorMBean {
+  def getQueueSize: Int
+  def getAverageWaitTime: Int
+  def getAverageProcessingTime: Int
 }
