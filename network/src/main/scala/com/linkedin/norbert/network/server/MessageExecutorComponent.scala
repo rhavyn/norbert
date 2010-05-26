@@ -23,6 +23,7 @@ import util.NamedPoolThreadFactory
 import logging.Logging
 import jmx.JMX
 import jmx.JMX.MBean
+import actors.Actor._
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -38,13 +39,75 @@ trait MessageExecutor {
 
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int) extends MessageExecutor with Logging {
+  private val statsActor = actor {
+    import collection.mutable.Queue
+
+    var waitTimeQueue = Queue[Int]()
+    var processingTimeQueue = Queue[Int]()
+    var averageWaitTime = 0
+    var averageProcessingTime = 0
+    var requestCount = 0L
+
+    import Stats._
+
+    loop {
+      react {
+        case NewRequest(time) =>
+          val old = updateQueue(time, waitTimeQueue)
+          averageWaitTime = (averageWaitTime - old + time) / waitTimeQueue.size
+          requestCount += 1
+
+        case NewProcessingTime(time) =>
+          val old = updateQueue(time, processingTimeQueue)
+          averageProcessingTime = (averageProcessingTime - old + time) / processingTimeQueue.size
+
+        case GetAverageWaitTime => reply(AverageWaitTime(averageWaitTime))
+
+        case GetAverageProcessingTime => reply(AverageProcessingTime(averageProcessingTime))
+
+        case GetRequestCount => reply(RequestCount(requestCount))
+
+        case 'quit => exit
+
+        case msg => log.error("Stats actor got invalid message: %s".format(msg))
+      }
+    }
+
+    def updateQueue(time: Int, queue: Queue[Int]) = {
+      queue += time
+      if (queue.size > 100) queue.dequeue else 0
+    }
+  }
+
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
-    new NamedPoolThreadFactory("norbert-message-executor"))
+    new NamedPoolThreadFactory("norbert-message-executor")) {
+    override def beforeExecute(t: Thread, r: Runnable) = {
+      val rr = r.asInstanceOf[RequestRunner]
+      rr.startedAt = System.currentTimeMillis
+      statsActor ! Stats.NewRequest((rr.startedAt - rr.queuedAt).toInt)
+    }
+
+    override def afterExecute(r: Runnable, t: Throwable) = {
+      statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - r.asInstanceOf[RequestRunner].startedAt).toInt)
+    }
+  }
 
   JMX.register(new MBean(classOf[RequestProcessorMBean]) with RequestProcessorMBean {
+    import Stats._
+
     def getQueueSize = threadPool.getQueue.size
-    def getAverageWaitTime = 0
-    def getAverageProcessingTime = 0
+
+    def getAverageWaitTime = statsActor !? GetAverageWaitTime match {
+      case AverageWaitTime(t) => t
+    }
+
+    def getAverageProcessingTime = statsActor !? GetAverageProcessingTime match {
+      case AverageProcessingTime(t) => t
+    }
+
+    def getRequestCount = statsActor !? GetRequestCount match {
+      case RequestCount(c) => c
+    }
   })
 
   def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
@@ -53,10 +116,13 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
 
   def shutdown {
     threadPool.shutdown
+    statsActor ! 'quit
     log.debug("MessageExecutor shut down")
   }
 
-  private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, queuedAt: Long = System.currentTimeMillis) extends Runnable {
+  private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, val queuedAt: Long = System.currentTimeMillis) extends Runnable {
+    var startedAt: Long = 0
+
     def run = {
       log.debug("Executing message: %s".format(message))
 
@@ -91,10 +157,22 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
       response.foreach(responseHandler)
     }
   }
+
+  private object Stats {
+    case class NewRequest(waitTime: Int)
+    case object GetAverageWaitTime
+    case class AverageWaitTime(time: Int)
+    case class NewProcessingTime(time: Int)
+    case object GetAverageProcessingTime
+    case class AverageProcessingTime(time: Int)
+    case object GetRequestCount
+    case class RequestCount(count: Long)
+  }
 }
 
 trait RequestProcessorMBean {
   def getQueueSize: Int
   def getAverageWaitTime: Int
   def getAverageProcessingTime: Int
+  def getRequestCount: Long
 }
