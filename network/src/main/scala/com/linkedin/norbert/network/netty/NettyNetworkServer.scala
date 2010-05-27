@@ -54,6 +54,8 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
   val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
 
+  val requestContextEncoder = new RequestContextEncoder(clusterClient.serviceName)
+
   bootstrap.setOption("reuseAddress", true)
   bootstrap.setOption("tcpNoDelay", true)
   bootstrap.setOption("child.tcpNoDelay", true)
@@ -78,6 +80,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
       p.addLast("protobufEncoder", protobufEncoder)
 
       p.addLast("requestContextDecoder", requestContextDecoder)
+      p.addLast("requestContextEncoder", requestContextEncoder)
       p.addLast("requestHandler", handler)
 
       p
@@ -86,5 +89,8 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   val clusterIoServer = new NettyClusterIoServer(bootstrap, channelGroup)
 
-  override def shutdown = if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+  override def shutdown = {
+    if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+    requestContextEncoder.shutdown
+  }
 }
