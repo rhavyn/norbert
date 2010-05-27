@@ -23,7 +23,10 @@ import org.jboss.netty.channel._
 import com.google.protobuf.{InvalidProtocolBufferException, Message}
 import com.linkedin.norbert.network.server.{MessageHandlerRegistry, MessageExecutor, MessageExecutor, MessageHandlerRegistry}
 import java.util.UUID
-import org.jboss.netty.handler.codec.oneone.OneToOneDecoder
+import jmx.JMX.MBean
+import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
+import actors.Actor._
+import jmx.{AverageTimeTracker, JMX}
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -44,6 +47,76 @@ class RequestContextDecoder extends OneToOneDecoder {
 }
 
 @ChannelPipelineCoverage("all")
+class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Logging {
+  private object Stats {
+    case class NewProcessingTime(time: Int)
+    case object GetAverageProcessingTime
+    case class AverageProcessingTime(time: Int)
+    case object GetRequestsPerSecond
+    case class RequestsPerSecond(rps: Int)
+  }
+
+  private val statsActor = actor {
+    val processingTime = new AverageTimeTracker(100)
+    var second = 0
+    var counter = 0
+    var rps = 0
+
+    import Stats._
+
+    loop {
+      react {
+        case NewProcessingTime(time) =>
+          processingTime.addTime(time)
+          if (second == currentSecond) {
+            counter += 1
+          } else {
+            second = currentSecond
+            rps = counter
+            counter = 1
+          }
+
+        case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
+
+        case GetRequestsPerSecond => reply(RequestsPerSecond(rps))
+
+        case 'quit => exit
+
+        case msg => log.error("Stats actor got invalid message: %s".format(msg))
+      }
+    }
+
+    def currentSecond: Int = (System.currentTimeMillis / 1000).toInt
+  }
+
+  private val requestProcessingTime = new AverageTimeTracker(100)
+
+  JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
+    import Stats._
+
+    def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
+      case RequestsPerSecond(rps) => rps
+    }
+
+    def getAverageRequestProcessingTime = statsActor !? GetAverageProcessingTime match {
+      case AverageProcessingTime(time) => time
+    }
+  })
+
+  def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Any) = {
+    val (context, norbertMessage) = msg.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
+
+    statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - context.receivedAt).toInt)
+
+    norbertMessage
+  }
+
+  def shutdown {
+    statsActor ! 'quit
+  }
+}
+
+@ChannelPipelineCoverage("all")
 class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
   override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     val channel = e.getChannel
@@ -59,12 +132,12 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
         di.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
       } catch {
         case ex: InvalidProtocolBufferException =>
-          Channels.write(ctx, Channels.future(channel), ResponseHelper.errorResponse(context.requestId, ex))
+          Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
           throw ex
       }
     } getOrElse {
       val ex = new InvalidMessageException("No such message of type %s registered".format(norbertMessage.getMessageName))
-      Channels.write(ctx, Channels.future(channel), ResponseHelper.errorResponse(context.requestId, ex))
+      Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
       throw ex
     }
 
@@ -84,7 +157,7 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
 
     log.ifDebug("Sending response: %s", message)
 
-    channel.write(message)
+    channel.write((context, message))
   }
 }
 
@@ -102,6 +175,7 @@ private[netty] object ResponseHelper {
   }
 }
 
-trait NetworkStatisticsMBean {
+trait NetworkServerStatisticsMBean {
   def getRequestsPerSecond: Int
+  def getAverageRequestProcessingTime: Int
 }
