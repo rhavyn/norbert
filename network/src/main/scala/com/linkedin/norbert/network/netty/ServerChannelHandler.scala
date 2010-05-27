@@ -24,7 +24,25 @@ import server.{MessageExecutor, MessageHandlerRegistry}
 import protos.NorbertProtos
 import logging.Logging
 import java.util.UUID
-import common.RequestContext
+import org.jboss.netty.handler.codec.oneone.OneToOneDecoder
+
+case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
+
+@ChannelPipelineCoverage("all")
+class RequestContextDecoder extends OneToOneDecoder {
+  def decode(ctx: ChannelHandlerContext, channel: Channel, msg: Any) = {
+    val norbertMessage = msg.asInstanceOf[NorbertProtos.NorbertMessage]
+    val requestId = new UUID(norbertMessage.getRequestIdMsb, norbertMessage.getRequestIdLsb)
+
+    if (norbertMessage.getStatus != NorbertProtos.NorbertMessage.Status.OK) {
+      val ex = new InvalidMessageException("Invalid request, message has status set to ERROR")
+      Channels.write(ctx, Channels.future(channel), ResponseHelper.errorResponse(requestId, ex))
+      throw ex
+    }
+
+    (RequestContext(requestId), norbertMessage)
+  }
+}
 
 @ChannelPipelineCoverage("all")
 class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
@@ -35,30 +53,26 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
   }
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
+    val (context, norbertMessage) = e.getMessage.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
     val channel = e.getChannel
-    val norbertMessage = e.getMessage.asInstanceOf[NorbertProtos.NorbertMessage]
-    log.trace("messageRecieved [%s]: %s".format(channel, norbertMessage))
-
-    val requestId = new UUID(norbertMessage.getRequestIdMsb, norbertMessage.getRequestIdLsb)
-
-    if (norbertMessage.getStatus != NorbertProtos.NorbertMessage.Status.OK) {
-      log.warn("Received invalid message: %s".format(norbertMessage))
-      channel.write(ResponseHelper.errorResponse(requestId, new InvalidMessageException("Recieved a request in the error state")))
-    } else {
+    val message = messageHandlerRegistry.requestMessageDefaultInstanceFor(norbertMessage.getMessageName) map { di =>
       try {
-        val di = messageHandlerRegistry.requestMessageDefaultInstanceFor(norbertMessage.getMessageName)
-        val message = di.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
-        log.debug("Queuing to MessageExecutor: %s".format(message))
-        val context = RequestContext(requestId, System.currentTimeMillis, message)
-        messageExecutor.executeMessage(message, either => responseHandler(context, channel, either))
+        di.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
       } catch {
-        case ex: InvalidMessageException => log.error(ex, "Recieved invalid message")
-        case ex: InvalidProtocolBufferException => log.error(ex, "Error deserializing message")
+        case ex: InvalidProtocolBufferException =>
+          Channels.write(ctx, Channels.future(channel), ResponseHelper.errorResponse(context.requestId, ex))
+          throw ex
       }
+    } getOrElse {
+      val ex = new InvalidMessageException("No such message of type %s registered".format(norbertMessage.getMessageName))
+      Channels.write(ctx, Channels.future(channel), ResponseHelper.errorResponse(context.requestId, ex))
+      throw ex
     }
+
+    messageExecutor.executeMessage(message, either => responseHandler(context, e.getChannel, either))
   }
 
-  override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in network layer")
+  override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in channel: %s".format(e.getChannel))
 
   def responseHandler(context: RequestContext, channel: Channel, either: Either[Exception, Message]) {
     val message = either match {
@@ -87,4 +101,8 @@ private[netty] object ResponseHelper {
             .setErrorMessage(if (ex.getMessage == null) "" else ex.getMessage)
             .build
   }
+}
+
+trait NetworkStatisticsMBean {
+  def getRequestsPerSecond: Int
 }

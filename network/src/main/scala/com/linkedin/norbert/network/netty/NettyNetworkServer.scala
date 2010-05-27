@@ -61,6 +61,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   bootstrap.setPipelineFactory(new ChannelPipelineFactory {
     private val loggingHandler = new LoggingHandler
     private val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
+    private val requestContextDecoder = new RequestContextDecoder
     private val frameEncoder = new LengthFieldPrepender(4)
     private val protobufEncoder = new ProtobufEncoder
     private val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
@@ -76,6 +77,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
       p.addLast("frameEncoder", frameEncoder)
       p.addLast("protobufEncoder", protobufEncoder)
 
+      p.addLast("requestContextDecoder", requestContextDecoder)
       p.addLast("requestHandler", handler)
 
       p
