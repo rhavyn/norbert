@@ -17,11 +17,11 @@ package com.linkedin.norbert.network.server
 
 import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
+import com.linkedin.norbert.jmx.{AverageTimeTracker, JMX}
 import com.linkedin.norbert.logging.Logging
 import com.linkedin.norbert.network.InvalidMessageException
 import com.linkedin.norbert.util.NamedPoolThreadFactory
 import com.linkedin.norbert.jmx.JMX.MBean
-import com.linkedin.norbert.jmx.JMX
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -38,12 +38,8 @@ trait MessageExecutor {
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int) extends MessageExecutor with Logging {
   private val statsActor = actor {
-    import collection.mutable.Queue
-
-    var waitTimeQueue = Queue[Int]()
-    var processingTimeQueue = Queue[Int]()
-    var averageWaitTime = 0
-    var averageProcessingTime = 0
+    val waitTime = new AverageTimeTracker(100)
+    val processingTime = new AverageTimeTracker(100)
     var requestCount = 0L
 
     import Stats._
@@ -51,17 +47,14 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     loop {
       react {
         case NewRequest(time) =>
-          val old = updateQueue(time, waitTimeQueue)
-          averageWaitTime = (averageWaitTime - old + time) / waitTimeQueue.size
+          waitTime.addTime(time)
           requestCount += 1
 
-        case NewProcessingTime(time) =>
-          val old = updateQueue(time, processingTimeQueue)
-          averageProcessingTime = (averageProcessingTime - old + time) / processingTimeQueue.size
+        case NewProcessingTime(time) => processingTime.addTime(time)
 
-        case GetAverageWaitTime => reply(AverageWaitTime(averageWaitTime))
+        case GetAverageWaitTime => reply(AverageWaitTime(waitTime.average))
 
-        case GetAverageProcessingTime => reply(AverageProcessingTime(averageProcessingTime))
+        case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
 
         case GetRequestCount => reply(RequestCount(requestCount))
 
@@ -69,11 +62,6 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
 
         case msg => log.error("Stats actor got invalid message: %s".format(msg))
       }
-    }
-
-    def updateQueue(time: Int, queue: Queue[Int]) = {
-      queue += time
-      if (queue.size > 100) queue.dequeue else 0
     }
   }
 
