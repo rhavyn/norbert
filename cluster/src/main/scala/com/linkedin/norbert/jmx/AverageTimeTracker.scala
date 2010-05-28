@@ -13,13 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert
-package jmx
+package com.linkedin.norbert.jmx
 
 import collection.mutable.Queue
 
 class AverageTimeTracker(size: Int) {
-  private val q = Queue[Int]()
+  private val q = new Queue[Int]
   private var n = 0
 
   def addTime(time: Int) {

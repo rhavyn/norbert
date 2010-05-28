@@ -22,6 +22,7 @@ import com.linkedin.norbert.logging.Logging
 import com.linkedin.norbert.network.InvalidMessageException
 import com.linkedin.norbert.util.NamedPoolThreadFactory
 import com.linkedin.norbert.jmx.JMX.MBean
+import actors.Actor._
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -97,20 +98,20 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
   })
 
   def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
-    threadPool.execute(new RequestRunner(message, responseHandler))
+    threadPool.execute(new RequestRunner(message, responseHandler, System.currentTimeMillis))
   }
 
   def shutdown {
     threadPool.shutdown
     statsActor ! 'quit
-    log.debug("MessageExecutor shut down")
+    log.ifDebug("MessageExecutor shut down")
   }
 
-  private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, val queuedAt: Long = System.currentTimeMillis) extends Runnable {
+  private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, val queuedAt: Long) extends Runnable {
     var startedAt: Long = 0
 
     def run = {
-      log.debug("Executing message: %s".format(message))
+      log.ifDebug("Executing message: %s".format(message))
 
       val response: Option[Either[Exception, Message]] = try {
         val handler = messageHandlerRegistry.handlerFor(message)

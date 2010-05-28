@@ -15,9 +15,9 @@
  */
 package com.linkedin.norbert.jmx
 
-import org.specs.Specification
+import org.specs.SpecificationWithJUnit
 
-class AverageTimeTrackerSpec extends Specification {
+class AverageTimeTrackerSpec extends SpecificationWithJUnit {
   "AverageTimeTracker" should {
     "correctly average the times provided" in {
       val a = new AverageTimeTracker(100)

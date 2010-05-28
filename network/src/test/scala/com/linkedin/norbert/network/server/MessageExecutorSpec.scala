@@ -39,7 +39,7 @@ class MessageExecutorSpec extends SpecificationWithJUnit with Mockito with WaitF
 
       messageExecutor.executeMessage(message, either => null)
 
-      waitFor(1.ms)
+      waitFor(10.ms)
 
       messageHandlerRegistry.handlerFor(message) was called
     }

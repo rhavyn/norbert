@@ -21,14 +21,18 @@ import com.linkedin.norbert.protos.NorbertProtos
 import com.linkedin.norbert.network.InvalidMessageException
 import org.jboss.netty.channel._
 import com.google.protobuf.{InvalidProtocolBufferException, Message}
-import com.linkedin.norbert.network.server.{MessageHandlerRegistry, MessageExecutor, MessageExecutor, MessageHandlerRegistry}
-import java.util.UUID
-import jmx.JMX.MBean
+import com.linkedin.norbert.network.server.{MessageHandlerRegistry, MessageExecutor}
 import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
 import actors.Actor._
-import jmx.{AverageTimeTracker, JMX}
+import com.linkedin.norbert.jmx.JMX.MBean
+import java.util.UUID
+import com.linkedin.norbert.jmx.{JMX, AverageTimeTracker}
 
-case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
+object RequestContext {
+  def apply(requestId: UUID): RequestContext = RequestContext(requestId, System.currentTimeMillis)
+}
+
+case class RequestContext(requestId: UUID, receivedAt: Long)
 
 @ChannelPipelineCoverage("all")
 class RequestContextDecoder extends OneToOneDecoder {
@@ -57,6 +61,8 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
   }
 
   private val statsActor = actor {
+    def currentSecond = (System.currentTimeMillis / 1000).toInt
+
     val processingTime = new AverageTimeTracker(100)
     var second = 0
     var counter = 0
@@ -85,8 +91,6 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
         case msg => log.error("Stats actor got invalid message: %s".format(msg))
       }
     }
-
-    def currentSecond: Int = (System.currentTimeMillis / 1000).toInt
   }
 
   private val requestProcessingTime = new AverageTimeTracker(100)
