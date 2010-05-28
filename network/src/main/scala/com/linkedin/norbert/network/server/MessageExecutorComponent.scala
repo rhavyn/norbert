@@ -70,14 +70,19 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
     new NamedPoolThreadFactory("norbert-message-executor")) {
+    private val startedAt = new ThreadLocal[Long]
+
     override def beforeExecute(t: Thread, r: Runnable) = {
       val rr = r.asInstanceOf[RequestRunner]
-      rr.startedAt = System.currentTimeMillis
-      statsActor ! Stats.NewRequest((rr.startedAt - rr.queuedAt).toInt)
+      val ts = System.currentTimeMillis
+      statsActor ! Stats.NewRequest((ts - rr.queuedAt).toInt)
+      startedAt.set(ts)
     }
 
     override def afterExecute(r: Runnable, t: Throwable) = {
-      statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - r.asInstanceOf[RequestRunner].startedAt).toInt)
+      val ts = startedAt.get
+      startedAt.remove
+      statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - ts).toInt)
     }
   }
 
@@ -109,8 +114,6 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
   }
 
   private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, val queuedAt: Long = System.currentTimeMillis) extends Runnable {
-    var startedAt: Long = 0
-
     def run = {
       log.debug("Executing message: %s".format(message))
 
