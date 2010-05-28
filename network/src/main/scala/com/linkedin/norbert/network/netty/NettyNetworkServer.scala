@@ -54,19 +54,18 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
   val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
 
-  val requestContextEncoder = new RequestContextEncoder(clusterClient.serviceName)
-
   bootstrap.setOption("reuseAddress", true)
   bootstrap.setOption("tcpNoDelay", true)
   bootstrap.setOption("child.tcpNoDelay", true)
   bootstrap.setOption("child.reuseAddress", true)
   bootstrap.setPipelineFactory(new ChannelPipelineFactory {
-    private val loggingHandler = new LoggingHandler
-    private val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
-    private val requestContextDecoder = new RequestContextDecoder
-    private val frameEncoder = new LengthFieldPrepender(4)
-    private val protobufEncoder = new ProtobufEncoder
-    private val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
+    val loggingHandler = new LoggingHandler
+    val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
+    val requestContextDecoder = new RequestContextDecoder
+    val frameEncoder = new LengthFieldPrepender(4)
+    val protobufEncoder = new ProtobufEncoder
+    val requestContextEncoder = new RequestContextEncoder(clusterClient.serviceName)
+    val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
 
     def getPipeline = {
       val p = Channels.pipeline
@@ -89,8 +88,5 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   val clusterIoServer = new NettyClusterIoServer(bootstrap, channelGroup)
 
-  override def shutdown = {
-    if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
-    requestContextEncoder.shutdown
-  }
+  override def shutdown = if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
 }

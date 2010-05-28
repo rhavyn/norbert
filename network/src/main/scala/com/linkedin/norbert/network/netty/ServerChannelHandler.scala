@@ -26,8 +26,8 @@ import logging.Logging
 import java.util.UUID
 import jmx.JMX.MBean
 import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
-import actors.Actor._
 import jmx.{AverageTimeTracker, JMX}
+import actors.DaemonActor
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -57,38 +57,39 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
     case class RequestsPerSecond(rps: Int)
   }
 
-  private val statsActor = actor {
-    val processingTime = new AverageTimeTracker(100)
-    var second = 0
-    var counter = 0
-    var rps = 0
+  private val statsActor = new DaemonActor {
+    private val processingTime = new AverageTimeTracker(100)
+    private var second = 0
+    private var counter = 0
+    private var rps = 0
 
-    import Stats._
+    def act() = {
+      import Stats._
 
-    loop {
-      react {
-        case NewProcessingTime(time) =>
-          processingTime.addTime(time)
-          if (second == currentSecond) {
-            counter += 1
-          } else {
-            second = currentSecond
-            rps = counter
-            counter = 1
-          }
+      loop {
+        react {
+          case NewProcessingTime(time) =>
+            processingTime.addTime(time)
+            if (second == currentSecond) {
+              counter += 1
+            } else {
+              second = currentSecond
+              rps = counter
+              counter = 1
+            }
 
-        case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
+          case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
 
-        case GetRequestsPerSecond => reply(RequestsPerSecond(rps))
+          case GetRequestsPerSecond => reply(RequestsPerSecond(rps))
 
-        case 'quit => exit
-
-        case msg => log.error("Stats actor got invalid message: %s".format(msg))
+          case msg => log.error("Stats actor got invalid message: %s".format(msg))
+        }
       }
     }
 
     def currentSecond: Int = (System.currentTimeMillis / 1000).toInt
   }
+  statsActor.start
 
   private val requestProcessingTime = new AverageTimeTracker(100)
 
@@ -110,10 +111,6 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
     statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - context.receivedAt).toInt)
 
     norbertMessage
-  }
-
-  def shutdown {
-    statsActor ! 'quit
   }
 }
 

@@ -22,8 +22,8 @@ import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import util.NamedPoolThreadFactory
 import logging.Logging
 import jmx.JMX.MBean
-import actors.Actor._
 import jmx.{AverageTimeTracker, JMX}
+import actors.DaemonActor
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -39,33 +39,34 @@ trait MessageExecutor {
 
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int) extends MessageExecutor with Logging {
-  private val statsActor = actor {
-    val waitTime = new AverageTimeTracker(100)
-    val processingTime = new AverageTimeTracker(100)
-    var requestCount = 0L
+  private val statsActor = new DaemonActor {
+    private val waitTime = new AverageTimeTracker(100)
+    private val processingTime = new AverageTimeTracker(100)
+    private var requestCount = 0L
 
-    import Stats._
+    def act() = {
+      import Stats._
 
-    loop {
-      react {
-        case NewRequest(time) =>
-          waitTime.addTime(time)
-          requestCount += 1
+      loop {
+        react {
+          case NewRequest(time) =>
+            waitTime.addTime(time)
+            requestCount += 1
 
-        case NewProcessingTime(time) => processingTime.addTime(time)
+          case NewProcessingTime(time) => processingTime.addTime(time)
 
-        case GetAverageWaitTime => reply(AverageWaitTime(waitTime.average))
+          case GetAverageWaitTime => reply(AverageWaitTime(waitTime.average))
 
-        case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
+          case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
 
-        case GetRequestCount => reply(RequestCount(requestCount))
+          case GetRequestCount => reply(RequestCount(requestCount))
 
-        case 'quit => exit
-
-        case msg => log.error("Stats actor got invalid message: %s".format(msg))
+          case msg => log.error("Stats actor got invalid message: %s".format(msg))
+        }
       }
     }
   }
+  statsActor.start
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
     new NamedPoolThreadFactory("norbert-message-executor")) {
@@ -104,7 +105,6 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
 
   def shutdown {
     threadPool.shutdown
-    statsActor ! 'quit
     log.debug("MessageExecutor shut down")
   }
 
