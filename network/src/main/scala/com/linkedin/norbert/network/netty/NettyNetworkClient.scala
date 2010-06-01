@@ -50,7 +50,8 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     private val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
     private val frameEncoder = new LengthFieldPrepender(4)
     private val protobufEncoder = new ProtobufEncoder
-    private val handler = new ClientChannelHandler(messageRegistry, clientConfig.maxConnectionsPerNode, clientConfig.staleRequestCleanupFrequenceMins)
+    private val handler = new ClientChannelHandler(clusterClient.serviceName, messageRegistry, clientConfig.maxConnectionsPerNode,
+      clientConfig.staleRequestCleanupFrequenceMins)
 
     def getPipeline = {
       val p = Channels.pipeline

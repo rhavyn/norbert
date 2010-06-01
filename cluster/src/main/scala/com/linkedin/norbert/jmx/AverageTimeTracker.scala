@@ -22,11 +22,32 @@ class AverageTimeTracker(size: Int) {
   private val q = Queue[Int]()
   private var n = 0
 
+  def +=(time: Int) = addTime(time)
+
   def addTime(time: Int) {
     q += time
     val old = if (q.size > size) q.dequeue else 0
     n = (n - old + time)
   }
 
-  def average: Int = n / q.size
+  def average: Int = if (q.size > 0) n / q.size else n
+}
+
+class RequestsPerSecondTracker {
+  private var second = 0
+  private var counter = 0
+  private var r = 0
+
+  def ++ {
+    val currentSecond = (System.currentTimeMillis / 1000).toInt
+    if (second == currentSecond) {
+      counter += 1
+    } else {
+      second = currentSecond
+      r = counter
+      counter = 1
+    }
+  }
+
+  def rps: Int = r
 }
