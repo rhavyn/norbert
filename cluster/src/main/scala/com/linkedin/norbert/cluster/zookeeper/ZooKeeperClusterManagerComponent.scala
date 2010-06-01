@@ -283,6 +283,8 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       val members = zk.getChildren(MEMBERSHIP_NODE, true)
       val available = zk.getChildren(AVAILABILITY_NODE, true)
 
+      currentNodes.clear
+
       members.foreach { member =>
         val id = member.toInt
         currentNodes += (id -> Node(id, zk.getData("%s/%s".format(MEMBERSHIP_NODE, member), false, null), available.contains(member)))
