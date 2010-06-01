@@ -312,6 +312,40 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
           }
         }
 
+        "handle the case that a node is removed" in {
+          val membership = new ArrayList[String]
+          membership.add("1")
+          membership.add("2")
+          membership.add("3")
+
+          val newMembership = new ArrayList[String]
+          newMembership.add("1")
+          newMembership.add("3")
+
+          val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+            Node(2, "localhost:31314", true, Set(2, 3)), Node(3, "localhost:31315", false, Set(2, 3)))
+
+          mockZooKeeper.getChildren(membershipNode, true) returns membership thenReturns newMembership
+          nodes.foreach { node =>
+            mockZooKeeper.getData("%s/%d".format(membershipNode, node.id), false, null) returns Node.nodeToByteArray(node)
+          }
+          mockZooKeeper.getChildren(availabilityNode, true) returns membership
+
+          clusterManager ! Connected
+
+          nodesReceived.size must eventually(be_==(3))
+          nodesReceived must containAll(nodes)
+          nodesReceived.foreach { _.available must beTrue }
+
+          clusterManager ! NodeChildrenChanged(membershipNode)
+
+          nodesChangedCount must eventually(be_==(1))
+          nodesReceived.size must be_==(2)
+          nodesReceived must containAll(List(nodes(0), nodes(2)))
+
+          there were two(mockZooKeeper).getChildren(membershipNode, true)
+        }
+
         "do nothing if not connected" in {
           clusterManager ! NodeChildrenChanged(membershipNode)
 
