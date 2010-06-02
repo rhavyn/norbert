@@ -23,10 +23,9 @@ import org.jboss.netty.channel._
 import com.google.protobuf.{InvalidProtocolBufferException, Message}
 import com.linkedin.norbert.network.server.{MessageHandlerRegistry, MessageExecutor}
 import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
-import actors.Actor._
+import com.linkedin.norbert.jmx.{AverageTimeTracker, JMX}
 import com.linkedin.norbert.jmx.JMX.MBean
 import java.util.UUID
-import com.linkedin.norbert.jmx.{JMX, AverageTimeTracker}
 
 object RequestContext {
   def apply(requestId: UUID): RequestContext = RequestContext(requestId, System.currentTimeMillis)
@@ -52,51 +51,13 @@ class RequestContextDecoder extends OneToOneDecoder {
 
 @ChannelPipelineCoverage("all")
 class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Logging {
-  private object Stats {
-    case class NewProcessingTime(time: Int)
-    case object GetAverageProcessingTime
-    case class AverageProcessingTime(time: Int)
-    case object GetRequestsPerSecond
-    case class RequestsPerSecond(rps: Int)
-  }
-
-  private val statsActor = actor {
-    def currentSecond = (System.currentTimeMillis / 1000).toInt
-
-    val processingTime = new AverageTimeTracker(100)
-    var second = 0
-    var counter = 0
-    var rps = 0
-
-    import Stats._
-
-    loop {
-      react {
-        case NewProcessingTime(time) =>
-          processingTime.addTime(time)
-          if (second == currentSecond) {
-            counter += 1
-          } else {
-            second = currentSecond
-            rps = counter
-            counter = 1
-          }
-
-        case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
-
-        case GetRequestsPerSecond => reply(RequestsPerSecond(rps))
-
-        case 'quit => exit
-
-        case msg => log.error("Stats actor got invalid message: %s".format(msg))
-      }
-    }
-  }
+  private val statsActor = new NetworkStatisticsActor(100)
+  statsActor.start
 
   private val requestProcessingTime = new AverageTimeTracker(100)
 
   JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
-    import Stats._
+    import statsActor.Stats._
 
     def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
       case RequestsPerSecond(rps) => rps
@@ -110,7 +71,7 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
   def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Any) = {
     val (context, norbertMessage) = msg.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
 
-    statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - context.receivedAt).toInt)
+    statsActor ! statsActor.Stats.NewProcessingTime((System.currentTimeMillis - context.receivedAt).toInt)
 
     norbertMessage
   }
