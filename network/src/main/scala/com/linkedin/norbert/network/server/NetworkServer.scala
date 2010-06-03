@@ -94,9 +94,15 @@ trait NetworkServer extends Logging {
         case ClusterEvents.Connected(_) =>
           if (markAvailableWhenConnected) {
             log.debug("Marking node with id %d available".format(nodeId))
-            clusterClient.markNodeAvailable(nodeId)
+            try {
+              clusterClient.markNodeAvailable(nodeId)
+            } catch {
+              case ex: ClusterException => log.error(ex, "Unable to mark node available")
+            }
           }
+
         case ClusterEvents.Shutdown => doShutdown(true)
+
         case _ => // do nothing
       }
     })

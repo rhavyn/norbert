@@ -189,8 +189,15 @@ trait ClusterClient extends Logging {
     val a = actor {
       loop {
         react {
-          case event: ClusterEvent => listener.handleClusterEvent(event)
+          case event: ClusterEvent =>
+            try {
+              listener.handleClusterEvent(event)
+            } catch {
+              case ex: Exception => log.error(ex, "Uncaught exception thrown from ClusterListener")
+            }
+
           case 'quit => exit
+
           case m => log.error("Received invalid message: " + m)
         }
       }
