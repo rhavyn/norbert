@@ -99,7 +99,9 @@ trait NetworkServer extends Logging {
               case ex: ClusterException => log.error(ex, "Unable to mark node available")
             }
           }
+
         case ClusterEvents.Shutdown => doShutdown(true)
+
         case _ => // do nothing
       }
     })
