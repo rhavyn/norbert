@@ -90,7 +90,15 @@ trait NetworkServer extends Logging {
     log.ifDebug("Registering with ClusterClient")
     listenerKey = clusterClient.addListener(new ClusterListener {
       def handleClusterEvent(event: ClusterEvent) = event match {
-        case ClusterEvents.Connected(_) => if (markAvailableWhenConnected) clusterClient.markNodeAvailable(nodeId)
+        case ClusterEvents.Connected(_) =>
+          if (markAvailableWhenConnected) {
+            log.ifDebug("Marking node with id %d available".format(nodeId))
+            try {
+              clusterClient.markNodeAvailable(nodeId)
+            } catch {
+              case ex: ClusterException => log.error(ex, "Unable to mark node available")
+            }
+          }
         case ClusterEvents.Shutdown => doShutdown(true)
         case _ => // do nothing
       }
