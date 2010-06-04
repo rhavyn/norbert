@@ -118,7 +118,7 @@ class ZooKeeperClusterManagerComponentSpec extends SpecificationWithJUnit with M
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
         clusterManager ! Connected
-        waitFor(10.ms)
+        waitFor(50.ms)
 
         mockZooKeeper.getChildren(membershipNode, true) was called
         nodes.foreach { node =>
