@@ -285,5 +285,21 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
 
       cluster.isShutdown must beTrue
     }
+
+    "handle a listener throwing an exception" in {
+      val listener = new ClusterListener {
+        var callCount = 0
+        def handleClusterEvent(event: ClusterEvent) = {
+          callCount += 1
+          throw new Exception
+        }
+      }
+
+      cluster.addListener(listener) must notBeNull
+      addListenerCount must be_==(1)
+      currentListeners.head ! ClusterEvents.NodesChanged(Set())
+      currentListeners.head ! ClusterEvents.NodesChanged(Set())
+      listener.callCount must eventually(be_==(2))
+    }
   }
 }

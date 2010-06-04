@@ -23,9 +23,12 @@ import com.google.protobuf.InvalidProtocolBufferException
 import com.linkedin.norbert.network.common.MessageRegistry
 import com.linkedin.norbert.network.{InvalidMessageException, RemoteException}
 import java.util.concurrent.{TimeUnit, ConcurrentHashMap}
+import com.linkedin.norbert.jmx.JMX.MBean
+import com.linkedin.norbert.jmx.JMX
 
 @ChannelPipelineCoverage("all")
-class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeoutMins: Int, staleRequestCleanupFrequencyMins: Int) extends SimpleChannelHandler with Logging {
+class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry, staleRequestTimeoutMins: Int,
+        staleRequestCleanupFrequencyMins: Int) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request]
 
   private val cleanupThread = new Thread("stale-request-cleanup-thread") {
@@ -44,6 +47,21 @@ class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeout
     }
   }
   cleanupThread.setDaemon(true)
+
+  private val statsActor = new NetworkStatisticsActor(100)
+  statsActor.start
+
+  JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
+    import statsActor.Stats._
+
+    def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
+      case RequestsPerSecond(rps) => rps
+    }
+
+    def getAverageRequestProcessingTime = statsActor !? GetAverageProcessingTime match {
+      case AverageProcessingTime(time) => time
+    }
+  })
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request]
@@ -69,6 +87,9 @@ class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeout
       case null => log.warn("Received a response message [%s] without a corresponding request", message)
       case request =>
         requestMap.remove(requestId)
+
+        statsActor ! statsActor.Stats.NewProcessingTime((System.currentTimeMillis - request.timestamp).toInt)
+
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           try {
             if (messageRegistry.validResponseFor(request.message, message.getMessageName)) {
@@ -89,4 +110,13 @@ class ClientChannelHandler(messageRegistry: MessageRegistry, staleRequestTimeout
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in network layer")
+
+  def shutdown {
+    statsActor ! 'quit
+  }
+}
+
+trait NetworkClientStatisticsMBean {
+  def getRequestsPerSecond: Int
+  def getAverageRequestProcessingTime: Int
 }
