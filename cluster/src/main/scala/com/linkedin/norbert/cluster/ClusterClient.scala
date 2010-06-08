@@ -44,7 +44,7 @@ trait ClusterClient extends Logging {
   private val shutdownSwitch = new AtomicBoolean
   private val startedSwitch = new AtomicBoolean
 
-  JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
     def getNodes = nodes.map(_.toString).toArray
     def isConnected = ClusterClient.this.isConnected
   })
@@ -226,6 +226,8 @@ trait ClusterClient extends Logging {
    */
   def shutdown: Unit = {
     if (shutdownSwitch.compareAndSet(false, true)) {
+      jmxHandle.foreach { JMX.unregister(_) }
+
       log.ifDebug("Shutting down ZooKeeperManager...")
       clusterManager ! ClusterManagerMessages.Shutdown
 

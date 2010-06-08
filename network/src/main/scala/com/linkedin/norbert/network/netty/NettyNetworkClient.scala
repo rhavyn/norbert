@@ -39,8 +39,9 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   private val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
   private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
-  val handler = new ClientChannelHandler(clusterClient.serviceName, messageRegistry, clientConfig.maxConnectionsPerNode,
-      clientConfig.staleRequestCleanupFrequenceMins)
+  private val handler = new ClientChannelHandler(clusterClient.serviceName, messageRegistry, clientConfig.maxConnectionsPerNode,
+    clientConfig.staleRequestCleanupFrequenceMins)
+
   // TODO why isn't clientConfig visible here?
   bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)
   bootstrap.setOption("tcpNoDelay", true)

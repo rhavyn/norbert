@@ -52,7 +52,6 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
   val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
-
   val requestContextEncoder = new RequestContextEncoder(clusterClient.serviceName)
 
   bootstrap.setOption("reuseAddress", true)
