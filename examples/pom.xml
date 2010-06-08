@@ -5,20 +5,20 @@
   <groupId>com.linkedin.norbert</groupId>
   <artifactId>norbert-examples</artifactId>
   <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>0.5-SNAPSHOT</version>
   <name>norbert-examples</name>
 
   <parent>
     <groupId>com.linkedin.norbert</groupId>
     <artifactId>norbert</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.5-SNAPSHOT</version>
   </parent>
 
   <dependencies>
     <dependency>
       <groupId>com.linkedin.norbert</groupId>
       <artifactId>norbert-java-network</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <version>0.5-SNAPSHOT</version>
     </dependency>
   </dependencies>
 </project>

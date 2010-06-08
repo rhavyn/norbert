@@ -5,13 +5,13 @@
   <groupId>com.linkedin.norbert</groupId>
   <artifactId>norbert-cluster</artifactId>
   <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>0.5-SNAPSHOT</version>
   <name>norbert-cluster</name>
 
   <parent>
     <groupId>com.linkedin.norbert</groupId>
     <artifactId>norbert</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.5-SNAPSHOT</version>
   </parent>
 
   <dependencies>
