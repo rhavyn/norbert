@@ -46,7 +46,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
   private val closed = new AtomicBoolean
   private val requestsSent = new AtomicInteger(0)
 
-  val jmxObjectInstance = JMX.register(new MBean(classOf[ChannelPoolMBean], "address=%s,port=%d".format(address.getHostName, address.getPort)) with ChannelPoolMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[ChannelPoolMBean], "address=%s,port=%d".format(address.getHostName, address.getPort)) with ChannelPoolMBean {
     def getWriteQueueSize = waitingWrites.size
 
     def getOpenChannels = poolSize.get
@@ -72,7 +72,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
 
   def close {
     if (closed.compareAndSet(false, true)) {
-      jmxObjectInstance.foreach { oi => JMX.unregister(oi) }
+      jmxHandle.foreach { JMX.unregister(_) }
       channelGroup.close.awaitUninterruptibly
     }
   }

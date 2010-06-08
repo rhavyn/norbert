@@ -41,6 +41,9 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   private val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
   private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
+  private val handler = new ClientChannelHandler(clusterClient.serviceName, messageRegistry, clientConfig.maxConnectionsPerNode,
+    clientConfig.staleRequestCleanupFrequenceMins)
+
   // TODO why isn't clientConfig visible here?
   bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)
   bootstrap.setOption("tcpNoDelay", true)
@@ -50,8 +53,6 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     private val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
     private val frameEncoder = new LengthFieldPrepender(4)
     private val protobufEncoder = new ProtobufEncoder
-    private val handler = new ClientChannelHandler(clusterClient.serviceName, messageRegistry, clientConfig.maxConnectionsPerNode,
-      clientConfig.staleRequestCleanupFrequenceMins)
 
     def getPipeline = {
       val p = Channels.pipeline
@@ -72,7 +73,10 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
 
   val clusterIoClient = new NettyClusterIoClient(new ChannelPoolFactory(clientConfig.maxConnectionsPerNode, clientConfig.writeTimeoutMillis, bootstrap))
 
-  override def shutdown = if (clientConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+  override def shutdown = {
+    if (clientConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+    handler.shutdown
+  }
 }
 
 class NettyNetworkClient(clientConfig: NetworkClientConfig, val loadBalancerFactory: LoadBalancerFactory) extends BaseNettyNetworkClient(clientConfig) with NetworkClient with LoadBalancerFactoryComponent

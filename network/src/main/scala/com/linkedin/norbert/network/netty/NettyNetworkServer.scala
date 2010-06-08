@@ -53,6 +53,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
   val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
+  val requestContextEncoder = new RequestContextEncoder(clusterClient.serviceName)
 
   bootstrap.setOption("reuseAddress", true)
   bootstrap.setOption("tcpNoDelay", true)
@@ -64,7 +65,6 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
     val requestContextDecoder = new RequestContextDecoder
     val frameEncoder = new LengthFieldPrepender(4)
     val protobufEncoder = new ProtobufEncoder
-    val requestContextEncoder = new RequestContextEncoder(clusterClient.serviceName)
     val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
 
     def getPipeline = {
@@ -88,5 +88,8 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   val clusterIoServer = new NettyClusterIoServer(bootstrap, channelGroup)
 
-  override def shutdown = if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+  override def shutdown = {
+    if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+    requestContextEncoder.shutdown
+  }
 }

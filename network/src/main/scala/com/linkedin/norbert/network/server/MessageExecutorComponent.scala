@@ -86,7 +86,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     }
   }
 
-  JMX.register(new MBean(classOf[RequestProcessorMBean]) with RequestProcessorMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[RequestProcessorMBean]) with RequestProcessorMBean {
     import Stats._
 
     def getQueueSize = threadPool.getQueue.size
@@ -109,6 +109,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
   }
 
   def shutdown {
+    jmxHandle.foreach { JMX.unregister(_) }
     threadPool.shutdown
     log.debug("MessageExecutor shut down")
   }

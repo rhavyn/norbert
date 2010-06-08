@@ -52,7 +52,7 @@ class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry
   private val statsActor = new NetworkStatisticsActor(100)
   statsActor.start
 
-  JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
     import statsActor.Stats._
 
     def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
@@ -111,6 +111,8 @@ class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in network layer")
+
+  def shutdown: Unit = jmxHandle.foreach { JMX.unregister(_) }
 }
 
 trait NetworkClientStatisticsMBean {
