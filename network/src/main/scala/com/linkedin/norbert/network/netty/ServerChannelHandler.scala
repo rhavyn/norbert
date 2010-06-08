@@ -56,7 +56,7 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
 
   private val requestProcessingTime = new AverageTimeTracker(100)
 
-  JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
     import statsActor.Stats._
 
     def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
@@ -78,6 +78,7 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
 
   def shutdown {
     statsActor ! 'quit
+    jmxHandle.foreach { JMX.unregister(_) }
   }
 }
 

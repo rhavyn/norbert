@@ -51,7 +51,7 @@ class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry
   private val statsActor = new NetworkStatisticsActor(100)
   statsActor.start
 
-  JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
     import statsActor.Stats._
 
     def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
@@ -113,6 +113,7 @@ class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry
 
   def shutdown {
     statsActor ! 'quit
+    jmxHandle.foreach { JMX.unregister(_) }
   }
 }
 
