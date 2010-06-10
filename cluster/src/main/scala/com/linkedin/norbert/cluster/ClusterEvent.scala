@@ -46,6 +46,12 @@ object ClusterEvents {
   case object Shutdown extends ClusterEvent
 }
 
+object ClusterListener {
+  def apply(pf: PartialFunction[ClusterEvent, Unit]): ClusterListener = new ClusterListener {
+    def handleClusterEvent(event: ClusterEvent) = if (pf.isDefinedAt(event)) pf(event)
+  }
+}
+
 /**
  * A trait to be implemented by classes which wish to receive cluster events.  Register <code>ClusterListener</code>s
  * with <code>ClusterClient#addListener(listener)</code>.
