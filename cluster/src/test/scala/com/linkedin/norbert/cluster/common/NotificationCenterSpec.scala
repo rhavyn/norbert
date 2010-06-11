@@ -26,9 +26,9 @@ object NotificationCenterSpec extends Specification with WaitFor {
     notificationCenter.start
     import NotificationCenterMessages._
 
-    doAfter { notificationCenter ! SendShutdownEvent }
+    doAfter { notificationCenter ! Shutdown }
 
-    "when AddListener is called" in {
+    "when a AddListener message is received" in {
       "return a ClusterListenerKey" in {
         notificationCenter !? (1000, AddListener(ClusterListener {
           case ClusterEvents.Shutdown =>
@@ -169,7 +169,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.Shutdown => callCount += 1
         })
 
-        notificationCenter ! SendShutdownEvent
+        notificationCenter ! Shutdown
         callCount must eventually(be_==(1))
       }
 
@@ -180,11 +180,13 @@ object NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.Shutdown => callCount += 1
         })
 
-        notificationCenter ! SendShutdownEvent
-        notificationCenter ! SendConnectedEvent(Set.empty)
+        notificationCenter ! Shutdown
+        notificationCenter !? (1000, Shutdown) must beNone
+      }
 
-        waitFor(20.ms)
-        callCount must be_==(1)
+      "respond with a Shutdown message" in {
+        notificationCenter ! SendConnectedEvent(Set.empty)
+        notificationCenter !? (1000, Shutdown) must beSomething.which(_ must be_==(Shutdown))
       }
     }
 

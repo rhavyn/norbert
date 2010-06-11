@@ -28,7 +28,7 @@ object NotificationCenterMessages {
   case class SendConnectedEvent(nodes: Set[Node]) extends NotificationCenterMessage
   case class SendNodesChangedEvent(nodes: Set[Node]) extends NotificationCenterMessage
   case object SendDisconnectedEvent extends NotificationCenterMessage
-  case object SendShutdownEvent extends NotificationCenterMessage
+  case object Shutdown extends NotificationCenterMessage
 }
 
 private class ClusterListenerActor(listener: ClusterListener) extends ReplyReactor with Logging {
@@ -76,7 +76,7 @@ class NotificationCenter extends Actor with Logging {
         case SendConnectedEvent(nodes) => handleConnected(nodes)
         case SendNodesChangedEvent(nodes) => handleNodesChanged(nodes)
         case SendDisconnectedEvent => handleDisconnected
-        case SendShutdownEvent => handleShutdown
+        case Shutdown => handleShutdown
         case msg => log.error("Received invalid message %s".format(msg))
       }
     }
@@ -156,6 +156,8 @@ class NotificationCenter extends Actor with Logging {
 
     log.debug("Shutting down listeners")
     listeners.foreach { case (_, a) => a !? Shutdown }
+
+    reply(NotificationCenterMessages.Shutdown)
 
     log.debug("NotificationCenter shut down")
     exit
