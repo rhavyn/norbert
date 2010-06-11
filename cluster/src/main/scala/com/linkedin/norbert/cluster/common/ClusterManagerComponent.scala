@@ -21,6 +21,7 @@ import actors.Actor
 
 trait ClusterManagerComponent {
   val clusterManager: Actor
+  val notificationCenter: Actor
 
   sealed trait ClusterManagerMessage
   object ClusterManagerMessages {

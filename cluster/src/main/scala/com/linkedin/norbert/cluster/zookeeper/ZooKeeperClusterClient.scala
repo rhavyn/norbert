@@ -17,10 +17,10 @@ package com.linkedin.norbert
 package cluster
 package zookeeper
 
-import common.ClusterNotificationManagerComponent
+import common.NotificationCenter
 
 class ZooKeeperClusterClient(val serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends ClusterClient
-    with ClusterNotificationManagerComponent with ZooKeeperClusterManagerComponent {
-  val clusterNotificationManager = new ClusterNotificationManager
-  val clusterManager = new ZooKeeperClusterManager(zooKeeperConnectString, zooKeeperSessionTimeoutMillis, serviceName)
+    with ZooKeeperClusterManagerComponent {
+  val notificationCenter = new NotificationCenter
+  val clusterManager = new ZooKeeperClusterManager(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
 }

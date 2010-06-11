@@ -19,20 +19,18 @@ package memory
 
 import actors.Actor
 import Actor._
-import common.{ClusterManagerComponent, ClusterNotificationManagerComponent, ClusterManagerHelper}
+import common.{NotificationCenterMessages, ClusterManagerComponent, ClusterManagerHelper}
 
 trait InMemoryClusterManagerComponent extends ClusterManagerComponent with ClusterManagerHelper {
-  this: ClusterNotificationManagerComponent =>
-
   class InMemoryClusterManager extends Actor {
     private var currentNodes = scala.collection.mutable.Map[Int, Node]()
     private var available = scala.collection.mutable.Set[Int]()
 
     def act() = {
       actor {
-        // Give the ClusterNotificationManager a chance to start
+        // Give the NotificationCenter a chance to start
         Thread.sleep(100)
-        clusterNotificationManager ! ClusterNotificationMessages.Connected(currentNodes)
+        notificationCenter ! NotificationCenterMessages.Connected(currentNodes)
       }
 
       while (true) {
@@ -45,25 +43,25 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent with Clust
             val n = if (available.contains(node.id)) node.copy(available = true) else node.copy(available = false)
 
             currentNodes += (n.id -> n)
-            clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
             reply(ClusterManagerResponse(None))
           }
 
           case RemoveNode(nodeId) =>
             currentNodes -= nodeId
-            clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
             reply(ClusterManagerResponse(None))
 
           case MarkNodeAvailable(nodeId) =>
             currentNodes.get(nodeId).foreach { node => currentNodes.update(nodeId, node.copy(available = true)) }
             available += nodeId
-            clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
             reply(ClusterManagerResponse(None))
 
           case MarkNodeUnavailable(nodeId) =>
             currentNodes.get(nodeId).foreach { node => currentNodes.update(nodeId, node.copy(available = false)) }
             available -= nodeId
-            clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
             reply(ClusterManagerResponse(None))
 
           case Shutdown => exit

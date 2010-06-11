@@ -17,16 +17,14 @@ package com.linkedin.norbert
 package cluster
 package zookeeper
 
-import common.{ClusterNotificationManagerComponent, ClusterManagerComponent, ClusterManagerHelper}
 import logging.Logging
 import actors.Actor
 import Actor._
 import java.io.IOException
 import org.apache.zookeeper._
+import cluster.common.{NotificationCenterMessages, ClusterManagerComponent, ClusterManagerHelper}
 
 trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
-  this: ClusterNotificationManagerComponent =>
-
   sealed trait ZooKeeperMessage
   object ZooKeeperMessages {
     case object Connected extends ZooKeeperMessage
@@ -35,51 +33,38 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     case class NodeChildrenChanged(path: String) extends ZooKeeperMessage
   }
 
-  class ZooKeeperClusterManager(connectString: String, sessionTimeout: Int, serviceName: String)
-          (implicit zooKeeperFactory: (String, Int, Watcher) => ZooKeeper) extends Actor with ClusterManagerHelper with Logging {
+  class ZooKeeperClusterManager(serviceName: String, connectString: String, sessionTimeout: Int,
+          zooKeeperFactory: (String, Int, Watcher) => ZooKeeper = defaultZooKeeperFactory) extends Actor with ClusterManagerHelper with Logging {
     private val SERVICE_NODE = "/" + serviceName
     private val AVAILABILITY_NODE = SERVICE_NODE + "/available"
     private val MEMBERSHIP_NODE = SERVICE_NODE + "/members"
 
-    private val currentNodes = scala.collection.mutable.Map[Int, Node]()
+    private val currentNodes = collection.mutable.Map.empty[Int, Node]
     private var zooKeeper: Option[ZooKeeper] = None
     private var watcher: ClusterWatcher = _
     private var connected = false
 
     def act() = {
-      log.debug("Connecting to ZooKeeper...")
+      log.debug("Starting ZooKeeperClusterManager...")
       startZooKeeper
+      log.debug("ZooKeeperClusterManager started")
 
-      while (true) {
+      loop {
         import ZooKeeperMessages._
         import ClusterManagerMessages._
 
-        receive {
+        react {
           case Connected => handleConnected
-
           case Disconnected => handleDisconnected
-
           case Expired => handleExpired
-
-          case NodeChildrenChanged(path) => if (path == AVAILABILITY_NODE) {
-            handleAvailabilityChanged
-          } else if (path == MEMBERSHIP_NODE) {
-            handleMembershipChanged
-          } else {
-            log.error("Received a notification for a path that shouldn't be monitored: %s".format(path))
-          }
-
+          case NodeChildrenChanged(path) if (path == AVAILABILITY_NODE) => handleAvailabilityChanged
+          case NodeChildrenChanged(path) if (path == MEMBERSHIP_NODE) => handleMembershipChanged
           case AddNode(node) => handleAddNode(node)
-
           case RemoveNode(nodeId) => handleRemoveNode(nodeId)
-
           case MarkNodeAvailable(nodeId) => handleMarkNodeAvailable(nodeId)
-
           case MarkNodeUnavailable(nodeId) => handleMarkNodeUnavailable(nodeId)
-
           case Shutdown => handleShutdown
-
-          case m => log.error("Received unknown message: %s".format(m))
+          case m => log.error("Received invalid message: %s".format(m))
         }
       }
     }
@@ -94,7 +79,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
           verifyZooKeeperStructure(zk)
           lookupCurrentNodes(zk)
           connected = true
-          clusterNotificationManager ! ClusterNotificationMessages.Connected(currentNodes)
+          notificationCenter ! NotificationCenterMessages.Connected(currentNodes)
         }
       }
     }
@@ -105,7 +90,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       doIfConnected("a Disconnected message") {
         connected = false
         currentNodes.clear
-        clusterNotificationManager ! ClusterNotificationMessages.Disconnected
+        notificationCenter ! NotificationCenterMessages.Disconnected
       }
     }
 
@@ -134,7 +119,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
           unavailable.foreach { case (id, _) => makeNodeUnavailable(id) }
         }
 
-        clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
       }
     }
 
@@ -143,7 +128,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
 
       doIfConnectedWithZooKeeper("a membership changed event") { zk =>
         lookupCurrentNodes(zk)
-        clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
       }
     }
 
@@ -160,7 +145,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
             zk.create(path, node, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
 
             currentNodes += (node.id -> node)
-            clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
 
             None
           } catch {
@@ -185,7 +170,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         }
 
         currentNodes -= nodeId
-        clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
         None
       }
     }
@@ -205,7 +190,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         }
 
         makeNodeAvailable(nodeId)
-        clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
         None
       }
     }
@@ -226,7 +211,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         }
 
         makeNodeUnavailable(nodeId)
-        clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
+        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
         None
       }
     }
@@ -247,6 +232,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
 
     private def startZooKeeper {
       zooKeeper = try {
+        log.debug("Connecting to ZooKeeper...")
         watcher = new ClusterWatcher(self)
         val zk = Some(zooKeeperFactory(connectString, sessionTimeout, watcher))
         log.debug("Connected to ZooKeeper")

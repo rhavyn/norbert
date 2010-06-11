@@ -17,7 +17,7 @@ package com.linkedin.norbert
 package cluster
 
 import actors.Actor._
-import common.{ClusterNotificationManagerComponent, ClusterManagerComponent}
+import common.{NotificationCenterMessages, ClusterManagerComponent}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import jmx.JMX.MBean
@@ -40,7 +40,7 @@ object ClusterClient {
  *  The client interface for interacting with a cluster.
  */
 trait ClusterClient extends Logging {
-  this: ClusterNotificationManagerComponent with ClusterManagerComponent =>
+  this: ClusterManagerComponent =>
 
   @volatile private var connectedLatch = new CountDownLatch(1)
   private val shutdownSwitch = new AtomicBoolean
@@ -60,24 +60,16 @@ trait ClusterClient extends Logging {
     if (startedSwitch.compareAndSet(false, true)) {
       log.info("Starting ClusterClient...")
 
-      log.debug("Starting ClusterNotificationManager...")
-      clusterNotificationManager.start
+      log.debug("Starting NotificationCenter...")
+      notificationCenter.start
 
       log.debug("Starting ClusterManager...")
       clusterManager.start
 
-      val a = actor {
-        loop {
-          react {
-            case ClusterEvents.Connected(_) => connectedLatch.countDown
-            case ClusterEvents.Disconnected => connectedLatch = new CountDownLatch(1)
-            case 'quit => exit
-            case _ => // do nothing
-          }
-        }
-      }
-
-      clusterNotificationManager !? ClusterNotificationMessages.AddListener(a)
+      notificationCenter !? NotificationCenterMessages.AddListener(ClusterListener {
+        case ClusterEvents.Connected(_) => connectedLatch.countDown
+        case ClusterEvents.Disconnected => connectedLatch = new CountDownLatch(1)
+      })
 
       log.info("Cluster started")
     }
@@ -97,8 +89,8 @@ trait ClusterClient extends Logging {
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def nodes: Set[Node] = doIfConnected {
-    clusterNotificationManager !? ClusterNotificationMessages.GetCurrentNodes match {
-      case ClusterNotificationMessages.CurrentNodes(nodes) => nodes
+    notificationCenter !? NotificationCenterMessages.GetCurrentNodes match {
+      case NotificationCenterMessages.CurrentNodes(nodes) => nodes
     }
   }
 
@@ -186,25 +178,8 @@ trait ClusterClient extends Logging {
   def addListener(listener: ClusterListener): ClusterListenerKey = doIfNotShutdown {
     if (listener == null) throw new NullPointerException
 
-    val a = actor {
-      loop {
-        react {
-          case event: ClusterEvent =>
-            try {
-              listener.handleClusterEvent(event)
-            } catch {
-              case ex: Exception => log.error(ex, "Uncaught exception thrown from ClusterListener")
-            }
-
-          case 'quit => exit
-
-          case m => log.error("Received invalid message: " + m)
-        }
-      }
-    }
-
-    clusterNotificationManager !? ClusterNotificationMessages.AddListener(a) match {
-      case ClusterNotificationMessages.AddedListener(key) => key
+    notificationCenter !? NotificationCenterMessages.AddListener(listener) match {
+      case NotificationCenterMessages.AddedListener(key) => key
     }
   }
 
@@ -219,7 +194,7 @@ trait ClusterClient extends Logging {
   def removeListener(key: ClusterListenerKey): Unit = doIfNotShutdown {
     if (key == null) throw new NullPointerException
 
-    clusterNotificationManager ! ClusterNotificationMessages.RemoveListener(key)
+    notificationCenter ! NotificationCenterMessages.RemoveListener(key)
   }
 
   /**
@@ -233,8 +208,8 @@ trait ClusterClient extends Logging {
       log.debug("Shutting down ZooKeeperManager...")
       clusterManager ! ClusterManagerMessages.Shutdown
 
-      log.debug("Shutting down ClusterNotificationManager...")
-      clusterNotificationManager ! ClusterNotificationMessages.Shutdown
+      log.debug("Shutting down notificationCenter...")
+      notificationCenter ! NotificationCenterMessages.Shutdown
 
       log.info("Cluster shut down")
     }
