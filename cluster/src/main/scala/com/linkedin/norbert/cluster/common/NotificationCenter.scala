@@ -25,13 +25,10 @@ object NotificationCenterMessages {
   case class AddListener(listener: ClusterListener) extends NotificationCenterMessage
   case class AddedListener(key: ClusterListenerKey) extends NotificationCenterMessage
   case class RemoveListener(key: ClusterListenerKey) extends NotificationCenterMessage
-  case class Connected(nodes: Set[Node]) extends NotificationCenterMessage
-  case class NodesChanged(nodes: Set[Node]) extends NotificationCenterMessage
-  case object Disconnected extends NotificationCenterMessage
-  case object Shutdown extends NotificationCenterMessage
-
-  case object GetCurrentNodes extends NotificationCenterMessage
-  case class CurrentNodes(nodes: Set[Node]) extends NotificationCenterMessage
+  case class SendConnectedEvent(nodes: Set[Node]) extends NotificationCenterMessage
+  case class SendNodesChangedEvent(nodes: Set[Node]) extends NotificationCenterMessage
+  case object SendDisconnectedEvent extends NotificationCenterMessage
+  case object SendShutdownEvent extends NotificationCenterMessage
 }
 
 private class ClusterListenerActor(listener: ClusterListener) extends ReplyReactor with Logging {
@@ -76,10 +73,10 @@ class NotificationCenter extends Actor with Logging {
       react {
         case AddListener(listener) => handleAddListener(listener)
         case RemoveListener(key) => handleRemoveListener(key)
-        case Connected(nodes) => handleConnected(nodes)
-        case NodesChanged(nodes) => handleNodesChanged(nodes)
-        case Disconnected => handleDisconnected
-        case Shutdown => handleShutdown
+        case SendConnectedEvent(nodes) => handleConnected(nodes)
+        case SendNodesChangedEvent(nodes) => handleNodesChanged(nodes)
+        case SendDisconnectedEvent => handleDisconnected
+        case SendShutdownEvent => handleShutdown
         case msg => log.error("Received invalid message %s".format(msg))
       }
     }

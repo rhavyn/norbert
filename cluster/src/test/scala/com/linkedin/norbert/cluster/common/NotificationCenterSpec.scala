@@ -26,7 +26,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
     notificationCenter.start
     import NotificationCenterMessages._
 
-    doAfter { notificationCenter ! Shutdown }
+    doAfter { notificationCenter ! SendShutdownEvent }
 
     "when AddListener is called" in {
       "return a ClusterListenerKey" in {
@@ -44,7 +44,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
         waitFor(20.ms)
         callCount1 must be_==(0)
 
-        notificationCenter ! Connected(Set.empty)
+        notificationCenter ! SendConnectedEvent(Set.empty)
 
         var callCount2 = 0
         notificationCenter !? (1000, AddListener(ClusterListener {
@@ -64,13 +64,13 @@ object NotificationCenterSpec extends Specification with WaitFor {
         case AddedListener(key) => key
       }
 
-      notificationCenter ! Connected(Set.empty)
+      notificationCenter ! SendConnectedEvent(Set.empty)
 
       callCount must eventually(be_==(1))
 
       notificationCenter ! RemoveListener(key)
 
-      notificationCenter ! NodesChanged(Set.empty)
+      notificationCenter ! SendNodesChangedEvent(Set.empty)
 
       waitFor(20.ms)
       callCount must be_==(1)
@@ -86,7 +86,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
             nodes = n
         })
 
-        notificationCenter ! Connected(Set(Node(1, "localhost: 31313", false), Node(2, "localhost: 31313", true)))
+        notificationCenter ! SendConnectedEvent(Set(Node(1, "localhost: 31313", false), Node(2, "localhost: 31313", true)))
         callCount must eventually(be_==(1))
         nodes must haveSize(1)
         nodes.head.id must be_==(2)
@@ -98,8 +98,8 @@ object NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.Connected(n) => callCount += 1
         })
 
-        notificationCenter ! Connected(Set.empty)
-        notificationCenter ! Connected(Set.empty)
+        notificationCenter ! SendConnectedEvent(Set.empty)
+        notificationCenter ! SendConnectedEvent(Set.empty)
         waitFor(20.ms)
         callCount must be_==(1)
       }
@@ -115,8 +115,8 @@ object NotificationCenterSpec extends Specification with WaitFor {
             nodes = n
         })
 
-        notificationCenter ! Connected(Set.empty)
-        notificationCenter ! NodesChanged(Set(Node(1, "localhost: 31313", false), Node(2, "localhost: 31313", true)))
+        notificationCenter ! SendConnectedEvent(Set.empty)
+        notificationCenter ! SendNodesChangedEvent(Set(Node(1, "localhost: 31313", false), Node(2, "localhost: 31313", true)))
         callCount must eventually(be_==(1))
         nodes must haveSize(1)
         nodes.head.id must be_==(2)
@@ -128,7 +128,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.NodesChanged(n) => callCount += 1
         })
 
-        notificationCenter ! NodesChanged(Set.empty)
+        notificationCenter ! SendNodesChangedEvent(Set.empty)
         waitFor(20.ms)
         callCount must be_==(0)
       }
@@ -141,8 +141,8 @@ object NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.Disconnected => callCount += 1
         })
 
-        notificationCenter ! Connected(Set.empty)
-        notificationCenter ! Disconnected
+        notificationCenter ! SendConnectedEvent(Set.empty)
+        notificationCenter ! SendDisconnectedEvent
 
         callCount must eventually(be_==(1))
       }
@@ -153,9 +153,9 @@ object NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.Disconnected => callCount += 1
         })
 
-        notificationCenter ! Connected(Set.empty)
-        notificationCenter ! Disconnected
-        notificationCenter ! Disconnected
+        notificationCenter ! SendConnectedEvent(Set.empty)
+        notificationCenter ! SendDisconnectedEvent
+        notificationCenter ! SendDisconnectedEvent
 
         waitFor(20.ms)
         callCount must be_==(1)
@@ -169,7 +169,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.Shutdown => callCount += 1
         })
 
-        notificationCenter ! Shutdown
+        notificationCenter ! SendShutdownEvent
         callCount must eventually(be_==(1))
       }
 
@@ -180,8 +180,8 @@ object NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.Shutdown => callCount += 1
         })
 
-        notificationCenter ! Shutdown
-        notificationCenter ! Connected(Set.empty)
+        notificationCenter ! SendShutdownEvent
+        notificationCenter ! SendConnectedEvent(Set.empty)
 
         waitFor(20.ms)
         callCount must be_==(1)
@@ -196,9 +196,9 @@ object NotificationCenterSpec extends Specification with WaitFor {
           throw new Exception
       })
 
-      notificationCenter ! Connected(Set.empty)
-      notificationCenter ! NodesChanged(Set.empty)
-      notificationCenter ! NodesChanged(Set.empty)
+      notificationCenter ! SendConnectedEvent(Set.empty)
+      notificationCenter ! SendNodesChangedEvent(Set.empty)
+      notificationCenter ! SendNodesChangedEvent(Set.empty)
 
       callCount must eventually(be_==(2))
     }
