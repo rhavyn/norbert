@@ -76,7 +76,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
       callCount must be_==(1)
     }
 
-    "when a Connected message is received" in {
+    "when a SendConnectedEvent message is received" in {
       "send a Connected event to registered listeners containing available nodes" in {
         var callCount = 0
         var nodes: Set[Node] = null
@@ -105,7 +105,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
       }
     }
 
-    "when a NodesChanged message is received" in {
+    "when a SendNodesChangedEvent message is received" in {
       "send a NodesChanged event to registered listeners containing available nodes" in {
         var callCount = 0
         var nodes: Set[Node] = null
@@ -134,7 +134,7 @@ object NotificationCenterSpec extends Specification with WaitFor {
       }
     }
 
-    "when a Disconnected message is received" in {
+    "when a SendDisconnectedEvent message is received" in {
       "notify listeners that the cluster is disconnected" in {
         var callCount = 0
         notificationCenter ! AddListener(ClusterListener {

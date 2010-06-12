@@ -18,55 +18,68 @@ package cluster
 package memory
 
 import actors.Actor
-import Actor._
-import common.{NotificationCenterMessages, ClusterManagerComponent, ClusterManagerHelper}
+import logging.Logging
+import common.{NotificationCenterMessages, ClusterManagerComponent}
 
-trait InMemoryClusterManagerComponent extends ClusterManagerComponent with ClusterManagerHelper {
-  class InMemoryClusterManager extends Actor {
-    private var currentNodes = scala.collection.mutable.Map[Int, Node]()
-    private var available = scala.collection.mutable.Set[Int]()
+trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
+  class InMemoryClusterManager extends Actor with Logging {
+    private var currentNodes = Map.empty[Int, Node]
+    private var availableNodes = Set.empty[Int]
+    private var connected = false
 
     def act() = {
-      actor {
-        // Give the NotificationCenter a chance to start
-        Thread.sleep(100)
-        notificationCenter ! NotificationCenterMessages.Connected(currentNodes)
-      }
-
-      while (true) {
+      loop {
         import ClusterManagerMessages._
 
-        receive {
-          case AddNode(node) => if (currentNodes.contains(node.id)) {
-            reply(ClusterManagerResponse(Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))))
-          } else {
-            val n = if (available.contains(node.id)) node.copy(available = true) else node.copy(available = false)
-
-            currentNodes += (n.id -> n)
-            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
+        react {
+          case Connect =>
+            log.debug("Connected")
+            connected = true
+            notificationCenter ! NotificationCenterMessages.SendConnectedEvent(nodes)
             reply(ClusterManagerResponse(None))
-          }
+
+          case GetNodes => reply(Nodes(nodes))
+
+          case AddNode(node) if (currentNodes.contains(node.id)) =>
+            reply(ClusterManagerResponse(Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))))
+
+          case AddNode(node) =>
+            log.debug("Adding node: %s".format(node))
+            val n = if (availableNodes.contains(node.id)) node.copy(available = true) else node.copy(available = false)
+            currentNodes += (n.id -> n)
+            notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
+            reply(ClusterManagerResponse(None))
 
           case RemoveNode(nodeId) =>
+            log.debug("Removing node with id: %d".format(nodeId))
             currentNodes -= nodeId
-            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
+            notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
             reply(ClusterManagerResponse(None))
 
           case MarkNodeAvailable(nodeId) =>
-            currentNodes.get(nodeId).foreach { node => currentNodes.update(nodeId, node.copy(available = true)) }
-            available += nodeId
-            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
+            log.debug("Marking node with id %d available".format(nodeId))
+            currentNodes.get(nodeId).foreach { node => currentNodes += (nodeId -> node.copy(available = true)) }
+            availableNodes += nodeId
+            notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
             reply(ClusterManagerResponse(None))
 
           case MarkNodeUnavailable(nodeId) =>
-            currentNodes.get(nodeId).foreach { node => currentNodes.update(nodeId, node.copy(available = false)) }
-            available -= nodeId
-            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
+            log.debug("Marking node with id %d unavailable".format(nodeId))
+            currentNodes.get(nodeId).foreach { node => currentNodes += (nodeId -> node.copy(available = false)) }
+            availableNodes -= nodeId
+            notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
             reply(ClusterManagerResponse(None))
 
-          case Shutdown => exit
+          case Shutdown =>
+            log.debug("InMemoryClusterManager shut down")
+            reply(Shutdown)
+            exit
+
+          case m => log.error("Received invalid message: %s".format(m))
         }
       }
     }
+
+    private def nodes = Set.empty ++ currentNodes.values
   }
 }

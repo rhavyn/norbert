@@ -71,7 +71,7 @@ object Node {
  * @param available whether or not the node is currently able to process requests
  * @param partitions the partitions for which the node can handle requests
  */
-final case class Node(id: Int, url: String, available: Boolean, partitionIds: Set[Int] = Set.empty) {
+final case class Node(id: Int, url: String, available: Boolean = false, partitionIds: Set[Int] = Set.empty) {
   if (url == null) throw new NullPointerException("url must not be null")
   if (partitionIds == null) throw new NullPointerException("partitions must not be null")
 
