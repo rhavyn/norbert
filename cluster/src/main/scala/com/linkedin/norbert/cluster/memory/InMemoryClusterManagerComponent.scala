@@ -20,17 +20,18 @@ package memory
 import actors.Actor
 import logging.Logging
 import common.{NotificationCenterMessages, ClusterManagerComponent}
+import util.GuardChain
 
 trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
   class InMemoryClusterManager extends Actor with Logging {
+    import ClusterManagerMessages._
+
     private var currentNodes = Map.empty[Int, Node]
     private var availableNodes = Set.empty[Int]
     private var connected = false
 
     def act() = {
       loop {
-        import ClusterManagerMessages._
-
         react {
           case Connect =>
             log.debug("Connected")
@@ -38,37 +39,42 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
             notificationCenter ! NotificationCenterMessages.SendConnectedEvent(nodes)
             reply(ClusterManagerResponse(None))
 
-          case GetNodes => reply(Nodes(nodes))
+          case GetNodes => ifConnected { reply(Nodes(nodes)) }
 
-          case AddNode(node) if (currentNodes.contains(node.id)) =>
+          case AddNode(node) if (currentNodes.contains(node.id)) => ifConnected {
             reply(ClusterManagerResponse(Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))))
+          }
 
-          case AddNode(node) =>
+          case AddNode(node) => ifConnected {
             log.debug("Adding node: %s".format(node))
             val n = if (availableNodes.contains(node.id)) node.copy(available = true) else node.copy(available = false)
             currentNodes += (n.id -> n)
             notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
             reply(ClusterManagerResponse(None))
+          }
 
-          case RemoveNode(nodeId) =>
+          case RemoveNode(nodeId) => ifConnected {
             log.debug("Removing node with id: %d".format(nodeId))
             currentNodes -= nodeId
             notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
             reply(ClusterManagerResponse(None))
+          }
 
-          case MarkNodeAvailable(nodeId) =>
+          case MarkNodeAvailable(nodeId) => ifConnected {
             log.debug("Marking node with id %d available".format(nodeId))
             currentNodes.get(nodeId).foreach { node => currentNodes += (nodeId -> node.copy(available = true)) }
             availableNodes += nodeId
             notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
             reply(ClusterManagerResponse(None))
+          }
 
-          case MarkNodeUnavailable(nodeId) =>
+          case MarkNodeUnavailable(nodeId) => ifConnected {
             log.debug("Marking node with id %d unavailable".format(nodeId))
             currentNodes.get(nodeId).foreach { node => currentNodes += (nodeId -> node.copy(available = false)) }
             availableNodes -= nodeId
             notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
             reply(ClusterManagerResponse(None))
+          }
 
           case Shutdown =>
             log.debug("InMemoryClusterManager shut down")
@@ -79,6 +85,8 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
         }
       }
     }
+
+    private val ifConnected = GuardChain(connected, reply(ClusterManagerResponse(Some(new NotYetConnectedException))))
 
     private def nodes = Set.empty ++ currentNodes.values
   }

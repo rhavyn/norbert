@@ -52,13 +52,7 @@ trait ClusterManagerComponentSpecification extends Specification {
     clusterManager ! Shutdown
   }
 
-  def clusterManagerExamples = {
-    "when a Connect message is received send a SendConnectedEvent to the notification center" in {
-      clusterManager !? (1000, Connect) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
-      connectedEventCount must be_==(1)
-      nodesFromEvent must haveSize(0)
-    }
-
+  def connectedClusterManagerExamples = {
     "when a GetNode message is received return the current nodes" in {
       val nodes = Set(Node(1, "localhost:1"), Node(2, "localhost:2"))
       nodes.foreach { clusterManager !? AddNode(_) }
@@ -158,6 +152,46 @@ trait ClusterManagerComponentSpecification extends Specification {
     "when a Shutdown message is received stop responding to messages" in {
       clusterManager !? (1000, Shutdown) must beSomething
       clusterManager !? (1000, Shutdown) must beNone
+    }
+  }
+
+  def unconnectedClusterManagerExamples = {
+    "when a Connect message is received send a SendConnectedEvent to the notification center" in {
+      clusterManager !? (1000, Connect) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
+      connectedEventCount must be_==(1)
+      nodesFromEvent must haveSize(0)
+    }
+
+    "return a NotYetConnectedException when" in {
+      "a GetNodes message is received" in {
+        clusterManager !? (1000, GetNodes) must beSomething.which { case ClusterManagerResponse(o) =>
+          o must beSome[ClusterException].which { _ must haveClass[NotYetConnectedException] }
+        }
+      }
+
+      "an AddNode message is received" in {
+        clusterManager !? (1000, AddNode(Node(1, "localhost", true))) must beSomething.which { case ClusterManagerResponse(o) =>
+          o must beSome[ClusterException].which { _ must haveClass[NotYetConnectedException] }
+        }
+      }
+
+      "a RemoveNode message is received" in {
+        clusterManager !? (1000, RemoveNode(1)) must beSomething.which { case ClusterManagerResponse(o) =>
+          o must beSome[ClusterException].which { _ must haveClass[NotYetConnectedException] }
+        }
+      }
+
+      "a MarkNodeAvailable message is received" in {
+        clusterManager !? (1000, MarkNodeAvailable(1)) must beSomething.which { case ClusterManagerResponse(o) =>
+          o must beSome[ClusterException].which { _ must haveClass[NotYetConnectedException] }
+        }
+      }
+
+      "a MarkNodeUnavailable message is received" in {
+        clusterManager !? (1000, MarkNodeUnavailable(1)) must beSomething.which { case ClusterManagerResponse(o) =>
+          o must beSome[ClusterException].which { _ must haveClass[NotYetConnectedException] }
+        }
+      }
     }
   }
 }

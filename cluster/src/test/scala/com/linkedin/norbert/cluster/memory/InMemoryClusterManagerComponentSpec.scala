@@ -28,13 +28,20 @@ class InMemoryClusterManagerComponentSpec extends ClusterManagerComponentSpecifi
   import component._
   import component.ClusterManagerMessages._
 
-  "InMemoryClusterManager" should {
+  "A connected InMemoryClusterManager" should {
+    doBefore { clusterManager ! Connect }
     doAfter { cleanup }
 
-    "behave like a ClusterManager" in { clusterManagerExamples }
+    "behave like a ClusterManager" in { connectedClusterManagerExamples }
 
     "start empty" in {
       clusterManager !? (1000, GetNodes) must beSomething.which { case Nodes(nodes) => nodes must beEmpty }
     }
+  }
+
+  "An unconnected InMemoryClusterManager" should {
+    doAfter { cleanup }
+
+    "behave like a ClusterManager" in { unconnectedClusterManagerExamples }
   }
 }
