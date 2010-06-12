@@ -17,155 +17,24 @@ package com.linkedin.norbert
 package cluster
 package memory
 
-import org.specs.Specification
-import actors.Actor._
-import common.NotificationCenterMessages
+import common.ClusterManagerComponentSpecification
 
-object InMemoryClusterManagerComponentSpec extends Specification {
+class InMemoryClusterManagerComponentSpec extends ClusterManagerComponentSpecification {
+  val component = new InMemoryClusterManagerComponent {
+    val notificationCenter = InMemoryClusterManagerComponentSpec.this.notificationCenter
+    val clusterManager = new InMemoryClusterManager
+    clusterManager.start
+  }
+  import component._
+  import component.ClusterManagerMessages._
+
   "InMemoryClusterManager" should {
-    object component extends InMemoryClusterManagerComponent {
-      var connectedEventCount = 0
-      var nodesChangedEventCount = 0
-      var nodesFromEvent = Set.empty[Node]
+    doAfter { cleanup }
 
-      val notificationCenter = actor {
-        loop {
-          import NotificationCenterMessages._
-
-          react {
-            case SendConnectedEvent(n) =>
-              connectedEventCount += 1
-              nodesFromEvent = n
-
-            case SendNodesChangedEvent(n) =>
-              nodesChangedEventCount += 1
-              nodesFromEvent = n
-
-            case 'quit => exit
-          }
-        }
-      }
-
-      val clusterManager = new InMemoryClusterManager
-      clusterManager.start
-    }
-    import component._
-    import component.ClusterManagerMessages._
-
-    doAfter {
-      notificationCenter ! 'quit
-      clusterManager ! Shutdown
-    }
+    "behave like a ClusterManager" in { clusterManagerExamples }
 
     "start empty" in {
       clusterManager !? (1000, GetNodes) must beSomething.which { case Nodes(nodes) => nodes must beEmpty }
-    }
-
-    "when a Connect message is received send a SendConnectedEvent to the notification center" in {
-      clusterManager !? (1000, Connect) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
-      connectedEventCount must be_==(1)
-      nodesFromEvent must haveSize(0)
-    }
-
-    "when a GetNode message is received return the current nodes" in {
-      val nodes = Set(Node(1, "localhost:1"), Node(2, "localhost:2"))
-      nodes.foreach { clusterManager !? AddNode(_) }
-      clusterManager !? (1000, GetNodes) must beSomething.which { case Nodes(n) =>
-        n must haveSize(2)
-        n must containAll(nodes)
-      }
-    }
-
-    "when an AddNode message is received" in {
-      "add the node with availability set to false" in {
-        clusterManager !? (1000, AddNode(Node(1, "localhost", true))) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
-        clusterManager !? GetNodes match { case Nodes(n) =>
-          n must haveSize(1)
-          n.head.available must beFalse
-        }
-      }
-
-      "add the node with availability set to true of the node is already available" in {
-        clusterManager !? MarkNodeAvailable(1)
-        clusterManager !? (1000, AddNode(Node(1, "localhost", false))) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
-        clusterManager !? GetNodes match { case Nodes(n) =>
-          n must haveSize(1)
-          n.head.available must beTrue
-        }
-      }
-
-      "send a SendNodesChanged message to the notification center" in {
-        val node = Node(1, "localhost")
-        clusterManager ! AddNode(node)
-        nodesChangedEventCount must eventually(be_==(1))
-        nodesFromEvent must haveSize(1)
-        nodesFromEvent must contain(node)
-      }
-
-      "respond with an InvalidNodeException if the node already exists" in {
-        val node = Node(1, "localhost")
-        clusterManager !? AddNode(node)
-        clusterManager !? (1000, AddNode(node)) must beSomething.which { case ClusterManagerResponse(o) =>
-          o must beSome[ClusterException].which { _ must haveClass[InvalidNodeException] }
-        }
-      }
-    }
-
-    "when a RemoveNode message is recieved" in {
-      "remove the node" in {
-        val nodes = IndexedSeq(Node(1, "localhost:1"), Node(2, "localhost:2"))
-        nodes.foreach { clusterManager !? AddNode(_) }
-        clusterManager !? (1000, RemoveNode(1)) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
-        clusterManager !? (1000, GetNodes) must beSomething.which { case Nodes(n) =>
-          n must haveSize(1)
-          n must contain(nodes(1))
-        }
-      }
-
-      "send a SendNodesChanged message to the notification center" in {
-        val nodes = IndexedSeq(Node(1, "localhost:1"), Node(2, "localhost:2"))
-        nodes.foreach { clusterManager !? AddNode(_) }
-        clusterManager !? RemoveNode(1)
-        nodesChangedEventCount must eventually(be_==(3))
-        nodesFromEvent must haveSize(1)
-        nodesFromEvent must contain(nodes(1))
-      }
-    }
-
-    "when a MarkNodeAvailable message is received" in {
-      "mark the node available" in {
-        val node = Node(1, "localhost")
-        clusterManager !? AddNode(node)
-        clusterManager !? (1000, MarkNodeAvailable(1)) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
-        clusterManager !? GetNodes match { case Nodes(n) => n.head.available must beTrue }
-      }
-
-      "send a SendNodesChanged message to the notification center" in {
-        clusterManager !? MarkNodeAvailable(1)
-        nodesChangedEventCount must eventually(be_==(1))
-        nodesFromEvent must haveSize(0)
-      }
-    }
-
-    "when a MarkNodeUnavailable message is received" in {
-      "mark the node unavailable" in {
-        val node = Node(1, "localhost")
-        clusterManager !? AddNode(node)
-        clusterManager !? MarkNodeAvailable(1)
-        clusterManager !? (1000, MarkNodeUnavailable(1)) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
-        clusterManager !? GetNodes match { case Nodes(n) => n.head.available must beFalse }
-      }
-
-      "send a SendNodesChanged message to the notification center" in {
-        clusterManager !? MarkNodeAvailable(1)
-        nodesChangedEventCount must eventually(be_==(1))
-        nodesFromEvent must haveSize(0)
-      }
-    }
-
-    "when a Shutdown message is received stop responding to messages" in {
-      clusterManager !? (1000, Shutdown) must beSomething
-      clusterManager !? (1000, Shutdown) must beNone
     }
   }
 }

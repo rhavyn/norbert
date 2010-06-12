@@ -20,10 +20,11 @@ package common
 import org.specs.Specification
 import org.specs.util.WaitFor
 
-object NotificationCenterSpec extends Specification with WaitFor {
+class NotificationCenterSpec extends Specification with WaitFor {
+  val notificationCenter = new NotificationCenter
+  notificationCenter.start
+
   "NotificationCenter" should {
-    val notificationCenter = new NotificationCenter
-    notificationCenter.start
     import NotificationCenterMessages._
 
     doAfter { notificationCenter ! Shutdown }
