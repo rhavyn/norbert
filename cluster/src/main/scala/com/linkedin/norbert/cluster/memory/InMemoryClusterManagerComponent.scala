@@ -20,15 +20,13 @@ package memory
 import actors.Actor
 import logging.Logging
 import common.{NotificationCenterMessages, ClusterManagerComponent}
-import util.GuardChain
 
 trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
-  class InMemoryClusterManager extends Actor with Logging {
+  class InMemoryClusterManager extends BaseClusterManager with Actor with Logging {
     import ClusterManagerMessages._
 
     private var currentNodes = Map.empty[Int, Node]
     private var availableNodes = Set.empty[Int]
-    private var connected = false
 
     def act() = {
       loop {
@@ -85,8 +83,6 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
         }
       }
     }
-
-    private val ifConnected = GuardChain(connected, reply(ClusterManagerResponse(Some(new NotYetConnectedException))))
 
     private def nodes = Set.empty ++ currentNodes.values
   }

@@ -18,6 +18,7 @@ package cluster
 package common
 
 import actors.Actor
+import util.GuardChain
 
 trait ClusterManagerComponent {
   val clusterManager: Actor
@@ -34,5 +35,13 @@ trait ClusterManagerComponent {
     case class Nodes(nodes: Set[Node]) extends ClusterManagerMessage
     case object Shutdown extends ClusterManagerMessage
     case class ClusterManagerResponse(exception: Option[ClusterException]) extends ClusterManagerMessage
+  }
+
+  trait BaseClusterManager {
+    this: Actor =>
+
+    protected var connected = false
+
+    protected val ifConnected = GuardChain(connected, reply(ClusterManagerMessages.ClusterManagerResponse(Some(new NotYetConnectedException))))
   }
 }
