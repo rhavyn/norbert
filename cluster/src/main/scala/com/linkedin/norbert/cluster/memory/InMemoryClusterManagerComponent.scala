@@ -25,7 +25,6 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
   class InMemoryClusterManager extends BaseClusterManager with Actor with Logging {
     import ClusterManagerMessages._
 
-    private var currentNodes = Map.empty[Int, Node]
     private var availableNodes = Set.empty[Int]
 
     def act() = {
@@ -83,7 +82,5 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
         }
       }
     }
-
-    private def nodes = Set.empty ++ currentNodes.values
   }
 }

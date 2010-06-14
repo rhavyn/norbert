@@ -41,7 +41,9 @@ trait ClusterManagerComponent {
     this: Actor =>
 
     protected var connected = false
+    protected var currentNodes = Map.empty[Int, Node]
 
     protected val ifConnected = GuardChain(connected, reply(ClusterManagerMessages.ClusterManagerResponse(Some(new NotYetConnectedException))))
+    protected def nodes = Set.empty ++ currentNodes.values
   }
 }
