@@ -42,7 +42,7 @@ class NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.Connected(_) => callCount1 += 1
         }))
 
-        waitFor(20.ms)
+        waitFor(250.ms)
         callCount1 must be_==(0)
 
         notificationCenter ! SendConnectedEvent(Set.empty)
@@ -71,9 +71,7 @@ class NotificationCenterSpec extends Specification with WaitFor {
 
       notificationCenter ! RemoveListener(key)
 
-      notificationCenter ! SendNodesChangedEvent(Set.empty)
-
-      waitFor(20.ms)
+      notificationCenter !? (250, SendNodesChangedEvent(Set.empty))
       callCount must be_==(1)
     }
 
@@ -100,8 +98,7 @@ class NotificationCenterSpec extends Specification with WaitFor {
         })
 
         notificationCenter ! SendConnectedEvent(Set.empty)
-        notificationCenter ! SendConnectedEvent(Set.empty)
-        waitFor(20.ms)
+        notificationCenter !? (250, SendConnectedEvent(Set.empty))
         callCount must be_==(1)
       }
     }
@@ -129,8 +126,7 @@ class NotificationCenterSpec extends Specification with WaitFor {
           case ClusterEvents.NodesChanged(n) => callCount += 1
         })
 
-        notificationCenter ! SendNodesChangedEvent(Set.empty)
-        waitFor(20.ms)
+        notificationCenter !? (250, SendNodesChangedEvent(Set.empty))
         callCount must be_==(0)
       }
     }
@@ -156,9 +152,9 @@ class NotificationCenterSpec extends Specification with WaitFor {
 
         notificationCenter ! SendConnectedEvent(Set.empty)
         notificationCenter ! SendDisconnectedEvent
-        notificationCenter ! SendDisconnectedEvent
+        callCount must eventually(be_==(1))
 
-        waitFor(20.ms)
+        notificationCenter !? (250, SendDisconnectedEvent)
         callCount must be_==(1)
       }
     }
