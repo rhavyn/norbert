@@ -254,6 +254,7 @@ class MockedZooKeeperClusterManagerComponentSpec extends ClusterManagerComponent
 
       "when an Expired message is received in " in {
         "reconnect to ZooKeeper" in {
+          zooKeeperFactoryCallCount must eventually(be_==(1))
           clusterManager ! Expired
           zooKeeperFactoryCallCount must eventually(be_==(2))
         }

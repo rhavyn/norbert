@@ -33,7 +33,12 @@ class ClusterDisconnectedException(message: String) extends ClusterException(mes
 }
 
 /**
- * Exception that indicates that an operation was attempted before <code>start</code> was called on the cluster.
+ * Exception that indicates that <code>connect</code> was already called on the cluster.
+ */
+class AlreadyConnectedException extends ClusterException
+
+/**
+ * Exception that indicates that an operation was attempted before <code>connect</code> was called on the cluster.
  */
 class NotYetConnectedException extends ClusterException
 

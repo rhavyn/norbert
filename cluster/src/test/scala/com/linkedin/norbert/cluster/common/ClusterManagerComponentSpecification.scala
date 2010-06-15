@@ -57,6 +57,12 @@ trait ClusterManagerComponentSpecification extends Specification with WaitFor {
   }
 
   def connectedClusterManagerExamples = {
+    "return an AlreadyConnectedException if connect is called a second time" in {
+      clusterManager !? (1000, Connect) must beSomething.which { case ClusterManagerResponse(o) =>
+        o must beSome[ClusterException].which { _ must haveClass[AlreadyConnectedException] }
+      }
+    }
+
     "when a GetNode message is received return the current nodes" in {
       val nodes = Set(Node(1, "localhost:1"), Node(2, "localhost:2"))
       nodes.foreach { n => clusterManager !? (1000, AddNode(n)) must beSomething.which { case ClusterManagerResponse(o) => o must beNone } }

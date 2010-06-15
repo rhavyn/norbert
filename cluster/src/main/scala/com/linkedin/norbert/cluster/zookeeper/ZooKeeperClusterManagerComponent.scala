@@ -69,18 +69,17 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     }
 
     private def handleConnect {
-      log.debug("Connecting to ZooKeeper...")
-
-      watcher = new ClusterWatcher(self)
-      try {
-        zooKeeper = zooKeeperFactory(connectString, sessionTimeout, watcher)
-        connected = true
-        log.debug("Connected to ZooKeeper")
-        reply(ClusterManagerResponse(None))
-      } catch {
-        case ex: Exception =>
-          log.error(ex, "Error connecting to ZooKeeper")
-          reply(ClusterManagerResponse(Some(new ClusterException("Unable to connect to ZooKeeper", ex))))
+      if (connected) {
+        reply(ClusterManagerResponse(Some(new AlreadyConnectedException)))
+      } else {
+        try {
+          connectToZooKeeper
+          reply(ClusterManagerResponse(None))
+        } catch {
+          case ex: Exception =>
+            log.error(ex, "Error connecting to ZooKeeper")
+            reply(ClusterManagerResponse(Some(new ClusterException("Unable to connect to ZooKeeper", ex))))
+        }
       }
     }
     private def handleConnected {
@@ -140,7 +139,11 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       currentNodes = Map.empty
       watcher.shutdown
       notificationCenter ! NotificationCenterMessages.SendDisconnectedEvent
-      handleConnect
+      try {
+        connectToZooKeeper
+      } catch {
+        case ex: Exception => log.error(ex, "Exception while reconnecting to ZooKeeper")
+      }
     }
 
     private def handleAddNode(node: Node) {
@@ -229,6 +232,15 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       exit
     }
 
+    private def connectToZooKeeper {
+      log.debug("Connecting to ZooKeeper...")
+
+      watcher = new ClusterWatcher(self)
+      zooKeeper = zooKeeperFactory(connectString, sessionTimeout, watcher)
+      connected = true
+      log.debug("Connected to ZooKeeper")
+    }
+
     private def lookupNodes {
       import collection.JavaConversions._
 
@@ -240,10 +252,10 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       }
     }
 
-    def ifConnectedToZooKeeper(msg: Any) = GuardChain[Unit](connectedToZooKeeper,
+    private def ifConnectedToZooKeeper(msg: Any) = GuardChain[Unit](connectedToZooKeeper,
       throw new ClusterDisconnectedException("Received message while not connected to ZooKeeper: %s".format(msg)))
 
-    def logError[A](op: => A) {
+    private def logError[A](op: => A) {
       try {
         op
       } catch {
@@ -253,7 +265,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       }
     }
 
-    def replyWithError[A](op: => A) {
+    private def replyWithError[A](op: => A) {
       val o = try {
         op
         None

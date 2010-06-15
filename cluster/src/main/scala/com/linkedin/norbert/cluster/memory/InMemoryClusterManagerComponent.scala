@@ -31,10 +31,14 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
       loop {
         react {
           case Connect =>
-            log.debug("Connected")
-            connected = true
-            notificationCenter ! NotificationCenterMessages.SendConnectedEvent(nodes)
-            reply(ClusterManagerResponse(None))
+            if (connected) {
+              reply(ClusterManagerResponse(Some(new AlreadyConnectedException)))
+            } else {
+              log.debug("Connected")
+              connected = true
+              notificationCenter ! NotificationCenterMessages.SendConnectedEvent(nodes)
+              reply(ClusterManagerResponse(None))
+            }
 
           case GetNodes => ifConnected { reply(Nodes(nodes)) }
 
