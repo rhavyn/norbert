@@ -20,9 +20,9 @@ package zookeeper
 import logging.Logging
 import actors.Actor
 import Actor._
-import java.io.IOException
+import cluster.common.{NotificationCenterMessages, ClusterManagerComponent}
 import org.apache.zookeeper._
-import cluster.common.{NotificationCenterMessages, ClusterManagerComponent, ClusterManagerHelper}
+import util.GuardChain
 
 trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
   sealed trait ZooKeeperMessage
@@ -34,300 +34,235 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
   }
 
   class ZooKeeperClusterManager(serviceName: String, connectString: String, sessionTimeout: Int,
-          zooKeeperFactory: (String, Int, Watcher) => ZooKeeper = defaultZooKeeperFactory) extends Actor with ClusterManagerHelper with Logging {
+          zooKeeperFactory: (String, Int, Watcher) => ZooKeeper = defaultZooKeeperFactory) extends BaseClusterManager with Actor with Logging {
+    import ClusterManagerMessages._
+    import ZooKeeperMessages._
+
     private val SERVICE_NODE = "/" + serviceName
     private val AVAILABILITY_NODE = SERVICE_NODE + "/available"
     private val MEMBERSHIP_NODE = SERVICE_NODE + "/members"
 
-    private val currentNodes = collection.mutable.Map.empty[Int, Node]
-    private var zooKeeper: Option[ZooKeeper] = None
+    private var zooKeeper: ZooKeeper = _
     private var watcher: ClusterWatcher = _
-    private var connected = false
+    private var connectedToZooKeeper = false
 
     def act() = {
-      log.debug("Starting ZooKeeperClusterManager...")
-      startZooKeeper
       log.debug("ZooKeeperClusterManager started")
 
       loop {
-        import ZooKeeperMessages._
-        import ClusterManagerMessages._
-
         react {
+          case Connect => handleConnect
           case Connected => handleConnected
-          case Disconnected => handleDisconnected
+          case m @ NodeChildrenChanged(path) if (path == AVAILABILITY_NODE) => logError { ifConnectedToZooKeeper(m) { handleAvailabilityChanged } }
+          case m @ NodeChildrenChanged(path) if (path == MEMBERSHIP_NODE) => logError { ifConnectedToZooKeeper(m) { handleMembershipChanged } }
+          case m @ Disconnected => logError { ifConnectedToZooKeeper(m) { handleDisconnected } }
           case Expired => handleExpired
-          case NodeChildrenChanged(path) if (path == AVAILABILITY_NODE) => handleAvailabilityChanged
-          case NodeChildrenChanged(path) if (path == MEMBERSHIP_NODE) => handleMembershipChanged
-          case AddNode(node) => handleAddNode(node)
-          case RemoveNode(nodeId) => handleRemoveNode(nodeId)
-          case MarkNodeAvailable(nodeId) => handleMarkNodeAvailable(nodeId)
-          case MarkNodeUnavailable(nodeId) => handleMarkNodeUnavailable(nodeId)
+          case m @ GetNodes => replyWithError(ifConnected and ifConnectedToZooKeeper(m) then { reply(Nodes(nodes)) })
+          case m @ AddNode(node) => replyWithError(ifConnected and ifConnectedToZooKeeper(m) then { handleAddNode(node) })
+          case m @ RemoveNode(nodeId) => replyWithError(ifConnected and ifConnectedToZooKeeper(m) then { handleRemoveNode(nodeId) })
+          case m @ MarkNodeAvailable(nodeId) => replyWithError(ifConnected and ifConnectedToZooKeeper(m) then { handleMarkNodeAvailable(nodeId) })
+          case m @ MarkNodeUnavailable(nodeId) => replyWithError(ifConnected and ifConnectedToZooKeeper(m) then { handleMarkNodeUnavailable(nodeId) })
           case Shutdown => handleShutdown
           case m => log.error("Received invalid message: %s".format(m))
         }
       }
     }
 
+    private def handleConnect {
+      log.debug("Connecting to ZooKeeper...")
+
+      watcher = new ClusterWatcher(self)
+      try {
+        zooKeeper = zooKeeperFactory(connectString, sessionTimeout, watcher)
+        connected = true
+        log.debug("Connected to ZooKeeper")
+        reply(ClusterManagerResponse(None))
+      } catch {
+        case ex: Exception =>
+          log.error(ex, "Error connecting to ZooKeeper")
+          reply(ClusterManagerResponse(Some(new ClusterException("Unable to connect to ZooKeeper", ex))))
+      }
+    }
     private def handleConnected {
-      log.debug("Handling a Connected message")
+      log.debug("Handling a ZooKeeper connected event")
 
-      if (connected) {
-        log.error("Received a Connected message when already connected")
+      if (connectedToZooKeeper) {
+        log.error("Receieved a ZooKeeper connected event while already connected to ZooKeeper")
       } else {
-        doWithZooKeeper("a Connected message") { zk =>
-          verifyZooKeeperStructure(zk)
-          lookupCurrentNodes(zk)
-          connected = true
-          notificationCenter ! NotificationCenterMessages.Connected(currentNodes)
-        }
-      }
-    }
+        log.debug("Verifying ZooKeeper structure...")
 
-    private def handleDisconnected {
-      log.debug("Handling a Disconnected message")
-
-      doIfConnected("a Disconnected message") {
-        connected = false
-        currentNodes.clear
-        notificationCenter ! NotificationCenterMessages.Disconnected
-      }
-    }
-
-    private def handleExpired {
-      log.debug("Handling an Expired message")
-
-      log.error("Connection to ZooKeeper expired, reconnecting...")
-      connected = false
-      currentNodes.clear
-      watcher.shutdown
-      startZooKeeper
-    }
-
-    private def handleAvailabilityChanged {
-      log.debug("Handling an availability changed event")
-
-      doIfConnectedWithZooKeeper("an availability changed event") { zk =>
-        import scala.collection.JavaConversions._
-
-        val availableSet = zk.getChildren(AVAILABILITY_NODE, true).foldLeft(Set[Int]()) { (set, i) => set + i.toInt }
-        if (availableSet.size == 0) {
-          currentNodes.foreach { case (id, _) => makeNodeUnavailable(id) }
-        } else {
-          val (available, unavailable) = currentNodes.partition { case (id, _) => availableSet.contains(id) }
-          available.foreach { case (id, _) => makeNodeAvailable(id) }
-          unavailable.foreach { case (id, _) => makeNodeUnavailable(id) }
-        }
-
-        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
-      }
-    }
-
-    private def handleMembershipChanged {
-      log.debug("Handling a membership changed event")
-
-      doIfConnectedWithZooKeeper("a membership changed event") { zk =>
-        lookupCurrentNodes(zk)
-        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
-      }
-    }
-
-    private def handleAddNode(node: Node) {
-      log.debug("Handling an AddNode(%s) message".format(node))
-
-      doIfConnectedWithZooKeeperWithResponse("an AddNode message", "adding node") { zk =>
-        val path = "%s/%d".format(MEMBERSHIP_NODE, node.id)
-
-        if (zk.exists(path, false) != null) {
-          Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))
-        } else {
+        List(SERVICE_NODE, AVAILABILITY_NODE, MEMBERSHIP_NODE).foreach { path =>
           try {
-            zk.create(path, node, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-
-            currentNodes += (node.id -> node)
-            notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
-
-            None
-          } catch {
-            case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))
-          }
-        }
-      }
-    }
-
-    private def handleRemoveNode(nodeId: Int) {
-      log.debug("Handling a RemoveNode(%d) message".format(nodeId))
-
-      doIfConnectedWithZooKeeperWithResponse("a RemoveNode message", "deleting node") { zk =>
-        val path = "%s/%d".format(MEMBERSHIP_NODE, nodeId)
-
-        if (zk.exists(path, false) != null) {
-          try {
-            zk.delete(path, -1)
-          } catch {
-            case ex: KeeperException if ex.code == KeeperException.Code.NONODE => // do nothing
-          }
-        }
-
-        currentNodes -= nodeId
-        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
-        None
-      }
-    }
-
-    private def handleMarkNodeAvailable(nodeId: Int) {
-      log.debug("Handling a MarkNodeAvailable(%d) message".format(nodeId))
-
-      doIfConnectedWithZooKeeperWithResponse("a MarkNodeAvailable message", "marking node available") { zk =>
-        val path = "%s/%d".format(AVAILABILITY_NODE, nodeId)
-
-        if (zk.exists(path, false) == null) {
-          try {
-            zk.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+            log.debug("Ensuring %s exists".format(path))
+            if (zooKeeper.exists(path, false) == null) {
+              log.debug("%s doesn't exist, creating".format(path))
+              zooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+            }
           } catch {
             case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => // do nothing
           }
         }
 
-        makeNodeAvailable(nodeId)
-        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
-        None
+        lookupNodes
+        connectedToZooKeeper = true
+        notificationCenter ! NotificationCenterMessages.SendConnectedEvent(nodes)
       }
+    }
+
+    private def handleAvailabilityChanged {
+      log.debug("Handling a ZooKeeper NodesChanged event for the availability node")
+
+      import collection.JavaConversions._
+
+      val availableSet = zooKeeper.getChildren(AVAILABILITY_NODE, true).foldLeft(Set.empty[Int]) { (set, i) => set + i.toInt }
+      currentNodes = currentNodes.mapValues { n => n.copy(available = availableSet.contains(n.id)) }
+
+      notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
+    }
+
+    private def handleMembershipChanged {
+      log.debug("Handling a ZooKeeper NodesChanged event for the membership node")
+      lookupNodes
+      notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
+    }
+
+    private def handleDisconnected {
+      log.debug("Handling a ZooKeeper Disconnected event")
+      connectedToZooKeeper = false
+      currentNodes = Map.empty
+      notificationCenter ! NotificationCenterMessages.SendDisconnectedEvent
+    }
+
+    private def handleExpired {
+      log.debug("Handling a ZooKeeper Expired message")
+      log.warn("Connection to ZooKeeper expired, reconnecting")
+      connectedToZooKeeper = false
+      currentNodes = Map.empty
+      watcher.shutdown
+      notificationCenter ! NotificationCenterMessages.SendDisconnectedEvent
+      handleConnect
+    }
+
+    private def handleAddNode(node: Node) {
+      log.debug("Adding node: %s".format(node))
+
+      val path = "%s/%d".format(MEMBERSHIP_NODE, node.id)
+      if (zooKeeper.exists(path, false) != null) throw new InvalidNodeException("A node with id %d already exists".format(node.id))
+
+      try {
+        zooKeeper.create(path, node.toByteArray, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+        currentNodes += (node.id -> node)
+        notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
+        reply(ClusterManagerResponse(None))
+      } catch {
+        case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => throw new InvalidNodeException("A node with id %d already exists".format(node.id))
+      }
+    }
+
+    private def handleRemoveNode(nodeId: Int) {
+      log.debug("Removing node with id: %d".format(nodeId))
+
+      val path = "%s/%d".format(MEMBERSHIP_NODE, nodeId)
+      if (zooKeeper.exists(path, false) != null) {
+        try {
+          zooKeeper.delete(path, -1)
+        } catch {
+          case ex: KeeperException if ex.code == KeeperException.Code.NONODE =>
+        }
+
+        currentNodes -= nodeId
+        notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
+      }
+
+      reply(ClusterManagerResponse(None))
+    }
+
+    private def handleMarkNodeAvailable(nodeId: Int) {
+      log.debug("Marking node with id %d available".format(nodeId))
+
+      val path = "%s/%d".format(AVAILABILITY_NODE, nodeId)
+      if (zooKeeper.exists(path, false) == null) {
+        try {
+          zooKeeper.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL)
+        } catch {
+          case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS =>
+        }
+
+        currentNodes.get(nodeId).foreach { n => currentNodes += (n.id -> n.copy(available = true)) }
+        notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
+      }
+
+      reply(ClusterManagerResponse(None))
     }
 
     private def handleMarkNodeUnavailable(nodeId: Int) {
-      log.debug("Handling a MarkNodeUnavailable(%d) message".format(nodeId))
+      log.debug("Marking node with id %d unavailable".format(nodeId))
 
-      doIfConnectedWithZooKeeperWithResponse("a MarkNodeUnavailable message", "marking node unavailable") { zk =>
-        val path = "%s/%d".format(AVAILABILITY_NODE, nodeId)
-
-        if (zk.exists(path, false) != null) {
-          try {
-            zk.delete(path, -1)
-            None
-          } catch {
-            case ex: KeeperException if ex.code == KeeperException.Code.NONODE => // do nothing
-          }
+      val path = "%s/%d".format(AVAILABILITY_NODE, nodeId)
+      if (zooKeeper.exists(path, false) != null) {
+        try {
+          zooKeeper.delete(path, -1)
+        } catch {
+          case ex: KeeperException if ex.code == KeeperException.Code.NONODE =>
         }
 
-        makeNodeUnavailable(nodeId)
-        notificationCenter ! NotificationCenterMessages.NodesChanged(currentNodes)
-        None
+        currentNodes.get(nodeId).foreach { n => currentNodes += (n.id -> n.copy(available = false)) }
+        notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
       }
+
+      reply(ClusterManagerResponse(None))
     }
 
     private def handleShutdown {
-      log.debug("Handling a Shutdown message")
+      log.debug("Shutting down ZooKeeperClusterManager")
 
+      if (watcher != null) watcher.shutdown
       try {
-        watcher.shutdown
-        zooKeeper.foreach(_.close)
+        if (zooKeeper != null) zooKeeper.close
       } catch {
-        case ex: Exception => log.error(ex, "Exception when closing connection to ZooKeeper")
+        case ex: Exception => log.error(ex, "Exception which closing connection to ZooKeeper")
       }
 
-      log.debug("ZooKeeperClusterManager shut down")
+      reply(Shutdown)
+
+      log.debug("ZooKeeperClusterManager shutdown")
       exit
     }
 
-    private def startZooKeeper {
-      zooKeeper = try {
-        log.debug("Connecting to ZooKeeper...")
-        watcher = new ClusterWatcher(self)
-        val zk = Some(zooKeeperFactory(connectString, sessionTimeout, watcher))
-        log.debug("Connected to ZooKeeper")
-        zk
+    private def lookupNodes {
+      import collection.JavaConversions._
+
+      val members = zooKeeper.getChildren(MEMBERSHIP_NODE, true)
+      val available = zooKeeper.getChildren(AVAILABILITY_NODE, true)
+
+      currentNodes = members.foldLeft(Map.empty[Int, Node]) { (map, id) =>
+        map + (id.toInt -> Node(zooKeeper.getData("%s/%s".format(MEMBERSHIP_NODE, id), false, null), available.contains(id)))
+      }
+    }
+
+    def ifConnectedToZooKeeper(msg: Any) = GuardChain[Unit](connectedToZooKeeper,
+      throw new ClusterDisconnectedException("Received message while not connected to ZooKeeper: %s".format(msg)))
+
+    def logError[A](op: => A) {
+      try {
+        op
       } catch {
-        case ex: IOException =>
-          log.error(ex, "Unable to connect to ZooKeeper")
-          None
-
-        case ex: Exception =>
-          log.error(ex, "Exception while connecting to ZooKeeper")
-          None
+        case ex: ClusterException => log.error(ex, "Error processing message")
+        case ex: KeeperException => log.error(ex, "ZooKeeper threw an exception")
+        case ex: InterruptedException => log.error(ex, "Interrupted while processing message")
       }
     }
 
-    private def verifyZooKeeperStructure(zk: ZooKeeper) {
-      log.debug("Verifying ZooKeeper structure...")
-
-      List(SERVICE_NODE, AVAILABILITY_NODE, MEMBERSHIP_NODE).foreach { path =>
-        try {
-          log.debug("Ensuring %s exists".format(path))
-          if (zk.exists(path, false) == null) {
-            log.debug("%s doesn't exist, creating".format(path))
-            zk.create(path, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
-          }
-        } catch {
-          case ex: KeeperException if ex.code == KeeperException.Code.NODEEXISTS => // do nothing
-        }
+    def replyWithError[A](op: => A) {
+      val o = try {
+        op
+        None
+      } catch {
+        case ex: ClusterException => Some(ex)
+        case ex: Exception => Some(new ClusterException("Error processing message", ex))
       }
-    }
 
-    private def lookupCurrentNodes(zk: ZooKeeper) {
-      import scala.collection.JavaConversions._
-
-      val members = zk.getChildren(MEMBERSHIP_NODE, true)
-      val available = zk.getChildren(AVAILABILITY_NODE, true)
-
-      currentNodes.clear
-
-      members.foreach { member =>
-        val id = member.toInt
-        currentNodes += (id -> Node(id, zk.getData("%s/%s".format(MEMBERSHIP_NODE, member), false, null), available.contains(member)))
-      }
-    }
-
-    private def makeNodeAvailable(nodeId: Int) {
-      currentNodes.get(nodeId).foreach { n => if (!n.available) currentNodes.update(n.id, n.copy(available = true)) }
-    }
-
-    private def makeNodeUnavailable(nodeId: Int) {
-      currentNodes.get(nodeId).foreach { n => if (n.available) currentNodes.update(n.id, n.copy(available = false)) }
-    }
-
-    private def doIfConnected(what: String)(block: => Unit) {
-      if (connected) block else log.error("Received %s when not connected".format(what))
-    }
-
-    private def doWithZooKeeper(what: String)(block: ZooKeeper => Unit) {
-      zooKeeper match {
-        case Some(zk) =>
-          try {
-            block(zk)
-          } catch {
-            case ex: KeeperException => log.error(ex, "ZooKeeper threw an exception")
-            case ex: Exception => log.error(ex, "Unhandled exception while working with ZooKeeper")
-          }
-
-        case None => log.fatal(new Exception,
-          "Received %s when ZooKeeper is None, this should never happen. Please report a bug including the stack trace provided.".format(what))
-      }
-    }
-
-    private def doIfConnectedWithZooKeeper(what: String)(block: ZooKeeper => Unit) {
-      doIfConnected(what) {
-        doWithZooKeeper(what)(block)
-      }
-    }
-
-    private def doIfConnectedWithZooKeeperWithResponse(what: String, exceptionDescription: String)(block: ZooKeeper => Option[ClusterException]) {
-      import ClusterManagerMessages.ClusterManagerResponse
-
-      if (connected) {
-        doWithZooKeeper(what) { zk =>
-          val response = try {
-            block(zk)
-          } catch {
-            case ex: KeeperException => Some(new ClusterException("Error while %s".format(exceptionDescription), ex))
-            case ex: Exception => Some(new ClusterException("Unexpected exception while %s".format(exceptionDescription), ex))
-          }
-
-          reply(ClusterManagerResponse(response))
-        }
-      } else {
-        reply(ClusterManagerResponse(Some(new ClusterDisconnectedException("Error while %s, cluster is disconnected".format(exceptionDescription)))))
-      }
+      reply(ClusterManagerResponse(o))
     }
   }
 

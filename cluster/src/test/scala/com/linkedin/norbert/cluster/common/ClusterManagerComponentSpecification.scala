@@ -19,10 +19,12 @@ package common
 
 import org.specs.Specification
 import actors.Actor._
+import org.specs.util.WaitFor
 
-trait ClusterManagerComponentSpecification extends Specification {
+trait ClusterManagerComponentSpecification extends Specification with WaitFor {
   var connectedEventCount = 0
   var nodesChangedEventCount = 0
+  var disconnectedEventCount = 0
   var nodesFromEvent = Set.empty[Node]
 
   val notificationCenter = actor {
@@ -37,6 +39,8 @@ trait ClusterManagerComponentSpecification extends Specification {
         case SendNodesChangedEvent(n) =>
           nodesChangedEventCount += 1
           nodesFromEvent = n
+
+        case SendDisconnectedEvent => disconnectedEventCount += 1
 
         case 'quit => exit
       }
@@ -55,7 +59,7 @@ trait ClusterManagerComponentSpecification extends Specification {
   def connectedClusterManagerExamples = {
     "when a GetNode message is received return the current nodes" in {
       val nodes = Set(Node(1, "localhost:1"), Node(2, "localhost:2"))
-      nodes.foreach { clusterManager !? AddNode(_) }
+      nodes.foreach { n => clusterManager !? (1000, AddNode(n)) must beSomething.which { case ClusterManagerResponse(o) => o must beNone } }
       clusterManager !? (1000, GetNodes) must beSomething.which { case Nodes(n) =>
         n must haveSize(2)
         n must containAll(nodes)
@@ -83,7 +87,8 @@ trait ClusterManagerComponentSpecification extends Specification {
       "send a SendNodesChanged message to the notification center" in {
         val node = Node(1, "localhost")
         clusterManager ! AddNode(node)
-        nodesChangedEventCount must eventually(be_==(1))
+        nodesChangedEventCount must eventually(be_>=(1))
+        waitFor(250.ms)
         nodesFromEvent must haveSize(1)
         nodesFromEvent must contain(node)
       }
@@ -112,7 +117,7 @@ trait ClusterManagerComponentSpecification extends Specification {
         val nodes = IndexedSeq(Node(1, "localhost:1"), Node(2, "localhost:2"))
         nodes.foreach { clusterManager !? AddNode(_) }
         clusterManager !? RemoveNode(1)
-        nodesChangedEventCount must eventually(be_==(3))
+        nodesChangedEventCount must eventually(be_>=(3))
         nodesFromEvent must haveSize(1)
         nodesFromEvent must contain(nodes(1))
       }
@@ -128,7 +133,8 @@ trait ClusterManagerComponentSpecification extends Specification {
 
       "send a SendNodesChanged message to the notification center" in {
         clusterManager !? MarkNodeAvailable(1)
-        nodesChangedEventCount must eventually(be_==(1))
+        nodesChangedEventCount must eventually(be_>=(1))
+        waitFor(250.ms)
         nodesFromEvent must haveSize(0)
       }
     }
@@ -144,7 +150,8 @@ trait ClusterManagerComponentSpecification extends Specification {
 
       "send a SendNodesChanged message to the notification center" in {
         clusterManager !? MarkNodeAvailable(1)
-        nodesChangedEventCount must eventually(be_==(1))
+        nodesChangedEventCount must eventually(be_>=(1))
+        waitFor(250.ms)
         nodesFromEvent must haveSize(0)
       }
     }
@@ -158,7 +165,7 @@ trait ClusterManagerComponentSpecification extends Specification {
   def unconnectedClusterManagerExamples = {
     "when a Connect message is received send a SendConnectedEvent to the notification center" in {
       clusterManager !? (1000, Connect) must beSomething.which { case ClusterManagerResponse(o) => o must beNone }
-      connectedEventCount must be_==(1)
+      connectedEventCount must eventually(be_==(1))
       nodesFromEvent must haveSize(0)
     }
 
