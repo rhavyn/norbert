@@ -21,27 +21,32 @@ import org.specs.Specification
 class GuardChainSpec extends Specification {
   "GuardChain" should {
     "execute 'then' if the predicate is true" in {
-      var done = false
-      GuardChain(true, throw new Exception("Failed")) then { done = true }
-      done must beTrue
+      GuardChain(true, throw new Exception("Failed")) then { "then" } must be_==("then")
     }
 
     "execute 'otherwise' if the predicate is false" in {
-      var msg = ""
-      msg = GuardChain(false, "otherwise") then { "then" }
-      msg must be_==("otherwise")
+      GuardChain(false, "otherwise") then { "then" } must be_==("otherwise")
+    }
+
+    "handle an exception throwing otherwise and a value returning then" in {
+      GuardChain(true, throw new Exception) then { "then" } must be_==("then")
+      GuardChain(true, throw new Exception) { "then" } must be_==("then")
     }
 
     "execute a chained guard if predicate is true" in {
-      var done = false
-      GuardChain(true, throw new Exception("failed")) and GuardChain(true, throw new Exception("Failed 2")) then { done = true }
-      done must beTrue
+      GuardChain(true, throw new Exception("failed")) and GuardChain(true, throw new Exception("Failed 2")) then { "then" } must be_==("then")
     }
 
     "not execute a chained guard if the predicate is false" in {
-      var msg = ""
-      msg = GuardChain(false, "otherwise1") and GuardChain(true, "otherwise2") then { "then" }
-      msg must be_==("otherwise1")
+      GuardChain(false, "otherwise1") and GuardChain(true, "otherwise2") then { "then" } must be_==("otherwise1")
+    }
+
+    "handle throws" in {
+      GuardChain(false, throw new Exception) and GuardChain(true, "otherwise") then { "then" } must throwA[Exception]
+    }
+
+    "handle throws 2" in {
+      GuardChain(true, throw new Exception) and GuardChain(true, "otherwise") then { "then" } must be_==("then")
     }
   }
 }

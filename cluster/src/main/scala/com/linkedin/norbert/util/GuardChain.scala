@@ -18,18 +18,18 @@ package util
 
 object GuardChain {
   def apply[A](predicate: => Boolean, otherwise: => A): GuardChain[A] = new GuardChain[A] {
-    def and(gc: GuardChain[A]) = if (predicate) gc else new GuardChain[A] {
-      def and(gc: GuardChain[A]) = this
-      def then(op: => A) = otherwise
-    }
-
-    def then(op: => A) = if (predicate) op else otherwise
+    def and[B >: A](gc: GuardChain[B]) = if (predicate) gc else new NoOpGuardChain(otherwise)
+    def then[B >: A](op: => B) = if (predicate) op else otherwise
   }
 
+  private class NoOpGuardChain[A](otherwise: => A) extends GuardChain[A] {
+    def and[B >: A](gc: GuardChain[B]) = new NoOpGuardChain(otherwise)
+    def then[B >: A](op: => B) = otherwise
+  }
 }
 
 trait GuardChain[A] {
-  def apply(op: => A): A = then(op)
-  def and(gc: GuardChain[A]): GuardChain[A]
-  def then(op: => A): A
+  def apply[B >: A](op: => B): B = then(op)
+  def and[B >: A](gc: GuardChain[B]): GuardChain[B]
+  def then[B >: A](op: => B): B
 }
