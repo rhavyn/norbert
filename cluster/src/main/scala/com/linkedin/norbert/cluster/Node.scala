@@ -34,12 +34,12 @@ object Node {
    *
    * @return a new <code>Node</code> instance
    */
-  def apply(id: Int, bytes: Array[Byte], available: Boolean): Node = {
+  def apply(bytes: Array[Byte], available: Boolean): Node = {
     import collection.JavaConversions._
 
     try {
       val node = NorbertProtos.Node.newBuilder.mergeFrom(bytes).build
-      val partitions = node.getPartitionList.asInstanceOf[java.util.List[Int]].foldLeft(Set[Int]()) { (set, i) => set + i }
+      val partitions = Set.empty ++ node.getPartitionList.asInstanceOf[java.util.List[Int]]
 
       Node(node.getId, node.getUrl, available, partitions)
     } catch {
@@ -47,19 +47,18 @@ object Node {
     }
   }
 
-  /**
-   * Implicit method which serializes a <code>Node</code> instance into an array of bytes.
-   *
-   * @param node the <code>Node</code> to serialize
-   *
-   * @return the serialized <code>Node</code>
-   */
-  implicit def nodeToByteArray(node: Node): Array[Byte] = {
-    val builder = NorbertProtos.Node.newBuilder
-    builder.setId(node.id).setUrl(node.url)
-    node.partitionIds.foreach(builder.addPartition(_))
+  trait SerializableNode {
+    def toByteArray: Array[Byte]
+  }
 
-    builder.build.toByteArray
+  implicit def node2SerializableNode(node: Node): SerializableNode = new SerializableNode {
+    def toByteArray = {
+      val builder = NorbertProtos.Node.newBuilder
+      builder.setId(node.id).setUrl(node.url)
+      node.partitionIds.foreach(builder.addPartition(_))
+
+      builder.build.toByteArray
+    }
   }
 }
 
