@@ -28,8 +28,7 @@ object GuardChain {
   }
 }
 
-trait GuardChain[A] {
-  def apply[B >: A](op: => B): B = then(op)
+trait GuardChain[+A] {
   def and[B >: A](gc: GuardChain[B]): GuardChain[B]
   def then[B >: A](op: => B): B
 }

@@ -40,13 +40,13 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
               reply(ClusterManagerResponse(None))
             }
 
-          case GetNodes => ifConnected { reply(Nodes(nodes)) }
+          case GetNodes => ifConnected then { reply(Nodes(nodes)) }
 
-          case AddNode(node) if (currentNodes.contains(node.id)) => ifConnected {
+          case AddNode(node) if (currentNodes.contains(node.id)) => ifConnected then {
             reply(ClusterManagerResponse(Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))))
           }
 
-          case AddNode(node) => ifConnected {
+          case AddNode(node) => ifConnected then {
             log.debug("Adding node: %s".format(node))
             val n = if (availableNodes.contains(node.id)) node.copy(available = true) else node.copy(available = false)
             currentNodes += (n.id -> n)
@@ -54,14 +54,14 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
             reply(ClusterManagerResponse(None))
           }
 
-          case RemoveNode(nodeId) => ifConnected {
+          case RemoveNode(nodeId) => ifConnected then {
             log.debug("Removing node with id: %d".format(nodeId))
             currentNodes -= nodeId
             notificationCenter ! NotificationCenterMessages.SendNodesChangedEvent(nodes)
             reply(ClusterManagerResponse(None))
           }
 
-          case MarkNodeAvailable(nodeId) => ifConnected {
+          case MarkNodeAvailable(nodeId) => ifConnected then {
             log.debug("Marking node with id %d available".format(nodeId))
             currentNodes.get(nodeId).foreach { node => currentNodes += (nodeId -> node.copy(available = true)) }
             availableNodes += nodeId
@@ -69,7 +69,7 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent {
             reply(ClusterManagerResponse(None))
           }
 
-          case MarkNodeUnavailable(nodeId) => ifConnected {
+          case MarkNodeUnavailable(nodeId) => ifConnected then {
             log.debug("Marking node with id %d unavailable".format(nodeId))
             currentNodes.get(nodeId).foreach { node => currentNodes += (nodeId -> node.copy(available = false)) }
             availableNodes -= nodeId

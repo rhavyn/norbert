@@ -53,9 +53,9 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         react {
           case Connect => handleConnect
           case Connected => handleConnected
-          case m @ NodeChildrenChanged(path) if (path == AVAILABILITY_NODE) => logError { ifConnectedToZooKeeper(m) { handleAvailabilityChanged } }
-          case m @ NodeChildrenChanged(path) if (path == MEMBERSHIP_NODE) => logError { ifConnectedToZooKeeper(m) { handleMembershipChanged } }
-          case m @ Disconnected => logError { ifConnectedToZooKeeper(m) { handleDisconnected } }
+          case m @ NodeChildrenChanged(path) if (path == AVAILABILITY_NODE) => logError { ifConnectedToZooKeeper(m) then { handleAvailabilityChanged } }
+          case m @ NodeChildrenChanged(path) if (path == MEMBERSHIP_NODE) => logError { ifConnectedToZooKeeper(m) then { handleMembershipChanged } }
+          case m @ Disconnected => logError { ifConnectedToZooKeeper(m) then { handleDisconnected } }
           case Expired => handleExpired
           case m @ GetNodes => replyWithError(ifConnected and ifConnectedToZooKeeper(m) then { reply(Nodes(nodes)) })
           case m @ AddNode(node) => replyWithError(ifConnected and ifConnectedToZooKeeper(m) then { handleAddNode(node) })

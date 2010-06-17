@@ -30,11 +30,13 @@ class GuardChainSpec extends Specification {
 
     "handle an exception throwing otherwise and a value returning then" in {
       GuardChain(true, throw new Exception) then { "then" } must be_==("then")
-      GuardChain(true, throw new Exception) { "then" } must be_==("then")
+      GuardChain(true, throw new Exception) then { "then" } must be_==("then")
     }
 
     "execute a chained guard if predicate is true" in {
-      GuardChain(true, throw new Exception("failed")) and GuardChain(true, throw new Exception("Failed 2")) then { "then" } must be_==("then")
+      val chain1 = GuardChain(true, throw new Exception("failed"))
+      val chain2 = GuardChain(true, throw new Exception("Failed 2"))
+      chain1 and chain2 then { "then" } must be_==("then")
     }
 
     "not execute a chained guard if the predicate is false" in {
