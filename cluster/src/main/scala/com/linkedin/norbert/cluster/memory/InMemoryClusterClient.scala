@@ -17,9 +17,9 @@ package com.linkedin.norbert
 package cluster
 package memory
 
-import common.NotificationCenter
+import common.{ClusterManagerClusterClient, NotificationCenter}
 
-class InMemoryClusterClient(val serviceName: String) extends ClusterClient with InMemoryClusterManagerComponent{
+class InMemoryClusterClient(val serviceName: String) extends ClusterManagerClusterClient with InMemoryClusterManagerComponent{
   val notificationCenter = new NotificationCenter
   val clusterManager = new InMemoryClusterManager
 }
