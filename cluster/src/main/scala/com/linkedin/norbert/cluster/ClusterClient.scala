@@ -182,8 +182,8 @@ trait ClusterClient extends Logging {
   def awaitConnectionUninterruptibly: Unit
 
   /**
-   * Waits for the connection to the cluster to be established. This method will wait indefinitely for
-   * the connection and will swallow any <code>InterruptedException</code>s thrown while waiting.
+   * Waits for the connection to the cluster to be established for the specified duration of time.
+   * This method will swallow any <code>InterruptedException</code>s thrown while waiting.
    *
    * @param timeout how long to wait before giving up, in terms of <code>unit</code>
    * @param unit the <code>TimeUnit</code> that <code>timeout</code> should be interpreted in

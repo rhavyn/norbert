@@ -57,7 +57,7 @@ trait ClusterManagerClusterClient extends ClusterClient {
     log.info("Connected to cluster")
   }
 
-  def nodes = ifConnectCalled and ifNotShutdown then {
+  def nodes = ifNotShutdown and ifConnectCalled then {
     clusterManager !? GetNodes match {
       case Nodes(n) => n
       case ClusterManagerResponse(o) => throw o.getOrElse { new ClusterException("Invalid response from ClusterManager") }
@@ -66,17 +66,17 @@ trait ClusterManagerClusterClient extends ClusterClient {
 
   def nodeWithId(nodeId: Int) = nodes.filter(_.id == nodeId).headOption
 
-  def addNode(nodeId: Int, url: String, partitions: Set[Int]) = ifConnectCalled and ifNotShutdown then {
+  def addNode(nodeId: Int, url: String, partitions: Set[Int]) = ifNotShutdown and ifConnectCalled then {
     val node = Node(nodeId, url, false, partitions)
     sendClusterManagerMessage(AddNode(node))
     node
   }
 
-  def removeNode(nodeId: Int) = ifConnectCalled and ifNotShutdown then { sendClusterManagerMessage(RemoveNode(nodeId)) }
+  def removeNode(nodeId: Int) = ifNotShutdown and ifConnectCalled then { sendClusterManagerMessage(RemoveNode(nodeId)) }
 
-  def markNodeAvailable(nodeId: Int) = ifConnectCalled and ifNotShutdown then { sendClusterManagerMessage(MarkNodeAvailable(nodeId)) }
+  def markNodeAvailable(nodeId: Int) = ifNotShutdown and ifConnectCalled then { sendClusterManagerMessage(MarkNodeAvailable(nodeId)) }
 
-  def markNodeUnavailable(nodeId: Int) = ifConnectCalled and ifNotShutdown then { sendClusterManagerMessage(MarkNodeUnavailable(nodeId)) }
+  def markNodeUnavailable(nodeId: Int) = ifNotShutdown and ifConnectCalled then { sendClusterManagerMessage(MarkNodeUnavailable(nodeId)) }
 
   def addListener(listener: ClusterListener) = ifNotShutdown then {
     notificationCenter !? AddListener(listener) match {
@@ -86,15 +86,15 @@ trait ClusterManagerClusterClient extends ClusterClient {
 
   def removeListener(key: ClusterListenerKey) = ifNotShutdown then { notificationCenter ! RemoveListener(key) }
 
-  def isConnected = ifConnectCalled and ifNotShutdown then { connectedLatch.getCount == 0 }
+  def isConnected = ifNotShutdown and ifConnectCalled then { connectedLatch.getCount == 0 }
 
   def isShutdown = shutdownSwitch.get
 
-  def awaitConnection = ifConnectCalled and ifConnectCalled and ifNotShutdown then { connectedLatch.await }
+  def awaitConnection = ifNotShutdown and ifConnectCalled then { connectedLatch.await }
 
-  def awaitConnection(timeout: Long, unit: TimeUnit) = ifConnectCalled and ifNotShutdown then { connectedLatch.await(timeout, unit) }
+  def awaitConnection(timeout: Long, unit: TimeUnit) = ifNotShutdown and ifConnectCalled then { connectedLatch.await(timeout, unit) }
 
-  def awaitConnectionUninterruptibly = ifConnectCalled and ifNotShutdown then {
+  def awaitConnectionUninterruptibly = ifNotShutdown and ifConnectCalled then {
     var done = false
 
     while (!done) {
@@ -107,7 +107,7 @@ trait ClusterManagerClusterClient extends ClusterClient {
     }
   }
 
-  def awaitConnectionUninterruptibly(timeout: Long, unit: TimeUnit) = ifConnectCalled and ifNotShutdown then {
+  def awaitConnectionUninterruptibly(timeout: Long, unit: TimeUnit) = ifNotShutdown and ifConnectCalled then {
     var done = false
     var timedout = false
 

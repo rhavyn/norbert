@@ -21,5 +21,8 @@ import common.{ClusterManagerClusterClient, NotificationCenter}
 
 class InMemoryClusterClient(val serviceName: String) extends ClusterManagerClusterClient with InMemoryClusterManagerComponent{
   val notificationCenter = new NotificationCenter
+  notificationCenter.start
+
   val clusterManager = new InMemoryClusterManager
+  clusterManager.start
 }

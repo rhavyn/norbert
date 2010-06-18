@@ -22,5 +22,8 @@ import common.{ClusterManagerClusterClient, NotificationCenter}
 class ZooKeeperClusterClient(val serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends ClusterManagerClusterClient
     with ZooKeeperClusterManagerComponent {
   val notificationCenter = new NotificationCenter
+  notificationCenter.start
+
   val clusterManager = new ZooKeeperClusterManager(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+  clusterManager.start
 }
