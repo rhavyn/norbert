@@ -252,7 +252,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       }
     }
 
-    private def ifConnectedToZooKeeper(msg: Any) = GuardChain[Unit](connectedToZooKeeper,
+    private def ifConnectedToZooKeeper(msg: Any) = GuardChain(connectedToZooKeeper,
       throw new ClusterDisconnectedException("Received message while not connected to ZooKeeper: %s".format(msg)))
 
     private def logError[A](op: => A) {
@@ -278,7 +278,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     }
   }
 
-  protected implicit def defaultZooKeeperFactory(connectString: String, sessionTimeout: Int, watcher: Watcher) = new ZooKeeper(connectString, sessionTimeout, watcher)
+  protected def defaultZooKeeperFactory(connectString: String, sessionTimeout: Int, watcher: Watcher) = new ZooKeeper(connectString, sessionTimeout, watcher)
 
   class ClusterWatcher(zooKeeperManager: Actor) extends Watcher {
     @volatile private var shutdownSwitch = false
