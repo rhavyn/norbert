@@ -18,19 +18,18 @@ package cluster
 package zookeeper
 
 import common.ClusterManagerComponentSpecification
-import org.specs.util.WaitFor
 
 class ZooKeeperClusterManagerComponentSpec extends ClusterManagerComponentSpecification {
   val component = new ZooKeeperClusterManagerComponent {
-    val notificationCenter = ZooKeeperClusterManagerComponentSpec.this.notificationCenter
+    val notificationCenter = newNotificationCenter
     val clusterManager = new ZooKeeperClusterManager("test", "localhost:2181", 30000)
-    clusterManager.start
   }
   import component._
   import component.ClusterManagerMessages._
 
   "A connected ZooKeeperClusterManager" should {
     doBefore {
+      startComponent
       clusterManager ! Connect
       waitFor(250.ms)
       (0 until 10).foreach { i => clusterManager !? RemoveNode(i) }
@@ -42,6 +41,7 @@ class ZooKeeperClusterManagerComponentSpec extends ClusterManagerComponentSpecif
   }
 
   "An unconnected ZooKeeperClusterManager" should {
+    doBefore { startComponent }
     doAfter { cleanup }
 
     "behave like a ClusterManager" in { unconnectedClusterManagerExamples }

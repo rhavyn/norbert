@@ -20,16 +20,15 @@ package memory
 import java.util.concurrent.{TimeoutException, TimeUnit}
 
 class InMemoryClusterClientSpec extends ClusterClientSpecification {
-  val clusterClient = new InMemoryClusterClient("test")
-
   "An unconnected InMemoryClusterClient" should {
+    doBefore { initializeClusterClient }
     doAfter { cleanup }
 
     "behave like a ClusterClient" in { unconnectedClusterClientExamples }
   }
 
   "A shutdown InMemoryClusterClient" should {
-    doBefore { clusterClient.shutdown }
+    doBefore { initializeClusterClient; clusterClient.shutdown }
 
     doAfter {
       try {
@@ -44,6 +43,7 @@ class InMemoryClusterClientSpec extends ClusterClientSpecification {
 
   "A connected InMemoryClusterClient" should {
     doBefore {
+      initializeClusterClient
       clusterClient.connect
       if (!clusterClient.awaitConnectionUninterruptibly(1, TimeUnit.SECONDS)) {
         throw new TimeoutException("Timed out waiting for connection to cluster")
@@ -61,4 +61,6 @@ class InMemoryClusterClientSpec extends ClusterClientSpecification {
 
     "behave like a ClusterClient" in { connectedClusterClientExamples }
   }
+
+  def newClusterClient = new InMemoryClusterClient("test")
 }

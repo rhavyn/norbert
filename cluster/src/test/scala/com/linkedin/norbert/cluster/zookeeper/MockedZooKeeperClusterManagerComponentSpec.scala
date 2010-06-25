@@ -26,9 +26,8 @@ import org.apache.zookeeper._
 class MockedZooKeeperClusterManagerComponentSpec extends ClusterManagerComponentSpecification with Mockito {
   val mockZooKeeper = mock[ZooKeeper]
   val component = new ZooKeeperClusterManagerComponent {
-    val notificationCenter = MockedZooKeeperClusterManagerComponentSpec.this.notificationCenter
+    val notificationCenter = newNotificationCenter
     val clusterManager = new ZooKeeperClusterManager("test", "test:1234", 30000, mockZooKeeperFactory _)
-    clusterManager.start
   }
   var zooKeeperCreateShouldFail = false
   var zooKeeperFactoryCallCount = 0
@@ -41,12 +40,12 @@ class MockedZooKeeperClusterManagerComponentSpec extends ClusterManagerComponent
   import component.ClusterManagerMessages._
   import component.ZooKeeperMessages._
 
-
   val rootNode = "/test"
   val membershipNode = rootNode + "/members"
   val availabilityNode = rootNode + "/available"
 
   "An unconnected ZooKeeperClusterManager with mock ZooKeeper" should {
+    doBefore { startComponent }
     doAfter { cleanup }
 
     "when a Connect message is received" in {
@@ -63,7 +62,7 @@ class MockedZooKeeperClusterManagerComponentSpec extends ClusterManagerComponent
   }
 
   "A connected ZooKeeperClusterManager with mock ZooKeeper" should {
-    doBefore { clusterManager ! Connect }
+    doBefore { startComponent; clusterManager ! Connect }
     doAfter { cleanup }
 
     "handle ZooKeeperMessages" in {

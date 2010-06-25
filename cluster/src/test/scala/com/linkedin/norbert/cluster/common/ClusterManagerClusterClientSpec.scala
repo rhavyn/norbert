@@ -18,7 +18,7 @@ package cluster
 package common
 
 import org.specs.Specification
-import actors.Actor._
+import actors.Actor
 import java.util.concurrent.TimeUnit
 
 class ClusterManagerClusterClientSpec extends Specification {
@@ -34,26 +34,28 @@ class ClusterManagerClusterClientSpec extends Specification {
     var removedClusterListenerKey: ClusterListenerKey = null
     var notificationCenterShutdownCount = 0
     var clusterClientListener: ClusterListener = null
-    val notificationCenter = actor {
-      loop {
-        react {
-          case AddListener(listener) =>
-            if (clusterClientListener == null) {
-              clusterClientListener = listener
-            } else {
-              addedClusterListener = listener
-              addListenerCount += 1
-            }
-            reply(AddedListener(ClusterListenerKey(1L)))
+    val notificationCenter = new Actor {
+      def act {
+        loop {
+          react {
+            case AddListener(listener) =>
+              if (clusterClientListener == null) {
+                clusterClientListener = listener
+              } else {
+                addedClusterListener = listener
+                addListenerCount += 1
+              }
+              reply(AddedListener(ClusterListenerKey(1L)))
 
-          case RemoveListener(key) =>
-            removedClusterListenerKey = key
-            removedListenerCount += 1
+            case RemoveListener(key) =>
+              removedClusterListenerKey = key
+              removedListenerCount += 1
 
-          case NotificationCenterMessages.Shutdown =>
-            notificationCenterShutdownCount += 1
-            reply(NotificationCenterMessages.Shutdown)
-            exit
+            case NotificationCenterMessages.Shutdown =>
+              notificationCenterShutdownCount += 1
+              reply(NotificationCenterMessages.Shutdown)
+              exit
+          }
         }
       }
     }
@@ -63,40 +65,42 @@ class ClusterManagerClusterClientSpec extends Specification {
     var addedNode: Node = null
     var nodeIdFromMessage = 0
     var clusterManagerShutdownCount = 0
-    val clusterManager = actor {
-      loop {
-        react {
-          case Connect =>
-            connectMessageCount += 1
-            reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+    val clusterManager = new Actor {
+      def act {
+        loop {
+          react {
+            case Connect =>
+              connectMessageCount += 1
+              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
 
-          case GetNodes =>
-            if (clusterManagerShouldFail) {
-              reply(ClusterManagerResponse(Some(new ClusterException)))
-            } else {
-              reply(Nodes(currentNodes))
-            }
+            case GetNodes =>
+              if (clusterManagerShouldFail) {
+                reply(ClusterManagerResponse(Some(new ClusterException)))
+              } else {
+                reply(Nodes(currentNodes))
+              }
 
-          case AddNode(node) =>
-            addedNode = node
-            reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+            case AddNode(node) =>
+              addedNode = node
+              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
 
-          case RemoveNode(nodeId) =>
-            nodeIdFromMessage = nodeId
-            reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+            case RemoveNode(nodeId) =>
+              nodeIdFromMessage = nodeId
+              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
 
-          case MarkNodeAvailable(nodeId) =>
-            nodeIdFromMessage = nodeId
-            reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+            case MarkNodeAvailable(nodeId) =>
+              nodeIdFromMessage = nodeId
+              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
 
-          case MarkNodeUnavailable(nodeId) =>
-            nodeIdFromMessage = nodeId
-            reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+            case MarkNodeUnavailable(nodeId) =>
+              nodeIdFromMessage = nodeId
+              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
 
-          case ClusterManagerMessages.Shutdown =>
-            clusterManagerShutdownCount += 1
-            reply(ClusterManagerMessages.Shutdown)
-            exit
+            case ClusterManagerMessages.Shutdown =>
+              clusterManagerShutdownCount += 1
+              reply(ClusterManagerMessages.Shutdown)
+              exit
+          }
         }
       }
     }
@@ -104,9 +108,17 @@ class ClusterManagerClusterClientSpec extends Specification {
     def serviceName = "test"
   }
 
+
   import clusterClient._
 
+  def startActors {
+    notificationCenter.start
+    clusterManager.start
+  }
+
   "An unconnected ClusterManagerClusterClient" should {
+    doBefore { startActors }
+
     doAfter {
       notificationCenter ! NotificationCenterMessages.Shutdown
       clusterManager ! ClusterManagerMessages.Shutdown
@@ -183,6 +195,7 @@ class ClusterManagerClusterClientSpec extends Specification {
 
   "A connected ClusterManagerClusterClient" should {
     doBefore {
+      startActors
       clusterClient.connect
     }
 

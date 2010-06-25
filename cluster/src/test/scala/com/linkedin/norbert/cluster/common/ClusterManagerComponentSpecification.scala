@@ -18,7 +18,7 @@ package cluster
 package common
 
 import org.specs.Specification
-import actors.Actor._
+import actors.Actor
 import org.specs.util.WaitFor
 
 trait ClusterManagerComponentSpecification extends Specification with WaitFor {
@@ -27,29 +27,36 @@ trait ClusterManagerComponentSpecification extends Specification with WaitFor {
   var disconnectedEventCount = 0
   var nodesFromEvent = Set.empty[Node]
 
-  val notificationCenter = actor {
-    loop {
-      import NotificationCenterMessages._
+  val component: ClusterManagerComponent
+  import component._
+  import component.ClusterManagerMessages._
 
-      react {
-        case SendConnectedEvent(n) =>
-          connectedEventCount += 1
-          nodesFromEvent = n
+  def newNotificationCenter = new Actor {
+    def act {
+      loop {
+        import NotificationCenterMessages._
 
-        case SendNodesChangedEvent(n) =>
-          nodesChangedEventCount += 1
-          nodesFromEvent = n
+        react {
+          case SendConnectedEvent(n) =>
+            connectedEventCount += 1
+            nodesFromEvent = n
 
-        case SendDisconnectedEvent => disconnectedEventCount += 1
+          case SendNodesChangedEvent(n) =>
+            nodesChangedEventCount += 1
+            nodesFromEvent = n
 
-        case 'quit => exit
+          case SendDisconnectedEvent => disconnectedEventCount += 1
+
+          case 'quit => exit
+        }
       }
     }
   }
 
-  val component: ClusterManagerComponent
-  import component._
-  import component.ClusterManagerMessages._
+  def startComponent {
+    notificationCenter.start
+    clusterManager.start
+  }
 
   def cleanup {
     notificationCenter ! 'quit

@@ -21,7 +21,7 @@ import java.util.concurrent.{TimeoutException, TimeUnit}
 import org.specs.util.WaitFor
 
 trait ClusterClientSpecification extends Specification with WaitFor {
-  val clusterClient: ClusterClient
+  var clusterClient: ClusterClient = _
 
   var connectedEventCount = 0
   var connectedNodes: Set[Node] = null
@@ -38,6 +38,12 @@ trait ClusterClientSpecification extends Specification with WaitFor {
       nodesChanged = nodes
 
     case ClusterEvents.Shutdown => shutdownEventCount += 1
+  }
+
+  def newClusterClient: ClusterClient
+
+  def initializeClusterClient {
+    clusterClient = newClusterClient
   }
 
   def setup {

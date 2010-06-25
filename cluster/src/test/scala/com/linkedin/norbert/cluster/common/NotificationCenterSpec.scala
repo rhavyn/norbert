@@ -21,11 +21,15 @@ import org.specs.Specification
 import org.specs.util.WaitFor
 
 class NotificationCenterSpec extends Specification with WaitFor {
-  val notificationCenter = new NotificationCenter
-  notificationCenter.start
-
   "NotificationCenter" should {
     import NotificationCenterMessages._
+
+    var notificationCenter: NotificationCenter = null
+
+    doBefore {
+      notificationCenter = new NotificationCenter
+      notificationCenter.start
+    }
 
     doAfter { notificationCenter ! Shutdown }
 

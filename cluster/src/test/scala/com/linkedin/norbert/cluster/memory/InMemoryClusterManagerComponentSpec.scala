@@ -21,15 +21,15 @@ import common.ClusterManagerComponentSpecification
 
 class InMemoryClusterManagerComponentSpec extends ClusterManagerComponentSpecification {
   val component = new InMemoryClusterManagerComponent {
-    val notificationCenter = InMemoryClusterManagerComponentSpec.this.notificationCenter
+    val notificationCenter = newNotificationCenter
     val clusterManager = new InMemoryClusterManager
-    clusterManager.start
   }
+
   import component._
   import component.ClusterManagerMessages._
 
   "A connected InMemoryClusterManager" should {
-    doBefore { clusterManager ! Connect }
+    doBefore { startComponent; clusterManager ! Connect }
     doAfter { cleanup }
 
     "behave like a ClusterManager" in { connectedClusterManagerExamples }
@@ -40,6 +40,7 @@ class InMemoryClusterManagerComponentSpec extends ClusterManagerComponentSpecifi
   }
 
   "An unconnected InMemoryClusterManager" should {
+    doBefore { startComponent }
     doAfter { cleanup }
 
     "behave like a ClusterManager" in { unconnectedClusterManagerExamples }

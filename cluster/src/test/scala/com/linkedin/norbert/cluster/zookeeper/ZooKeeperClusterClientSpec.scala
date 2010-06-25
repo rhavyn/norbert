@@ -20,16 +20,15 @@ package zookeeper
 import java.util.concurrent.{TimeUnit, TimeoutException}
 
 class ZooKeeperClusterClientSpec extends ClusterClientSpecification {
-  val clusterClient = new ZooKeeperClusterClient("test", "localhost:2181", 30000)
-
   "An unconnected ZooKeeperClusterClient" should {
+    doBefore { initializeClusterClient }
     doAfter { cleanup }
 
     "behave like a ClusterClient" in { unconnectedClusterClientExamples }
   }
 
   "A shutdown ZooKeeperClusterClient" should {
-    doBefore { clusterClient.shutdown }
+    doBefore { initializeClusterClient; clusterClient.shutdown }
 
     doAfter {
       try {
@@ -44,6 +43,7 @@ class ZooKeeperClusterClientSpec extends ClusterClientSpecification {
 
   "A connected ZooKeeperClusterClient" should {
     doBefore {
+      initializeClusterClient
       clusterClient.connect
       if (!clusterClient.awaitConnectionUninterruptibly(1, TimeUnit.SECONDS)) {
         throw new TimeoutException("Timed out waiting for connection to cluster")
@@ -63,4 +63,6 @@ class ZooKeeperClusterClientSpec extends ClusterClientSpecification {
 
     "behave like a ClusterClient" in { connectedClusterClientExamples }
   }
+
+  def newClusterClient = new ZooKeeperClusterClient("test", "localhost:2181", 30000)
 }
