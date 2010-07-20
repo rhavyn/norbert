@@ -23,12 +23,14 @@ import logging.Logging
 object JMX extends Logging {
   private val mbeanServer = ManagementFactory.getPlatformMBeanServer
 
-  def register(mbean: AnyRef, name: String): Option[ObjectInstance] = try {
+  def register(mbean: AnyRef, name: String): Option[ObjectInstance] = if (System.getProperty("com.linkedin.norbert.disableJMX") != null) try {
     Some(mbeanServer.registerMBean(mbean, new ObjectName(name)))
   } catch {
     case ex: Exception =>
       log.error(ex, "Error when registering mbean: %s".format(mbean))
       None
+  } else {
+    None
   }
 
   def register(mbean: MBean): Option[ObjectInstance] = register(mbean, mbean.name)
