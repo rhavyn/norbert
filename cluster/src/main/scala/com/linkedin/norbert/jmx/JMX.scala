@@ -22,7 +22,7 @@ import javax.management.{ObjectInstance, ObjectName, StandardMBean}
 object JMX extends Logging {
   private val mbeanServer = ManagementFactory.getPlatformMBeanServer
 
-  def register(mbean: AnyRef, name: String): Option[ObjectInstance] = if (System.getProperty("com.linkedin.norbert.disableJMX") != null) try {
+  def register(mbean: AnyRef, name: String): Option[ObjectInstance] = if (System.getProperty("com.linkedin.norbert.disableJMX") == null) try {
     Some(mbeanServer.registerMBean(mbean, new ObjectName(name)))
   } catch {
     case ex: Exception =>
