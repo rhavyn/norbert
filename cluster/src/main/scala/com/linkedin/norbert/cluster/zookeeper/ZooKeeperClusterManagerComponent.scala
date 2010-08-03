@@ -82,6 +82,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
         }
       }
     }
+
     private def handleConnected {
       log.debug("Handling a ZooKeeper connected event")
 
