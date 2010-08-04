@@ -36,6 +36,8 @@ class NotificationCenterSpec extends Specification {
       nc.postNotification(Notification1(1))
 
       callCount must eventually(be_==(2))
+
+      nc.shutdown
     }
 
     "remove observers" in {
@@ -59,6 +61,8 @@ class NotificationCenterSpec extends Specification {
 
       callCount1 must eventually(be_==(2))
       callCount2 must be_==(1)
+
+      nc.shutdown
     }
 
     "only pass a notification to an observer that is listening for it" in {
@@ -81,6 +85,8 @@ class NotificationCenterSpec extends Specification {
 
       callCount2 must eventually(be_==(1))
       callCount1 must be_==(1)
+
+      nc.shutdown
     }
   }
 }

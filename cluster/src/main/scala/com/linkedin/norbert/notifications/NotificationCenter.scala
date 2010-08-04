@@ -58,9 +58,12 @@ class NotificationCenter {
   def removeObserver(observerKey: ObserverKey): Unit = a ! RemoveObserver(observerKey)
   def postNotification(notification: Notification): Unit = a ! PostNotification(notification)
 
+  private[notifications] def shutdown: Unit = a ! Shutdown
+
   private case class AddObserver(observerKey: ObserverKey, observer: Observer)
   private case class RemoveObserver(observerKey: ObserverKey)
   private case class PostNotification(notification: Notification)
+  private case object Shutdown
 
   private class NotificationCenterActor extends DaemonActor {
     private var observers = Map.empty[ObserverKey, ObserverActor]
@@ -80,6 +83,10 @@ class NotificationCenter {
             }
 
           case PostNotification(n) => observers.values.foreach { _ ! n }
+
+          case Shutdown =>
+            observers.values.foreach { _ ! 'exit }
+            exit
         }
       }
     }
