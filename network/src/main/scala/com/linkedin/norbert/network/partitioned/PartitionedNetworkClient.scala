@@ -94,7 +94,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
   * to send the request to
   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
   */
-  def sendMessage(ids: Seq[PartitionedId], message: Message): ResponseIterator = doIfConnected {
+  def sendMessage(ids: Set[PartitionedId], message: Message): ResponseIterator = doIfConnected {
     if (ids == null || message == null) throw new NullPointerException
     verifyMessageRegistered(message)
 
@@ -124,7 +124,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * to send the request to
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    */
-  def sendMessage(ids: Seq[PartitionedId], message: Message, messageCustomizer: (Message, Node, Seq[PartitionedId]) => Message): ResponseIterator = doIfConnected {
+  def sendMessage(ids: Set[PartitionedId], message: Message, messageCustomizer: (Message, Node, Set[PartitionedId]) => Message): ResponseIterator = doIfConnected {
     if (ids == null || message == null || messageCustomizer == null) throw new NullPointerException
     verifyMessageRegistered(message)
 
@@ -159,7 +159,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
-  def sendMessage[A](ids: Seq[PartitionedId], message: Message, responseAggregator: (Message, ResponseIterator) => A): A = doIfConnected{
+  def sendMessage[A](ids: Set[PartitionedId], message: Message, responseAggregator: (Message, ResponseIterator) => A): A = doIfConnected{
     if (responseAggregator == null) throw new NullPointerException
     responseAggregator(message, sendMessage(ids, message))
   }
@@ -186,14 +186,14 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
-  def sendMessage[A](ids: Seq[PartitionedId], message: Message, messageCustomizer: (Message, Node, Seq[PartitionedId]) => Message,
+  def sendMessage[A](ids: Set[PartitionedId], message: Message, messageCustomizer: (Message, Node, Set[PartitionedId]) => Message,
               responseAggregator: (Message, ResponseIterator) => A): A = doIfConnected {
     if (responseAggregator == null) throw new NullPointerException
     responseAggregator(message, sendMessage(ids, message, messageCustomizer))
   }
 
-  protected def updateLoadBalancer(nodes: Seq[Node]) {
-    loadBalancer = if (nodes != null && nodes.length > 0) {
+  protected def updateLoadBalancer(nodes: Set[Node]) {
+    loadBalancer = if (nodes != null && nodes.size > 0) {
       try {
         Some(Right(loadBalancerFactory.newLoadBalancer(nodes)))
       } catch {
@@ -211,12 +211,12 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
     }
   }
 
-  private def calculateNodesFromIds(ids: Seq[PartitionedId]) = {
+  private def calculateNodesFromIds(ids: Set[PartitionedId]) = {
     val lb = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex, lb => lb)
 
-    ids.foldLeft(Map[Node, List[PartitionedId]]().withDefaultValue(Nil)) { (map, id) =>
+    ids.foldLeft(Map[Node, Set[PartitionedId]]().withDefaultValue(Set())) { (map, id) =>
       val node = lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id)))
-      map(node) = id :: map(node)
+      map(node) = map(node) + id
     }
   }
 }

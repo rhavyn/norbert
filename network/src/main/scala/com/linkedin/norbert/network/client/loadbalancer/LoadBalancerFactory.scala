@@ -44,7 +44,7 @@ trait LoadBalancerFactory {
    * it is impossible to create a <code>LoadBalancer</code>
    */
   @throws(classOf[InvalidClusterException])
-  def newLoadBalancer(nodes: Seq[Node]): LoadBalancer
+  def newLoadBalancer(nodes: Set[Node]): LoadBalancer
 }
 
 /**

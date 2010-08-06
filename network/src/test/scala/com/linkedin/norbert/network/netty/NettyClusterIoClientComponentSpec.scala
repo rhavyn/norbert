@@ -62,7 +62,7 @@ class NettyClusterIoClientComponentSpec extends SpecificationWithJUnit with Mock
       channelPoolFactory.newChannelPool(address) returns channelPool
 
       clusterIoClient.sendMessage(node, mock[Message], e => null)
-      clusterIoClient.nodesChanged(Nil)
+      clusterIoClient.nodesChanged(Set())
 
       channelPoolFactory.newChannelPool(address) was called
       channelPool.close was called

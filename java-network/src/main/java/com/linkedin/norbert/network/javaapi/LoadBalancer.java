@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.network.javaapi;
 
-import com.linkedin.norbert.cluster.Node;
+import com.linkedin.norbert.cluster.javaapi.Node;
 
 /**
  * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to.

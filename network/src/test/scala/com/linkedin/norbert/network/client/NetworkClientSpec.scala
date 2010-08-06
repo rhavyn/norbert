@@ -52,7 +52,7 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     }
 
     "throw an InvalidMessageException if an unregistered message is sent" in {
-      clusterClient.nodes returns nodes
+      clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
       networkClient.messageRegistry.contains(any[Message]) returns false
 
@@ -64,9 +64,9 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     }
 
     "send the provided message to the node specified by the load balancer for sendMessage" in {
-      clusterClient.nodes returns nodes
+      clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
-      networkClient.loadBalancerFactory.newLoadBalancer(nodes) returns networkClient.lb
+      networkClient.loadBalancerFactory.newLoadBalancer(nodeSet) returns networkClient.lb
       networkClient.lb.nextNode returns Some(nodes(1))
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
@@ -78,9 +78,9 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     }
 
     "throw InvalidClusterException if there is no load balancer instance when sendMessage is called" in {
-      clusterClient.nodes returns nodes
+      clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
-      networkClient.loadBalancerFactory.newLoadBalancer(nodes) throws new InvalidClusterException("")
+      networkClient.loadBalancerFactory.newLoadBalancer(nodeSet) throws new InvalidClusterException("")
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClient.start
@@ -90,9 +90,9 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     }
 
     "throw NoSuchNodeException if load balancer returns None when sendMessage is called" in {
-      clusterClient.nodes returns nodes
+      clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
-      networkClient.loadBalancerFactory.newLoadBalancer(nodes) returns networkClient.lb
+      networkClient.loadBalancerFactory.newLoadBalancer(nodeSet) returns networkClient.lb
       networkClient.lb.nextNode returns None
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 

@@ -24,7 +24,7 @@ object ClusterEvents {
    * @param nodes the current list of <code>Node</code>s stored in the cluster metadata
    * @param router a <code>Router</code> which is valid for the current state of the cluster
    */
-  case class Connected(nodes: Seq[Node]) extends ClusterEvent
+  case class Connected(nodes: Set[Node]) extends ClusterEvent
 
   /**
    * <code>ClusterEvent</code> which indicates that the cluster topology has changed.
@@ -32,7 +32,7 @@ object ClusterEvents {
    * @param nodes the current list of <code>Node</code>s stored in the cluster metadata
    * @param router a <code>Router</code> which is valid for the current state of the cluster
    */
-  case class NodesChanged(nodes: Seq[Node]) extends ClusterEvent
+  case class NodesChanged(nodes: Set[Node]) extends ClusterEvent
 
   /**
    * <code>ClusterEvent</code> which indicates that the cluster is now disconnected.

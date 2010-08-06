@@ -16,8 +16,8 @@
 package com.linkedin.norbert.network.javaapi
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.Node
-import com.linkedin.norbert.cluster.javaapi.BaseClusterClient
+import com.linkedin.norbert.cluster.javaapi.{BaseClusterClient, Node}
+import com.linkedin.norbert.cluster.javaapi.Implicits._
 
 abstract class BaseNettyNetworkClient extends BaseNetworkClient {
   val underlying: com.linkedin.norbert.network.common.BaseNetworkClient
@@ -50,8 +50,8 @@ class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadB
   def this(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory) = this(config, loadBalancerFactory, null)
 
   val lbf = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancerFactory {
-    def newLoadBalancer(nodes: Seq[Node]) = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancer {
-      private val lb = loadBalancerFactory.newLoadBalancer(nodes.toArray)
+    def newLoadBalancer(nodes: Set[com.linkedin.norbert.cluster.Node]) = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancer {
+      private val lb = loadBalancerFactory.newLoadBalancer(nodes)
 
       def nextNode = lb.nextNode match {
         case null => None
@@ -76,8 +76,8 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
   def this(config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]) = this(config, loadBalancerFactory, null)
 
   val lbf = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancerFactory[PartitionedId] {
-    def newLoadBalancer(nodes: Seq[Node]) = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancer[PartitionedId] {
-      private val lb = loadBalancerFactory.newLoadBalancer(nodes.toArray)
+    def newLoadBalancer(nodes: Set[com.linkedin.norbert.cluster.Node]) = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancer[PartitionedId] {
+      private val lb = loadBalancerFactory.newLoadBalancer(nodes)
 
       def nextNode(id: PartitionedId) = lb.nextNode(id) match {
         case null => None
@@ -94,32 +94,17 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
 
   underlying.start
 
-  def sendMessage[T](ids: java.util.List[PartitionedId], message: Message, scatterGather: ScatterGatherHandler[T, PartitionedId]) = {
-    underlying.sendMessage(toSeq(ids), message,
-      (message, node, ids) => scatterGather.customizeMessage(message, node, toList(ids)),
+  def sendMessage[T](ids: java.util.Set[PartitionedId], message: Message, scatterGather: ScatterGatherHandler[T, PartitionedId]) = {
+    underlying.sendMessage(ids, message,
+      (message, node, ids) => {
+        val i = new java.util.HashSet[PartitionedId]
+        ids.foreach { id => i.add(id) }
+        scatterGather.customizeMessage(message, node, i)
+      },
       (message, responseIterator) => scatterGather.gatherResponses(message, responseIterator))
   }
 
-  def sendMessage(ids: java.util.List[PartitionedId], message: Message) = underlying.sendMessage(toSeq(ids), message)
+  def sendMessage(ids: java.util.Set[PartitionedId], message: Message) = underlying.sendMessage(ids, message)
 
   def sendMessage(id: PartitionedId, message: Message) = underlying.sendMessage(id, message)
-
-  private def toSeq(ids: java.util.List[PartitionedId]): Seq[PartitionedId] = {
-    val seq = new Array[PartitionedId](ids.size())
-    var index = 0
-    val iterator = ids.iterator()
-    while (iterator.hasNext()) {
-      seq(index) = iterator.next()
-      index = index + 1
-    }
-    seq
-  }
-
-  private def toList(ids: Seq[PartitionedId]): java.util.List[PartitionedId] = {
-    val list = new java.util.ArrayList[PartitionedId]
-    for (id <- ids)
-      list.add(id)
-    list
-  }
-
 }

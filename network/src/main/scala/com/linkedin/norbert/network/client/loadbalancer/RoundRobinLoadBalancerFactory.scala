@@ -18,7 +18,7 @@ package com.linkedin.norbert.network.client.loadbalancer
 import com.linkedin.norbert.cluster.Node
 
 class RoundRobinLoadBalancerFactory extends LoadBalancerFactory {
-  def newLoadBalancer(nodes: Seq[Node]) = new LoadBalancer {
+  def newLoadBalancer(nodes: Set[Node]) = new LoadBalancer {
     private val random = new scala.util.Random
     private val myNodes = nodes.toArray
 

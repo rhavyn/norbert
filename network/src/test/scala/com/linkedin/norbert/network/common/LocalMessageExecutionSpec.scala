@@ -51,7 +51,7 @@ class LocalMessageExecutionSpec extends SpecificationWithJUnit with Mockito {
   }
 
 
-  val nodes = List(Node(1, "", true), Node(2, "", true), Node(3, "", true))
+  val nodes = Set(Node(1, "", true), Node(2, "", true), Node(3, "", true))
   val message = mock[Message]
 
   networkClient.messageRegistry.contains(any[Message]) returns true

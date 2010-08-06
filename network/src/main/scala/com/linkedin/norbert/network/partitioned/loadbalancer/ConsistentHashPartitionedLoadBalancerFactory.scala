@@ -18,7 +18,7 @@ package com.linkedin.norbert.network.partitioned.loadbalancer
 import com.linkedin.norbert.cluster.Node
 
 abstract class ConsistentHashPartitionedLoadBalancerFactory[PartitionedId](numPartitions: Int) extends PartitionedLoadBalancerFactory[PartitionedId] {
-  def newLoadBalancer(nodes: Seq[Node]) = new PartitionedLoadBalancer[PartitionedId] with ConsistentHashLoadBalancerHelper {
+  def newLoadBalancer(nodes: Set[Node]) = new PartitionedLoadBalancer[PartitionedId] with ConsistentHashLoadBalancerHelper {
     val partitionToNodeMap = generatePartitionToNodeMap(nodes, numPartitions)
 
     def nextNode(id: PartitionedId) = nodeForPartition(partitionForId(id))

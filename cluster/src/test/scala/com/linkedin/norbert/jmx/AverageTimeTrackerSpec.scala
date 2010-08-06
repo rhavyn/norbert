@@ -13,25 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.javaapi;
+package com.linkedin.norbert.jmx
 
-import java.util.Set;
+import org.specs.SpecificationWithJUnit
 
-public class ClusterListenerAdapter implements ClusterListener {
-
-  public void handleClusterConnected(Set<Node> nodes) {
-    // do nothing
-  }
-
-  public void handleClusterNodesChanged(Set<Node> nodes) {
-    // do nothing
-  }
-
-  public void handleClusterDisconnected() {
-    // do nothing
-  }
-
-  public void handleClusterShutdown() {
-    // do nothing
+class AverageTimeTrackerSpec extends SpecificationWithJUnit {
+  "AverageTimeTracker" should {
+    "correctly average the times provided" in {
+      val a = new AverageTimeTracker(100)
+      (1 to 100).foreach(a.addTime(_))
+      a.average must be_==(50)
+      a.addTime(101)
+      a.average must be_==(51)
+    }
   }
 }

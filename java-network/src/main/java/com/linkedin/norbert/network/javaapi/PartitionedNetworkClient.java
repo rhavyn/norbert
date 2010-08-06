@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.network.javaapi;
 
-import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Future;
 
 import com.google.protobuf.Message;
@@ -56,7 +56,7 @@ public interface PartitionedNetworkClient<PartitionedId> extends BaseNetworkClie
    * to send the request to
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    */
-  ResponseIterator sendMessage(List<PartitionedId> ids, Message message) throws InvalidClusterException, NoNodesAvailableException, ClusterDisconnectedException;
+  ResponseIterator sendMessage(Set<PartitionedId> ids, Message message) throws InvalidClusterException, NoNodesAvailableException, ClusterDisconnectedException;
 
   /**
    * Sends a <code>Message</code> to the specified <code>PartitionedId</code>s. The <code>PartitionedNetworkClient</code>
@@ -76,5 +76,5 @@ public interface PartitionedNetworkClient<PartitionedId> extends BaseNetworkClie
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>ScatterGatherHandler</code> will be passed through to the client
    */
-  <T> T sendMessage(List<PartitionedId> ids, Message message, ScatterGatherHandler<T, PartitionedId> scatterGather) throws Exception;
+  <T> T sendMessage(Set<PartitionedId> ids, Message message, ScatterGatherHandler<T, PartitionedId> scatterGather) throws Exception;
 }

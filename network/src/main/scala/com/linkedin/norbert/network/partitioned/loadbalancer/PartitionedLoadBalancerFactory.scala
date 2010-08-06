@@ -46,7 +46,7 @@ trait PartitionedLoadBalancerFactory[PartitionedId] {
    * it is impossible to create a <code>LoadBalancer</code>
    */
   @throws(classOf[InvalidClusterException])
-  def newLoadBalancer(nodes: Seq[Node]): PartitionedLoadBalancer[PartitionedId]
+  def newLoadBalancer(nodes: Set[Node]): PartitionedLoadBalancer[PartitionedId]
 }
 
 /**

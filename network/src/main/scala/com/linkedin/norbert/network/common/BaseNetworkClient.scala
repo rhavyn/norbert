@@ -25,7 +25,7 @@ import com.linkedin.norbert.network.{NetworkShutdownException, InvalidMessageExc
 trait BaseNetworkClient extends Logging {
   this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent =>
 
-  @volatile protected var currentNodes: Seq[Node] = Nil
+  @volatile protected var currentNodes: Set[Node] = Set()
   @volatile protected var connected = false
   protected val startedSwitch = new AtomicBoolean
   protected val shutdownSwitch = new AtomicBoolean
@@ -50,7 +50,7 @@ trait BaseNetworkClient extends Logging {
 
           case ClusterEvents.Disconnected =>
             connected = false
-            updateCurrentState(Nil)
+            updateCurrentState(Set())
 
           case ClusterEvents.Shutdown => doShutdown(true)
         }
@@ -85,7 +85,7 @@ trait BaseNetworkClient extends Logging {
     verifyMessageRegistered(message)
 
     val candidate = currentNodes.filter(_ == node)
-    if (candidate.length == 0) throw new InvalidNodeException("Unable to send message, %s is not available".format(node))
+    if (candidate.size == 0) throw new InvalidNodeException("Unable to send message, %s is not available".format(node))
 
     val future = new NorbertFuture
     doSendMessage(node, message, e => future.offerResponse(e))
@@ -107,7 +107,7 @@ trait BaseNetworkClient extends Logging {
     verifyMessageRegistered(message)
 
     val nodes = currentNodes
-    val it = new NorbertResponseIterator(nodes.length)
+    val it = new NorbertResponseIterator(nodes.size)
 
     currentNodes.foreach(doSendMessage(_, message, e => it.offerResponse(e)))
 
@@ -119,7 +119,7 @@ trait BaseNetworkClient extends Logging {
    */
   def shutdown: Unit = doShutdown(false)
 
-  protected def updateLoadBalancer(nodes: Seq[Node]): Unit
+  protected def updateLoadBalancer(nodes: Set[Node]): Unit
 
   protected def verifyMessageRegistered(message: Message) {
     if (!messageRegistry.contains(message)) throw new InvalidMessageException("The message provided [%s] is not a registered request message".format(message))
@@ -136,7 +136,7 @@ trait BaseNetworkClient extends Logging {
     else block
   }
 
-  private def updateCurrentState(nodes: Seq[Node]) {
+  private def updateCurrentState(nodes: Set[Node]) {
     currentNodes = nodes
     updateLoadBalancer(nodes)
     clusterIoClient.nodesChanged(nodes)

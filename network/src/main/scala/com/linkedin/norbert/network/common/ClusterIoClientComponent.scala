@@ -23,7 +23,7 @@ trait ClusterIoClientComponent {
   
   trait ClusterIoClient {
     def sendMessage(node: Node, message: Message, responseCallback: Either[Throwable, Message] => Unit): Unit
-    def nodesChanged(nodes: Seq[Node])
+    def nodesChanged(nodes: Set[Node])
     def shutdown: Unit
   }
 }

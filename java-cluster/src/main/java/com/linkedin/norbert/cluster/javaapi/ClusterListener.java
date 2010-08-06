@@ -15,7 +15,7 @@
  */
 package com.linkedin.norbert.cluster.javaapi;
 
-import com.linkedin.norbert.cluster.Node;
+import java.util.Set;
 
 public interface ClusterListener {
   /**
@@ -23,14 +23,14 @@ public interface ClusterListener {
    *
    * @param nodes the current list of available <code>Node</code>s stored in the cluster metadata
    */
-  void handleClusterConnected(Node[] nodes);
+  void handleClusterConnected(Set<Node> nodes);
 
   /**
    * Handle the case that the cluster topology has changed.
    *
    * @param nodes the current list of available<code>Node</code>s stored in the cluster metadata
    */
-  void handleClusterNodesChanged(Node[] nodes);
+  void handleClusterNodesChanged(Set<Node> nodes);
 
   /**
    * Handle the case that the cluster is now disconnected.

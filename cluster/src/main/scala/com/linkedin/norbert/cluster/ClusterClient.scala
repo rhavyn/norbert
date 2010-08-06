@@ -44,7 +44,7 @@ trait ClusterClient extends Logging {
   private val shutdownSwitch = new AtomicBoolean
   private val startedSwitch = new AtomicBoolean
 
-  JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
     def getNodes = nodes.map(_.toString).toArray
     def isConnected = ClusterClient.this.isConnected
   })
@@ -94,7 +94,7 @@ trait ClusterClient extends Logging {
    * @return the current list of nodes
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  def nodes: Seq[Node] = doIfConnected {
+  def nodes: Set[Node] = doIfConnected {
     clusterNotificationManager !? ClusterNotificationMessages.GetCurrentNodes match {
       case ClusterNotificationMessages.CurrentNodes(nodes) => nodes
     }
@@ -120,7 +120,7 @@ trait ClusterClient extends Logging {
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    * @throws InvalidNodeException thrown if there is an error adding the new node to the cluster metadata
    */
-  def addNode(nodeId: Int, url: String): Node = addNode(nodeId, url, new Array[Int](0))
+  def addNode(nodeId: Int, url: String): Node = addNode(nodeId, url, Set[Int]())
 
   /**
    * Adds a node to the cluster metadata.
@@ -133,7 +133,7 @@ trait ClusterClient extends Logging {
    * @throws ClusterDisconnectedException thrown if the cluster is disconnected when the method is called
    * @throws InvalidNodeException thrown if there is an error adding the new node to the cluster metadata
    */
-  def addNode(nodeId: Int, url: String, partitions: Array[Int]): Node = doIfConnected {
+  def addNode(nodeId: Int, url: String, partitions: Set[Int]): Node = doIfConnected {
     if (url == null) throw new NullPointerException
 
     val node = Node(nodeId, url, partitions, false)
@@ -187,8 +187,15 @@ trait ClusterClient extends Logging {
     val a = actor {
       loop {
         receive {
-          case event: ClusterEvent => listener.handleClusterEvent(event)
+          case event: ClusterEvent =>
+            try {
+              listener.handleClusterEvent(event)
+            } catch {
+              case ex: Exception => log.error(ex, "Uncaught exception thrown from ClusterListener")
+            }
+
           case 'quit => exit
+
           case m => log.error("Received invalid message: " + m)
         }
       }
@@ -219,6 +226,8 @@ trait ClusterClient extends Logging {
    */
   def shutdown: Unit = {
     if (shutdownSwitch.compareAndSet(false, true)) {
+      jmxHandle.foreach { JMX.unregister(_) }
+
       log.ifDebug("Shutting down ZooKeeperManager...")
       clusterManager ! ClusterManagerMessages.Shutdown
 
@@ -293,7 +302,7 @@ trait ClusterClient extends Logging {
     }
   }
 
-  private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).firstOption)
+  private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).toSeq.firstOption)
 }
 
 trait ClusterClientMBean {

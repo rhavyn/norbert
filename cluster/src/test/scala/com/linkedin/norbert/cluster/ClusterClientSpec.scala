@@ -25,9 +25,9 @@ import org.specs.mock.Mockito
 class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor {
 
   val clusterListenerKey = ClusterListenerKey(10101L)
-  val currentNodes = Array(Node(1, "localhost:31313", Array(0, 1), true),
-          Node(2, "localhost:31314", Array(0, 1), true),
-          Node(3, "localhost:31315", Array(0, 1), true))
+  val currentNodes = Set(Node(1, "localhost:31313", Set(0, 1), true),
+          Node(2, "localhost:31314", Set(0, 1), true),
+          Node(3, "localhost:31315", Set(0, 1), true))
   var clusterActor: Actor = _
   var getCurrentNodesCount = 0
   var addListenerCount = 0
@@ -150,7 +150,7 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
 
       c.nodes must throwA[ClusterNotStartedException]
       c.nodeWithId(1) must throwA[ClusterNotStartedException]
-      c.addNode(1, null, new Array[Int](0)) must throwA[ClusterNotStartedException]
+      c.addNode(1, null, Set(0)) must throwA[ClusterNotStartedException]
       c.removeNode(1) must throwA[ClusterNotStartedException]
       c.markNodeAvailable(1) must throwA[ClusterNotStartedException]
       c.markNodeUnavailable(1) must throwA[ClusterNotStartedException]
@@ -179,30 +179,30 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
     "throw ClusterDisconnectedException if disconnected for addNode, removeNode, markNodeAvailable" in {
       cluster.nodes must throwA[ClusterDisconnectedException]
       cluster.nodeWithId(1) must throwA[ClusterDisconnectedException]
-      cluster.addNode(1, "localhost:31313", Array(0, 1)) must throwA[ClusterDisconnectedException]
+      cluster.addNode(1, "localhost:31313", Set(0, 1)) must throwA[ClusterDisconnectedException]
       cluster.removeNode(1) must throwA[ClusterDisconnectedException]
       cluster.markNodeAvailable(1) must throwA[ClusterDisconnectedException]
       cluster.markNodeUnavailable(1) must throwA[ClusterDisconnectedException]
     }
 
     "handle a connected event" in {
-      clusterActor ! ClusterEvents.Connected(Nil)
+      clusterActor ! ClusterEvents.Connected(Set())
 
       cluster.isConnected must eventually(beTrue)
     }
 
     "handle a disconnected event" in {
-      clusterActor ! ClusterEvents.Connected(Nil)
+      clusterActor ! ClusterEvents.Connected(Set())
       cluster.isConnected must eventually(beTrue)
       clusterActor ! ClusterEvents.Disconnected
       cluster.isConnected must eventually(beFalse)
     }
 
     "addNode should add a node to ZooKeeperManager" in {
-      clusterActor ! ClusterEvents.Connected(Nil)
+      clusterActor ! ClusterEvents.Connected(Set())
       waitFor(10.ms)
 
-      cluster.addNode(1, "localhost:31313", Array(1, 2)) must notBeNull
+      cluster.addNode(1, "localhost:31313", Set(1, 2)) must notBeNull
       addNodeCount must be_==(1)
       nodeAdded.id must be_==(1)
       nodeAdded.url must be_==("localhost:31313")
@@ -210,7 +210,7 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
     }
 
     "removeNode should remove a node from ZooKeeperManager" in {
-      clusterActor ! ClusterEvents.Connected(Nil)
+      clusterActor ! ClusterEvents.Connected(Set())
       waitFor(10.ms)
 
       cluster.removeNode(1)
@@ -219,7 +219,7 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
     }
 
     "markNodeAvailable should mark a node available in ZooKeeperManager" in {
-      clusterActor ! ClusterEvents.Connected(Nil)
+      clusterActor ! ClusterEvents.Connected(Set())
       waitFor(10.ms)
 
       cluster.markNodeAvailable(11)
@@ -228,7 +228,7 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
     }
 
     "markNodeUnavailable should mark a node unavailable in ZooKeeperMonitor" in {
-      clusterActor ! ClusterEvents.Connected(Nil)
+      clusterActor ! ClusterEvents.Connected(Set())
       waitFor(10.ms)
 
       cluster.markNodeUnavailable(111)
@@ -237,11 +237,11 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
     }
 
     "nodes should ask the ClusterNotificationManager for the current node list" in {
-      clusterActor ! ClusterEvents.Connected(Nil)
+      clusterActor ! ClusterEvents.Connected(Set())
       waitFor(10.ms)
 
       val nodes = cluster.nodes
-      nodes.length must be_==(3)
+      nodes.size must be_==(3)
       nodes must containAll(currentNodes)
       getCurrentNodesCount must be_==(1)
     }
@@ -249,11 +249,13 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
     "when handling nodeWithId" in {
       "return the node that matches the specified id" in {
         clusterActor ! ClusterEvents.Connected(currentNodes)
-        cluster.nodeWithId(2) must beSome[Node].which(_ must be_==(currentNodes(1)))
+        waitFor(10.ms)
+        cluster.nodeWithId(2) must beSome[Node].which(currentNodes must contain(_))
       }
 
       "return None if no matching id" in {
         clusterActor ! ClusterEvents.Connected(currentNodes)
+        waitFor(10.ms)
         cluster.nodeWithId(4) must beNone
       }
     }
@@ -282,6 +284,22 @@ class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor
       zkmShutdownCount must be_==(1)
 
       cluster.isShutdown must beTrue
+    }
+
+    "handle a listener throwing an exception" in {
+      val listener = new ClusterListener {
+        var callCount = 0
+        def handleClusterEvent(event: ClusterEvent) = {
+          callCount += 1
+          throw new Exception
+        }
+      }
+
+      cluster.addListener(listener) must notBeNull
+      addListenerCount must be_==(1)
+      currentListeners.head ! ClusterEvents.NodesChanged(Set())
+      currentListeners.head ! ClusterEvents.NodesChanged(Set())
+      listener.callCount must eventually(be_==(2))
     }
   }
 }

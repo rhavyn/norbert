@@ -87,8 +87,8 @@ trait NetworkClient extends BaseNetworkClient {
     future
   }
 
-  protected def updateLoadBalancer(nodes: Seq[Node]) {
-    loadBalancer = if (nodes != null && nodes.length > 0) {
+  protected def updateLoadBalancer(nodes: Set[Node]) {
+    loadBalancer = if (nodes != null && nodes.size > 0) {
       try {
         Some(Right(loadBalancerFactory.newLoadBalancer(nodes)))
       } catch {

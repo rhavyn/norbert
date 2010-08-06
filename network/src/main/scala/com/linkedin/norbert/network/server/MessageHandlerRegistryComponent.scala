@@ -39,8 +39,8 @@ class MessageHandlerRegistry {
     getHandlerTuple(requestMessage)._3
   }
 
-  def requestMessageDefaultInstanceFor(name: String): Message = {
-    handlerMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(name)))._1
+  def requestMessageDefaultInstanceFor(name: String): Option[Message] = {
+    handlerMap.get(name).map(_._1)
   }
   
   def validResponseFor(requestMessage: Message, responseMessage: Message): Boolean = {

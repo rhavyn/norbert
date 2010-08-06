@@ -30,7 +30,7 @@ object NorbertNetworkServerMain {
     cc.start
     cc.awaitConnectionUninterruptibly
     cc.removeNode(1)
-    cc.addNode(1, "localhost:31313", new Array[Int](0))
+    cc.addNode(1, "localhost:31313", Set())
 
     val config = new NetworkServerConfig
     config.clusterClient = cc

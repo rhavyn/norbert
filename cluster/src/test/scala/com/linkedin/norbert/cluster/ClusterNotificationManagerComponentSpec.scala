@@ -25,9 +25,9 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
 
   clusterNotificationManager.start
 
-  val nodes = List(Node(1, "localhost:31313", Array(1, 2), false),
-    Node(2, "localhost:31314", Array(3, 4), true),
-    Node(3, "localhost:31315", Array(5, 6), false))
+  val shortNodes = Set(Node(1, "localhost:31313", Set(1, 2), false))
+  val nodes = shortNodes ++ List(Node(2, "localhost:31314", Set(3, 4), true),
+    Node(3, "localhost:31315", Set(5, 6), false))
 
   "ClusterNotificationManager" should {
     import ClusterNotificationMessages._
@@ -37,7 +37,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         clusterNotificationManager ! Connected(nodes)
 
         var callCount = 0
-        var currentNodes: Seq[Node] = Nil
+        var currentNodes: Set[Node] = Set()
         val listener = actor {
           react {
             case ClusterEvents.Connected(n) => callCount += 1; currentNodes = n
@@ -46,8 +46,10 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
 
         clusterNotificationManager ! AddListener(listener)
         callCount must eventually(be_==(1))
-        currentNodes.length must be_==(1)
-        currentNodes(0) must be_==(nodes(1))
+        currentNodes.size must be_==(1)
+        currentNodes.foreach { node =>
+          node.id must be_==(2)
+        }
       }
 
       "not send a Connected event to the listener if the cluster is not connected" in {
@@ -89,7 +91,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
     "when handling a Connected message" in {
       "notify listeners" in {
         var callCount = 0
-        var currentNodes: Seq[Node] = Nil
+        var currentNodes: Set[Node] = Set()
         val listener = actor {
           loop {
             react {
@@ -102,8 +104,10 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         clusterNotificationManager ! Connected(nodes)
 
         callCount must eventually(be_==(1))
-        currentNodes.length must be_==(1)
-        currentNodes(0) must be_==(nodes(1))
+        currentNodes.size must be_==(1)
+        currentNodes.foreach { node =>
+          node.id must be_==(2)
+        }
       }
 
       "do nothing if already connected" in {
@@ -119,7 +123,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
 
         clusterNotificationManager ! AddListener(listener)
         clusterNotificationManager ! Connected(nodes)
-        clusterNotificationManager ! Connected(nodes.dropRight(1))
+        clusterNotificationManager ! Connected(nodes)
 
         callCount must eventually(be_==(1))
       }
@@ -128,7 +132,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
     "when handling a NodesChanged message" in {
       "notify listeners" in {
         var callCount = 0
-        var currentNodes: Seq[Node] = Nil
+        var currentNodes: Set[Node] = Set()
         val listener = actor {
           loop {
             react {
@@ -139,13 +143,15 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
           }
         }
 
-        clusterNotificationManager ! Connected(nodes.dropRight(2))
+        clusterNotificationManager ! Connected(shortNodes)
         clusterNotificationManager ! AddListener(listener)
         clusterNotificationManager ! NodesChanged(nodes)
 
         callCount must eventually(be_==(1))
-        currentNodes.length must be_==(1)
-        currentNodes(0) must be_==(nodes(1))
+        currentNodes.size must be_==(1)
+        currentNodes.foreach { node =>
+          node.id must be_==(2)
+        }
       }
     }
 
@@ -160,7 +166,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         }
       }
 
-      clusterNotificationManager ! Connected(nodes.dropRight(2))
+      clusterNotificationManager ! Connected(shortNodes)
       clusterNotificationManager ! AddListener(listener)
       clusterNotificationManager ! NodesChanged(nodes)
 
@@ -173,7 +179,7 @@ class ClusterNotificationManagerComponentSpec extends SpecificationWithJUnit wit
         clusterNotificationManager ! Disconnected
 
         clusterNotificationManager !? GetCurrentNodes match {
-          case CurrentNodes(nodes) => nodes.length must be_==(0)
+          case CurrentNodes(nodes) => nodes.size must be_==(0)
         }
       }
 

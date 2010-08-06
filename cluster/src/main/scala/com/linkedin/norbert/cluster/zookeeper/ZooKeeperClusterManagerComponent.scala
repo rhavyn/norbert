@@ -21,8 +21,6 @@ import actors.Actor
 import Actor._
 import java.io.IOException
 import org.apache.zookeeper._
-import collection.immutable.IntMap
-import scala.util.Sorting
 import com.linkedin.norbert.cluster._
 
 trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
@@ -42,10 +40,10 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
     private val AVAILABILITY_NODE = SERVICE_NODE + "/available"
     private val MEMBERSHIP_NODE = SERVICE_NODE + "/members"
 
+    private val currentNodes = scala.collection.mutable.Map[Int, Node]()
     private var zooKeeper: Option[ZooKeeper] = None
     private var watcher: ClusterWatcher = _
     private var connected = false
-    private var currentNodes: Map[Int, Node] = IntMap.empty
 
     def act() = {
       log.ifDebug("Connecting to ZooKeeper...")
@@ -105,7 +103,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
 
       doIfConnected("a Disconnected message") {
         connected = false
-        currentNodes = IntMap.empty
+        currentNodes.clear
         clusterNotificationManager ! ClusterNotificationMessages.Disconnected
       }
     }
@@ -115,7 +113,7 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
 
       log.error("Connection to ZooKeeper expired, reconnecting...")
       connected = false
-      currentNodes = IntMap.empty
+      currentNodes.clear
       watcher.shutdown
       startZooKeeper
     }
@@ -126,30 +124,13 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       doIfConnectedWithZooKeeper("an availability changed event") { zk =>
         import scala.collection.jcl.Conversions._
 
-        val available = zk.getChildren(AVAILABILITY_NODE, true).map(_.toInt).toArray
-        Sorting.quickSort(available)
-        val current = currentNodes.keySet.toSeq
-        var currentIndex = 0
-        var availableIndex = 0
-
-        if (available.length == 0) {
-          currentNodes = currentNodes.transform { case (id, n) => Node(n.id, n.url, n.partitions, false) }
+        val availableSet = zk.getChildren(AVAILABILITY_NODE, true).foldLeft(Set[Int]()) { (set, i) => set + i.toInt }
+        if (availableSet.size == 0) {
+          currentNodes.transform { case (id, n) => Node(n.id, n.url, n.partitions, false) }
         } else {
-          while (currentIndex < current.length && availableIndex < available.length) {
-            val currentValue = current(currentIndex)
-            val availableValue = available(availableIndex)
-
-            if (currentValue == availableValue) {
-              makeNodeAvailable(currentValue)
-              currentIndex += 1
-              availableIndex += 1
-            } else if (currentValue < availableValue) {
-              makeNodeUnavailable(currentValue)
-              currentIndex += 1
-            } else {
-              availableIndex += 1
-            }
-          }
+          val (available, unavailable) = currentNodes.partition { case (id, _) => availableSet.contains(id) }
+          available.foreach { case (id, _) => makeNodeAvailable(id) }
+          unavailable.foreach { case (id, _) => makeNodeUnavailable(id) }
         }
 
         clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
@@ -302,25 +283,23 @@ trait ZooKeeperClusterManagerComponent extends ClusterManagerComponent {
       val members = zk.getChildren(MEMBERSHIP_NODE, true)
       val available = zk.getChildren(AVAILABILITY_NODE, true)
 
-      currentNodes = members.foldLeft[Map[Int, Node]](IntMap.empty[Node]) { case (map, member) =>
+      currentNodes.clear
+
+      members.foreach { member =>
         val id = member.toInt
-        map + (id -> Node(id, zk.getData("%s/%s".format(MEMBERSHIP_NODE, member), false, null), available.contains(member)))
+        currentNodes += (id -> Node(id, zk.getData("%s/%s".format(MEMBERSHIP_NODE, member), false, null), available.contains(member)))
       }
     }
 
     private def makeNodeAvailable(nodeId: Int) {
-      currentNodes = currentNodes.get(nodeId) match {
-        case Some(n) if n.available => currentNodes
-        case Some(n) => currentNodes.update(n.id, Node(n.id, n.url, n.partitions, true))
-        case None => currentNodes
+      currentNodes.get(nodeId).foreach { n =>
+        if (!n.available) currentNodes.update(n.id, Node(n.id, n.url, n.partitions, true))
       }
     }
 
     private def makeNodeUnavailable(nodeId: Int) {
-      currentNodes = currentNodes.get(nodeId) match {
-        case Some(n) if !n.available => currentNodes
-        case Some(n) => currentNodes.update(n.id, Node(n.id, n.url, n.partitions, false))
-        case None => currentNodes
+      currentNodes.get(nodeId).foreach { n =>
+        if (n.available) currentNodes.update(n.id, Node(n.id, n.url, n.partitions, false))
       }
     }
 

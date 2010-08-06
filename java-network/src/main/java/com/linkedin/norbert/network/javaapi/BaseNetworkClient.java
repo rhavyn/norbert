@@ -20,7 +20,7 @@ import java.util.concurrent.Future;
 import com.google.protobuf.Message;
 import com.linkedin.norbert.cluster.ClusterDisconnectedException;
 import com.linkedin.norbert.cluster.InvalidNodeException;
-import com.linkedin.norbert.cluster.Node;
+import com.linkedin.norbert.cluster.javaapi.Node;
 
 public interface BaseNetworkClient {
   /**

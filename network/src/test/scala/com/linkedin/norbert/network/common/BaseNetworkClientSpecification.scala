@@ -26,13 +26,14 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
   val networkClient: BaseNetworkClient
 
   val nodes = List(Node(1, "", true), Node(2, "", true), Node(3, "", true))
+  val nodeSet = Set() ++ nodes
   val message = mock[Message]
 
   def sharedFunctionality = {
     "start the cluster, creates a load balancer and register itself as a listener when started" in {
       val cc = mock[ClusterClient]
       cc.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
-      cc.nodes returns nodes
+      cc.nodes returns nodeSet
 
       val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
         val clusterIoClient = mock[ClusterIoClient]
@@ -40,7 +41,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
         val clusterClient = cc
         var updateLoadBalancerCalled = false
 
-        protected def updateLoadBalancer(nodes: Seq[Node]) = updateLoadBalancerCalled = true
+        protected def updateLoadBalancer(nodes: Set[Node]) = updateLoadBalancerCalled = true
       }
 
 
@@ -55,10 +56,10 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
     "update the load balancer when a Connected or NodesChanged event is received" in {
       val cc = mock[ClusterClient]
       cc.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
-      cc.nodes returns nodes
+      cc.nodes returns nodeSet
       var listener: ClusterListener = null
       cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
-      cc.nodes returns nodes
+      cc.nodes returns nodeSet
 
       val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
         val clusterIoClient = mock[ClusterIoClient]
@@ -66,7 +67,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
         val clusterClient = cc
         var updateLoadBalancerCalled = 0
 
-        protected def updateLoadBalancer(nodes: Seq[Node]) = {
+        protected def updateLoadBalancer(nodes: Set[Node]) = {
           updateLoadBalancerCalled += 1
         }
       }
@@ -74,18 +75,18 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
       nc.start
 
       listener must notBeNull
-      listener.handleClusterEvent(ClusterEvents.Connected(nodes))
-      listener.handleClusterEvent(ClusterEvents.NodesChanged(nodes))
+      listener.handleClusterEvent(ClusterEvents.Connected(nodeSet))
+      listener.handleClusterEvent(ClusterEvents.NodesChanged(nodeSet))
       nc.updateLoadBalancerCalled must be_==(3)
     }
 
     "update nodes in clusterIoClient when nodes change" in {
       val cc = mock[ClusterClient]
       cc.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
-      cc.nodes returns nodes
+      cc.nodes returns nodeSet
       var listener: ClusterListener = null
       cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
-      cc.nodes returns nodes
+      cc.nodes returns nodeSet
 
       val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
         val clusterIoClient = mock[ClusterIoClient]
@@ -93,31 +94,31 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
         val clusterClient = cc
         var updateLoadBalancerCalled = 0
 
-        protected def updateLoadBalancer(nodes: Seq[Node]) = {
+        protected def updateLoadBalancer(nodes: Set[Node]) = {
           updateLoadBalancerCalled += 1
         }
       }
 
-      doNothing.when(nc.clusterIoClient).nodesChanged(Nil)
+      doNothing.when(nc.clusterIoClient).nodesChanged(Set())
 
       nc.start
-      listener.handleClusterEvent(ClusterEvents.NodesChanged(Nil))
+      listener.handleClusterEvent(ClusterEvents.NodesChanged(Set()))
 
-      nc.clusterIoClient.nodesChanged(Nil) was called
+      nc.clusterIoClient.nodesChanged(Set()) was called
     }
 
     "shut down the clusterIoClient and unregister from the cluster when shutdown is called" in {
       val cc = mock[ClusterClient]
       val key = ClusterListenerKey(1)
       cc.addListener(any[ClusterListener]) returns key
-      cc.nodes returns nodes
+      cc.nodes returns nodeSet
 
       val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
         val clusterIoClient = mock[ClusterIoClient]
         val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
-        protected def updateLoadBalancer(nodes: Seq[Node]) = null
+        protected def updateLoadBalancer(nodes: Set[Node]) = null
       }
 
       nc.start
@@ -138,7 +139,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
         val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
-        protected def updateLoadBalancer(nodes: Seq[Node]) = null
+        protected def updateLoadBalancer(nodes: Set[Node]) = null
       }
 
       nc.shutdown
@@ -150,7 +151,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
     "shut down the clusterIoClient when a Shutdown event is called" in {
       val cc = mock[ClusterClient]
       cc.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
-      cc.nodes returns nodes
+      cc.nodes returns nodeSet
       var listener: ClusterListener = null
       cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
 
@@ -159,7 +160,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
         val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
-        protected def updateLoadBalancer(nodes: Seq[Node]) = null
+        protected def updateLoadBalancer(nodes: Set[Node]) = null
       }
 
       nc.start
@@ -169,7 +170,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
     }
 
     "send a message to every available node for broadcastMessage" in {
-      clusterClient.nodes returns nodes
+      clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
 //      nodes.foreach(n => doNothing.when(clusterIoClient).sendMessage(n, message, null))
 
@@ -180,7 +181,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
     }
 
     "send message to the specified node in sendMessageToNode" in {
-      clusterClient.nodes returns nodes
+      clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
@@ -192,7 +193,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
 
     "throw an InvalidNodeException if the node provided to sendMessageToNode is not currently availabe" in {
       val node = Node(4, "", true)
-      clusterClient.nodes returns nodes
+      clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 

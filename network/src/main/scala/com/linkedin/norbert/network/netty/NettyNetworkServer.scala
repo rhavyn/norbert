@@ -15,7 +15,6 @@
  */
 package com.linkedin.norbert.network.netty
 
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterClientComponent}
 import java.util.concurrent.Executors
 import com.linkedin.norbert.util.NamedPoolThreadFactory
 import org.jboss.netty.bootstrap.ServerBootstrap
@@ -27,6 +26,8 @@ import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel.group.DefaultChannelGroup
 import com.linkedin.norbert.network.NetworkDefaults
 import com.linkedin.norbert.network.server._
+import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
+import com.linkedin.norbert.cluster.{ClusterClient, ClusterClientComponent}
 
 class NetworkServerConfig {
   var clusterClient: ClusterClient = _
@@ -50,23 +51,44 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
+  val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
+  val requestContextEncoder = new RequestContextEncoder(clusterClient.serviceName)
+
   bootstrap.setOption("reuseAddress", true)
   bootstrap.setOption("tcpNoDelay", true)
   bootstrap.setOption("child.tcpNoDelay", true)
   bootstrap.setOption("child.reuseAddress", true)
-  val p = bootstrap.getPipeline
-  p.addFirst("logging", new LoggingHandler)
+  bootstrap.setPipelineFactory(new ChannelPipelineFactory {
+    private val loggingHandler = new LoggingHandler
+    private val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
+    private val requestContextDecoder = new RequestContextDecoder
+    private val frameEncoder = new LengthFieldPrepender(4)
+    private val protobufEncoder = new ProtobufEncoder
+    private val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
 
-  p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Math.MAX_INT, 0, 4, 0, 4))
-  p.addLast("protobufDecoder", new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance))
+    def getPipeline = {
+      val p = Channels.pipeline
 
-  p.addLast("frameEncoder", new LengthFieldPrepender(4))
-  p.addLast("protobufEncoder", new ProtobufEncoder)
+      p.addFirst("logging", loggingHandler)
 
-  val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
-  p.addLast("requestHandler", new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor))
+      p.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Int.MaxValue, 0, 4, 0, 4))
+      p.addLast("protobufDecoder", protobufDecoder)
+
+      p.addLast("frameEncoder", frameEncoder)
+      p.addLast("protobufEncoder", protobufEncoder)
+
+      p.addLast("requestContextDecoder", requestContextDecoder)
+      p.addLast("requestContextEncoder", requestContextEncoder)
+      p.addLast("requestHandler", handler)
+
+      p
+    }
+  })
 
   val clusterIoServer = new NettyClusterIoServer(bootstrap, channelGroup)
 
-  override def shutdown = if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+  override def shutdown = {
+    if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+    requestContextEncoder.shutdown
+  }
 }
