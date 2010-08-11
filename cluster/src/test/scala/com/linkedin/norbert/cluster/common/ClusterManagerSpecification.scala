@@ -30,6 +30,7 @@ trait ClusterManagerSpecification extends Specification with WaitFor {
   var nodesChangedEventCount = 0
   var disconnectedEventCount = 0
   var shutdownEventCount = 0
+  var connectionFailedEventCount = 0
   var nodesFromEvent = Set.empty[Node]
 
   val delegate = new ClusterManagerDelegate {
@@ -47,7 +48,7 @@ trait ClusterManagerSpecification extends Specification with WaitFor {
       nodesFromEvent = nodes
     }
 
-    def connectionFailed(ex: Exception) = null
+    def connectionFailed(ex: ClusterException) = connectionFailedEventCount += 1
   }
 
   def setup {
@@ -143,7 +144,7 @@ trait ClusterManagerSpecification extends Specification with WaitFor {
       }
 
       "not call nodesDidChange on the delegate if the node doesn't exist" in {
-        clusterManager !? MarkNodeUnavailable(1)
+        clusterManager !? (1000, MarkNodeUnavailable(1))
         nodesChangedEventCount must be_==(0)
       }
     }

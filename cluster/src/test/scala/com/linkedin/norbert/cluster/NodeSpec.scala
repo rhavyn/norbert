@@ -40,52 +40,5 @@ class NodeSpec extends Specification {
 
       Node(bytes, true) must be_==(Node(1, "localhost:31313", true, Set(0, 1)))
     }
-
-    "have a sane equals method" in {
-      val url = "localhost:31313"
-      val node1 = Node(1, url, true, Set(0, 1))
-      val node2 = Node(1, url, false, Set(2, 3))
-      val node3 = Node(1, url, true, Set(4, 5))
-
-      // Reflexive
-      node1 must be_==(node1)
-
-      // Symmetric
-      node1 must be_==(node2)
-      node2 must be_==(node1)
-
-      // Transitive
-      node1 must be_==(node2)
-      node2 must be_==(node3)
-      node3 must be_==(node1)
-
-      // Consistent already handled above
-
-      // Handles null
-      node1 must be_!=(null)
-
-      // Hashcode
-      node1.hashCode must be_==(node2.hashCode)
-    }
-
-    "be equal to another node if they have the same id and url" in {
-      val url = "localhost:31313"
-      val node1 = Node(1, url, true, Set(0, 1))
-      val node2 = Node(1, url, false, Set(1, 2))
-      node1 must be_==(node2)
-    }
-
-    "not be equal to another node if they have a different id" in {
-      val url = "localhost:31313"
-      val node1 = Node(1, url, true, Set(0, 1))
-      val node2 = Node(2, url, false, Set(1, 2))
-      node1 must be_!=(node2)
-    }
-
-    "not be equal to another node if they have a different url" in {
-      val node1 = Node(1, "localhost:31313", true, Set(0, 1))
-      val node2 = Node(1, "localhost:16161", true, Set(0, 1))
-      node1 must be_!=(node2)
-    }
   }
 }

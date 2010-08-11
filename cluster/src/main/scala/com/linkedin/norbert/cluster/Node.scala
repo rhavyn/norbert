@@ -73,13 +73,4 @@ object Node {
 final case class Node(id: Int, url: String, available: Boolean = false, partitionIds: Set[Int] = Set.empty) {
   if (url == null) throw new NullPointerException("url must not be null")
   if (partitionIds == null) throw new NullPointerException("partitions must not be null")
-
-  override def hashCode = id.hashCode
-
-  override def equals(other: Any) = other match {
-    case that: Node => this.id == that.id && this.url == that.url
-    case _ => false
-  }
-
-  override def toString = "Node(%d,%s,[%s],%b)".format(id, url, partitionIds.mkString(","), available)
 }

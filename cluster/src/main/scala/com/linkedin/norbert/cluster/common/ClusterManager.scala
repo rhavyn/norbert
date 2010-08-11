@@ -24,11 +24,19 @@ trait ClusterManager {
   this: Actor with Logging =>
 
   protected var currentNodes = Map.empty[Int, Node]
+  protected var availableNodeIds = Set.empty[Int]
   protected val delegate: ClusterManagerDelegate
 
   def shutdown: Unit = this ! ClusterManagerMessages.Shutdown
 
   protected def nodeSet = Set.empty ++ currentNodes.values
+  
+  protected def setNodeWithIdAvailabilityTo(nodeId: Int, available: Boolean) = {
+    currentNodes.get(nodeId).map { node =>
+      currentNodes += (nodeId -> node.copy(available = available))
+      true
+    } getOrElse(false)
+  }
 
   protected def invokeDelegate(f: => Unit) {
     try {
@@ -45,14 +53,12 @@ object ClusterManagerMessages {
   case class RemoveNode(nodeId: Int) extends ClusterManagerMessage
   case class MarkNodeAvailable(nodeId: Int) extends ClusterManagerMessage
   case class MarkNodeUnavailable(nodeId: Int) extends ClusterManagerMessage
-  case object GetNodes extends ClusterManagerMessage
-  case class Nodes(nodes: Set[Node]) extends ClusterManagerMessage
   case object Shutdown extends ClusterManagerMessage
   case class ClusterManagerResponse(exception: Option[ClusterException]) extends ClusterManagerMessage
 }
 
 trait ClusterManagerDelegate {
-  def connectionFailed(ex: Exception)
+  def connectionFailed(ex: ClusterException)
   def didConnect(nodes: Set[Node])
   def nodesDidChange(nodes: Set[Node])
   def didDisconnect: Unit

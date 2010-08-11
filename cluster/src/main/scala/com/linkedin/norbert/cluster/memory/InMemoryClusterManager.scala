@@ -22,8 +22,6 @@ import logging.Logging
 import common.{ClusterManagerMessages, ClusterManager, ClusterManagerDelegate}
 
 class InMemoryClusterManager(protected val delegate: ClusterManagerDelegate) extends ClusterManager with DaemonActor with Logging {
-  private var availableNodeIds = Set.empty[Int]
-
   def act() = {
     invokeDelegate(delegate.didConnect(Set.empty))
 
@@ -35,7 +33,7 @@ class InMemoryClusterManager(protected val delegate: ClusterManagerDelegate) ext
           reply(ClusterManagerResponse(Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))))
 
         case AddNode(node) =>
-          val n = if (availableNodeIds.contains(node.id)) node.copy(available = true) else node.copy(available = false)
+          val n = node.copy(available = availableNodeIds.contains(node.id))
           currentNodes += (n.id -> n)
           log.debug("Added node: %s".format(node))
           invokeDelegate(delegate.nodesDidChange(nodeSet))
@@ -75,12 +73,5 @@ class InMemoryClusterManager(protected val delegate: ClusterManagerDelegate) ext
         case m => log.error("Received invalid message: %s".format(m))
       }
     }
-  }
-
-  private def setNodeWithIdAvailabilityTo(nodeId: Int, available: Boolean) = {
-    currentNodes.get(nodeId).map { node =>
-      currentNodes += (nodeId -> node.copy(available = available))
-      true
-    } getOrElse(false)
   }
 }
