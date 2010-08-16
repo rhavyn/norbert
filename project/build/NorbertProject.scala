@@ -10,7 +10,7 @@ class NorbertProject(info: ProjectInfo) extends ParentProject(info) with IdeaPro
   lazy val examples = project("examples", "Norbert Examples", new DefaultProject(_) with IdeaProject, network, javaNetwork)
 
   class ClusterProject(info: ProjectInfo) extends DefaultProject(info) with IdeaProject {
-    val zookeeper = "org.apache.hadoop" % "zookeeper" % "3.3.1" from "http://repo1.maven.org/maven2/org/apache/hadoop/zookeeper/3.3.1/zookeeper-3.3.1.jar"
+    val zookeeper = "org.apache.zookeeper" % "zookeeper" % "3.3.1" intransitive()
     val protobuf = "com.google.protobuf" % "protobuf-java" % "2.3.0"
     val log4j = "log4j" % "log4j" % "1.2.14"
 
