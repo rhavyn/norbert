@@ -17,11 +17,9 @@ package com.linkedin.norbert
 package cluster
 package memory
 
-import actors.DaemonActor
-import logging.Logging
 import common.{ClusterManagerMessages, ClusterManager, ClusterManagerDelegate}
 
-class InMemoryClusterManager(protected val delegate: ClusterManagerDelegate) extends ClusterManager with DaemonActor with Logging {
+class InMemoryClusterManager(protected val delegate: ClusterManagerDelegate) extends ClusterManager {
   def act() = {
     invokeDelegate(delegate.didConnect(Set.empty))
 

@@ -17,12 +17,10 @@ package com.linkedin.norbert
 package cluster
 package common
 
-import actors.Actor
 import logging.Logging
+import actors.DaemonActor
 
-trait ClusterManager {
-  this: Actor with Logging =>
-
+trait ClusterManager extends DaemonActor with Logging {
   protected var currentNodes = Map.empty[Int, Node]
   protected var availableNodeIds = Set.empty[Int]
   protected val delegate: ClusterManagerDelegate
@@ -30,7 +28,7 @@ trait ClusterManager {
   def shutdown: Unit = this ! ClusterManagerMessages.Shutdown
 
   protected def nodeSet = Set.empty ++ currentNodes.values
-  
+
   protected def setNodeWithIdAvailabilityTo(nodeId: Int, available: Boolean) = {
     currentNodes.get(nodeId).map { node =>
       currentNodes += (nodeId -> node.copy(available = available))

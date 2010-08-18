@@ -110,7 +110,7 @@ trait ClusterClientSpecification extends Specification with WaitFor {
       })
       clusterClient.connect
       if (!clusterClient.awaitConnectionUninterruptibly(1, TimeUnit.SECONDS)) {
-        throw new TimeoutException("Timed out wait for cluster connection")
+        throw new TimeoutException("Timed out waiting for cluster connection")
       }
       connectedEventCount must eventually(be_==(1))
     }
@@ -201,10 +201,11 @@ trait ClusterClientSpecification extends Specification with WaitFor {
         ns must containAll(Seq(n1, n2))
       }
 
-      "send a NodesChanged event to listeners" in {
+      "send a NodesChanged event to listeners if the node is available" in {
+        clusterClient.markNodeAvailable(1)
         clusterClient.addNode(1, "localhost:31313")
-        nodesChangedEventCount must eventually(be_>=(1))
-        nodesChanged must beEmpty
+        nodesChangedEventCount must eventually(be_==(1))
+        nodesChanged must haveSize(1)
       }
 
       "throw an InvalidNodeException if the node already exists" in {
@@ -224,13 +225,14 @@ trait ClusterClientSpecification extends Specification with WaitFor {
         ns must contain(n2)
       }
 
-      "send a NodesChanged event to listeners" in {
+      "send a NodesChanged event to listeners if the node was available" in {
         clusterClient.addNode(1, "localhost:31313")
-        nodesChangedEventCount must eventually(be_>=(1))
+        clusterClient.markNodeAvailable(1)
+        nodesChangedEventCount must eventually(be_==(1))
         nodesChangedEventCount = 0
 
         clusterClient.removeNode(1)
-        nodesChangedEventCount must eventually(be_>=(1))
+        nodesChangedEventCount must eventually(be_==(1))
         nodesChanged must beEmpty
       }
     }
@@ -247,9 +249,9 @@ trait ClusterClientSpecification extends Specification with WaitFor {
         val n = clusterClient.addNode(1, "localhost:31313")
         clusterClient.markNodeAvailable(1)
 
-        nodesChangedEventCount must eventually(be_>=(2))
+        nodesChangedEventCount must eventually(be_==(1))
         nodesChanged must eventually(haveSize(1))
-        nodesChanged must contain(n)
+        nodesChanged must contain(n.copy(available = true))
       }
     }
 
@@ -267,7 +269,7 @@ trait ClusterClientSpecification extends Specification with WaitFor {
         val n = clusterClient.addNode(1, "localhost:31313")
         clusterClient.markNodeAvailable(1)
 
-        nodesChangedEventCount must eventually(be_>=(2))
+        nodesChangedEventCount must eventually(be_==(1))
         nodesChanged must eventually(haveSize(1))
 
         clusterClient.markNodeUnavailable(1)

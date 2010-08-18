@@ -18,126 +18,82 @@ package cluster
 package common
 
 import org.specs.Specification
-import actors.Actor
 import java.util.concurrent.TimeUnit
+import org.specs.util.WaitFor
 
-class ClusterManagerClusterClientSpec extends Specification {
+class ClusterManagerClusterClientSpec extends Specification with WaitFor {
   val currentNodes = Set(Node(1, "localhost:31313"), Node(2, "localhost:31314"), Node(3, "localhost:31315"))
 
-  val clusterClient = new ClusterManagerClusterClient with ClusterManagerComponent {
-    import ClusterManagerMessages._
-    import NotificationCenterMessages._
+  var clusterManagerDelegate: ClusterManagerDelegate = null
+  var clusterManager: ClusterManager = null
 
-    var addListenerCount = 0
-    var addedClusterListener: ClusterListener = null
-    var removedListenerCount = 0
-    var removedClusterListenerKey: ClusterListenerKey = null
-    var notificationCenterShutdownCount = 0
-    var clusterClientListener: ClusterListener = null
-    val notificationCenter = new Actor {
-      def act {
-        loop {
-          react {
-            case AddListener(listener) =>
-              if (clusterClientListener == null) {
-                clusterClientListener = listener
-              } else {
-                addedClusterListener = listener
-                addListenerCount += 1
-              }
-              reply(AddedListener(ClusterListenerKey(1L)))
+  var started = false
+  var clusterManagerShouldFail = false
+  var addedNode: Node = null
+  var nodeIdFromMessage = 0
+  var clusterManagerShutdownCount = 0
 
-            case RemoveListener(key) =>
-              removedClusterListenerKey = key
-              removedListenerCount += 1
-
-            case NotificationCenterMessages.Shutdown =>
-              notificationCenterShutdownCount += 1
-              reply(NotificationCenterMessages.Shutdown)
-              exit
-          }
-        }
-      }
-    }
-
-    var connectMessageCount = 0
-    var clusterManagerShouldFail = false
-    var addedNode: Node = null
-    var nodeIdFromMessage = 0
-    var clusterManagerShutdownCount = 0
-    val clusterManager = new Actor {
-      def act {
-        loop {
-          react {
-            case Connect =>
-              connectMessageCount += 1
-              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
-
-            case GetNodes =>
-              if (clusterManagerShouldFail) {
-                reply(ClusterManagerResponse(Some(new ClusterException)))
-              } else {
-                reply(Nodes(currentNodes))
-              }
-
-            case AddNode(node) =>
-              addedNode = node
-              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
-
-            case RemoveNode(nodeId) =>
-              nodeIdFromMessage = nodeId
-              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
-
-            case MarkNodeAvailable(nodeId) =>
-              nodeIdFromMessage = nodeId
-              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
-
-            case MarkNodeUnavailable(nodeId) =>
-              nodeIdFromMessage = nodeId
-              reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
-
-            case ClusterManagerMessages.Shutdown =>
-              clusterManagerShutdownCount += 1
-              reply(ClusterManagerMessages.Shutdown)
-              exit
-          }
-        }
-      }
-    }
-
+  val clusterClient = new ClusterManagerClusterClient {
     def serviceName = "test"
-  }
 
+    protected def newClusterManager(delegate: ClusterManagerDelegate) = {
+      clusterManagerDelegate = delegate
 
-  import clusterClient._
+      clusterManager = new ClusterManager {
+        protected val delegate = clusterManagerDelegate
 
-  def startActors {
-    notificationCenter.start
-    clusterManager.start
+        def act {
+          import ClusterManagerMessages._
+
+          started = true
+
+          if (clusterManagerShouldFail) delegate.connectionFailed(new ClusterException)
+
+          loop {
+            react {
+              case AddNode(node) =>
+                addedNode = node
+                reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+
+              case RemoveNode(nodeId) =>
+                nodeIdFromMessage = nodeId
+                reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+
+              case MarkNodeAvailable(nodeId) =>
+                nodeIdFromMessage = nodeId
+                reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+
+              case MarkNodeUnavailable(nodeId) =>
+                nodeIdFromMessage = nodeId
+                reply(ClusterManagerResponse(if (clusterManagerShouldFail) Some(new ClusterException) else None))
+
+              case ClusterManagerMessages.Shutdown =>
+                clusterManagerShutdownCount += 1
+                exit
+            }
+          }
+        }
+      }
+
+      clusterManager
+    }
   }
 
   "An unconnected ClusterManagerClusterClient" should {
-    doBefore { startActors }
-
     doAfter {
-      notificationCenter ! NotificationCenterMessages.Shutdown
       clusterManager ! ClusterManagerMessages.Shutdown
     }
 
     "when connect is called" in {
-      "register as a ClusterListener" in {
+      "start the clusterManager" in {
         clusterClient.connect
-        clusterClientListener must eventually(notBeNull)
-      }
-
-      "send a Connect message to the cluster manager" in {
-        clusterClient.connect
-        connectMessageCount must eventually(be_==(1))
+        started must eventually(beTrue)
       }
 
       "throw an exception if there is an error" in {
         clusterManagerShouldFail = true
-        clusterClient.connect must throwA[ClusterException]
+        clusterClient.connect
+        clusterClient.awaitConnection must throwA[ClusterException]
       }
 
       "throw a ClusterShutdownException if shutdown was already called" in {
@@ -195,23 +151,17 @@ class ClusterManagerClusterClientSpec extends Specification {
 
   "A connected ClusterManagerClusterClient" should {
     doBefore {
-      startActors
       clusterClient.connect
     }
 
     doAfter {
-      notificationCenter ! NotificationCenterMessages.Shutdown
       clusterManager ! ClusterManagerMessages.Shutdown
     }
 
     "when nodes is called" in {
       "return the nodes" in {
+        clusterManagerDelegate.didConnect(currentNodes)
         clusterClient.nodes must be_==(currentNodes)
-      }
-
-      "handle a returned exception" in {
-        clusterManagerShouldFail = true
-        clusterClient.nodes must throwA[ClusterException]
       }
 
       "throw a ClusterShutdownException if shutdown was already called" in {
@@ -222,6 +172,7 @@ class ClusterManagerClusterClientSpec extends Specification {
 
     "when nodeWithId is called" in {
       "return the proper node" in {
+        clusterManagerDelegate.didConnect(currentNodes)
         clusterClient.nodeWithId(1) must beSome[Node].which { _.id must be_==(1) }
       }
 
@@ -312,15 +263,16 @@ class ClusterManagerClusterClientSpec extends Specification {
       }
     }
 
-    "when addListener is called" in {
-      val listener = ClusterListener {
-        case ClusterEvents.Shutdown =>
-      }
+    var connectedEventCount = 0
+    val listener = ClusterListener {
+      case ClusterEvents.Connected(_) => connectedEventCount += 1
+    }
 
+    "when addListener is called" in {
       "register the listener with the notification center" in {
+        clusterManagerDelegate.didConnect(currentNodes)
         clusterClient.addListener(listener) must haveClass[ClusterListenerKey]
-        addListenerCount must eventually(be_==(1))
-        addedClusterListener must be_==(listener)
+        connectedEventCount must eventually(be_==(1))
       }
 
       "throw a ClusterShutdownException if shutdown was already called" in {
@@ -330,16 +282,18 @@ class ClusterManagerClusterClientSpec extends Specification {
     }
 
     "when removeListener is called unregister the listener with the notification center" in {
-      val key = ClusterListenerKey(1)
+      val key = clusterClient.addListener(listener)
+      clusterManagerDelegate.didConnect(currentNodes)
+      connectedEventCount must eventually(be_==(1))
       clusterClient.removeListener(key)
-      removedListenerCount must eventually(be_==(1))
-      removedClusterListenerKey must be_==(key)
+      clusterManagerDelegate.didConnect(currentNodes)
+      waitFor(250.ms)
+      connectedEventCount must eventually(be_==(1))
     }
 
     "when shutdown is called" in {
       "shut down the notification center and cluster manager" in {
         clusterClient.shutdown
-        notificationCenterShutdownCount must eventually(be_==(1))
         clusterManagerShutdownCount must eventually(be_==(1))
       }
 

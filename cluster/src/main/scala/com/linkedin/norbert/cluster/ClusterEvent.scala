@@ -16,7 +16,9 @@
 package com.linkedin.norbert
 package cluster
 
-sealed trait ClusterEvent
+import notifications.{ObserverKey, Notification}
+
+sealed trait ClusterEvent extends Notification
 
 object ClusterEvents {
   /**
@@ -65,4 +67,4 @@ trait ClusterListener {
   def handleClusterEvent(event: ClusterEvent): Unit
 }
 
-case class ClusterListenerKey(id: Long)
+case class ClusterListenerKey(observerKey: ObserverKey)

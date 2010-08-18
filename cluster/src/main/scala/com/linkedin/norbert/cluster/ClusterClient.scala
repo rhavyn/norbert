@@ -159,8 +159,8 @@ trait ClusterClient extends Logging {
    *
    * @throws InterruptedException thrown if the current thread is interrupted while waiting
    * @throws NotYetConnectedException thrown if this method is called before the connect method is called
-   * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    * @throws ClusterShutdownException thrown this method is called after shutdown is called
+   * @throws ClusterException thrown if there was an exception while connecting to the cluster
    */
   def awaitConnection: Unit
 
@@ -172,12 +172,19 @@ trait ClusterClient extends Logging {
    *
    * @return true if the connection was established before the timeout, false if the timeout occurred
    * @throws InterruptedException thrown if the current thread is interrupted while waiting
+   * @throws NotYetConnectedException thrown if this method is called before the connect method is called
+   * @throws ClusterShutdownException thrown this method is called after shutdown is called
+   * @throws ClusterException thrown if there was an exception while connecting to the cluster
    */
   def awaitConnection(timeout: Long, unit: TimeUnit): Boolean
 
   /**
    * Waits for the connection to the cluster to be established. This method will wait indefinitely for
    * the connection and will swallow any <code>InterruptedException</code>s thrown while waiting.
+   *
+   * @throws NotYetConnectedException thrown if this method is called before the connect method is called
+   * @throws ClusterShutdownException thrown this method is called after shutdown is called
+   * @throws ClusterException thrown if there was an exception while connecting to the cluster
    */
   def awaitConnectionUninterruptibly: Unit
 
@@ -189,6 +196,9 @@ trait ClusterClient extends Logging {
    * @param unit the <code>TimeUnit</code> that <code>timeout</code> should be interpreted in
    *
    * @return true if the connection was established before the timeout, false if the timeout occurred
+   * @throws NotYetConnectedException thrown if this method is called before the connect method is called
+   * @throws ClusterShutdownException thrown this method is called after shutdown is called
+   * @throws ClusterException thrown if there was an exception while connecting to the cluster
    */
   def awaitConnectionUninterruptibly(timeout: Long, unit: TimeUnit): Boolean
 

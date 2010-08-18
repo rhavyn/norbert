@@ -57,8 +57,7 @@ class NotificationCenter {
 
   def removeObserver(observerKey: ObserverKey): Unit = a ! RemoveObserver(observerKey)
   def postNotification(notification: Notification): Unit = a ! PostNotification(notification)
-
-  private[notifications] def shutdown: Unit = a ! Shutdown
+  def shutdown: Unit = a ! Shutdown
 
   private case class AddObserver(observerKey: ObserverKey, observer: Observer)
   private case class RemoveObserver(observerKey: ObserverKey)

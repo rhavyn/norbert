@@ -22,12 +22,9 @@ import actors.Actor._
 import org.apache.zookeeper.WatchedEvent
 import org.specs.mock.Mockito
 
-class ClusterWatcherSpec extends Specification with Mockito with ZooKeeperClusterManagerComponent {
+class ClusterWatcherSpec extends Specification with Mockito {
   import org.apache.zookeeper.Watcher.Event.{EventType, KeeperState}
   import ZooKeeperMessages._
-
-  val notificationCenter = null
-  val clusterManager = null
 
   var connectedCount = 0
   var disconnectedCount = 0

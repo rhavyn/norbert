@@ -19,50 +19,81 @@ package common
 
 import util.GuardChain
 import java.util.concurrent.atomic.AtomicBoolean
-import collection.immutable.Set
 import java.lang.String
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import jmx.JMX
 import jmx.JMX.MBean
+import notifications.{Observer, NotificationCenter}
 
 trait ClusterManagerClusterClient extends ClusterClient {
-  this: ClusterManagerComponent =>
-
-  private val shutdownSwitch = new AtomicBoolean
+  @volatile private var currentNodes = Set.empty[Node]
+  @volatile private var availableNodes = Set.empty[Node]
   @volatile private var connectedLatch = new CountDownLatch(1)
-  @volatile private var connectCalled = false
+  @volatile private var connectionException: Option[ClusterException] = None
 
-  private val jmxHandle = JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
-    def isConnected = ClusterManagerClusterClient.this.isConnected
+  private var connectCalled = new AtomicBoolean
+  private val shutdownSwitch = new AtomicBoolean
+  private val notificationCenter = NotificationCenter.defaultNotificationCenter
 
-    def getNodes = try {
-      nodes.map(_.toString).mkString("\n")
-    } catch {
-      case ex: Exception => "Error: " + ex.getCause
+  private val clusterManager = newClusterManager(new ClusterManagerDelegate {
+    import ClusterEvents._
+
+    def didShutdown = {
+      notificationCenter.postNotification(Shutdown)
+      //notificationCenter.shutdown
+    }
+
+    def didDisconnect = {
+      connectedLatch = new CountDownLatch(1)
+      connectionException = None
+      currentNodes = Set.empty
+      availableNodes = Set.empty
+      notificationCenter.postNotification(Disconnected)
+    }
+
+    def nodesDidChange(nodes: Set[Node]) = {
+      if (currentNodes != nodes) {
+        currentNodes = nodes
+
+        val available = currentNodes.filter(_.available)
+        if (availableNodes != available) {
+          availableNodes = available
+          notificationCenter.postNotification(NodesChanged(availableNodes))
+        }
+      }
+    }
+
+    def didConnect(nodes: Set[Node]) = {
+      connectionException = None
+      currentNodes = nodes
+      availableNodes = nodes.filter(_.available)
+      connectedLatch.countDown
+      notificationCenter.postNotification(Connected(availableNodes))
+    }
+
+    def connectionFailed(ex: ClusterException) = {
+      connectionException = Some(ex)
+      connectedLatch.countDown
     }
   })
 
-  import NotificationCenterMessages._
+  private val jmxHandle = JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
+    def isConnected = ClusterManagerClusterClient.this.isConnected
+    def getNodes = currentNodes.map(_.toString).mkString("\n")
+  })
+
   import ClusterManagerMessages._
 
   def connect = ifNotShutdown then {
-    log.debug("Connecting to cluster...")
-    notificationCenter !? AddListener(ClusterListener {
-      case ClusterEvents.Connected(_) => connectedLatch.countDown
-      case ClusterEvents.Disconnected => connectedLatch = new CountDownLatch(1)
-    })
-
-    clusterManager !? Connect match { case ClusterManagerResponse(o) => o.foreach { throw _ } }
-    connectCalled = true
-    log.info("Connected to cluster")
-  }
-
-  def nodes = ifNotShutdown and ifConnectCalled then {
-    clusterManager !? GetNodes match {
-      case Nodes(n) => n
-      case ClusterManagerResponse(o) => throw o.getOrElse { new ClusterException("Invalid response from ClusterManager") }
+    if (connectCalled.compareAndSet(false, true)) {
+      log.debug("Connecting to cluster...")
+      clusterManager.start
+    } else {
+      throw new AlreadyConnectedException
     }
   }
+
+  def nodes = ifNotShutdown and ifConnectCalled then { currentNodes }
 
   def nodeWithId(nodeId: Int) = nodes.filter(_.id == nodeId).headOption
 
@@ -79,27 +110,40 @@ trait ClusterManagerClusterClient extends ClusterClient {
   def markNodeUnavailable(nodeId: Int) = ifNotShutdown and ifConnectCalled then { sendClusterManagerMessage(MarkNodeUnavailable(nodeId)) }
 
   def addListener(listener: ClusterListener) = ifNotShutdown then {
-    notificationCenter !? AddListener(listener) match {
-      case AddedListener(key) => key
-    }
+    val key = ClusterListenerKey(notificationCenter.addObserver(Observer {
+      case e: ClusterEvent => listener.handleClusterEvent(e)
+    }))
+
+    if (connectCalled.get && isConnected) listener.handleClusterEvent(ClusterEvents.Connected(availableNodes))
+
+    key
   }
 
-  def removeListener(key: ClusterListenerKey) = ifNotShutdown then { notificationCenter ! RemoveListener(key) }
+  def removeListener(key: ClusterListenerKey) = ifNotShutdown then { notificationCenter.removeObserver(key.observerKey) }
 
-  def isConnected = ifNotShutdown and ifConnectCalled then { connectedLatch.getCount == 0 }
+  def isConnected = ifNotShutdown and ifConnectCalled then { connectedLatch.getCount == 0 && connectionException.isEmpty }
 
   def isShutdown = shutdownSwitch.get
 
-  def awaitConnection = ifNotShutdown and ifConnectCalled then { connectedLatch.await }
+  def awaitConnection = ifNotShutdown and ifConnectCalled then {
+    connectedLatch.await
+    connectionException.foreach(throw _)
+    if (shutdownSwitch.get) throw new ClusterShutdownException
+  }
 
-  def awaitConnection(timeout: Long, unit: TimeUnit) = ifNotShutdown and ifConnectCalled then { connectedLatch.await(timeout, unit) }
+  def awaitConnection(timeout: Long, unit: TimeUnit) = ifNotShutdown and ifConnectCalled then {
+    val timedout = connectedLatch.await(timeout, unit)
+    connectionException.foreach(throw _)
+    if (shutdownSwitch.get) throw new ClusterShutdownException
+    timedout
+  }
 
   def awaitConnectionUninterruptibly = ifNotShutdown and ifConnectCalled then {
     var done = false
 
     while (!done) {
       try {
-        connectedLatch.await
+        awaitConnection
         done = true
       } catch {
         case ex: InterruptedException =>
@@ -113,7 +157,7 @@ trait ClusterManagerClusterClient extends ClusterClient {
 
     while (!done) {
       try {
-        timedout = connectedLatch.await(timeout, unit)
+        timedout = awaitConnection(timeout, unit)
         done = true
       } catch {
         case ex: InterruptedException =>
@@ -125,20 +169,23 @@ trait ClusterManagerClusterClient extends ClusterClient {
 
   def shutdown = if (shutdownSwitch.compareAndSet(false, true)) {
     log.debug("Shutting down ClusterClient")
-
+    connectedLatch.countDown
     jmxHandle.foreach { JMX.unregister(_) }
-    notificationCenter !? NotificationCenterMessages.Shutdown
-    clusterManager !? ClusterManagerMessages.Shutdown
-
+    clusterManager ! ClusterManagerMessages.Shutdown
     log.info("ClusterClient shut down")
   } else {
     throw new ClusterShutdownException
   }
 
-  private val ifConnectCalled = GuardChain(connectCalled, throw new NotYetConnectedException)
+  private val ifConnectCalled = GuardChain(connectCalled.get, throw new NotYetConnectedException)
   private val ifNotShutdown = GuardChain(!shutdownSwitch.get, throw new ClusterShutdownException)
 
+  protected def newClusterManager(delegate: ClusterManagerDelegate): ClusterManager
+
   private def sendClusterManagerMessage(message: ClusterManagerMessage) {
-    clusterManager !? message match { case ClusterManagerResponse(o) => o.foreach { throw _ } }
+    clusterManager !? (250, message) match {
+      case Some(ClusterManagerResponse(o)) => o.foreach { throw _ }
+      case None => throw new ClusterException("Timed out waiting for response from the ClusterManager")
+    }
   }
 }

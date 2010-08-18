@@ -29,7 +29,7 @@ object ZooKeeperClusterManager {
 }
 
 class ZooKeeperClusterManager(protected val delegate: ClusterManagerDelegate, serviceName: String, connectString: String, sessionTimeout: Int,
-        zooKeeperFactory: (String, Int, Watcher) => ZooKeeper = ZooKeeperClusterManager.defaultZooKeeperFactory) extends ClusterManager with DaemonActor with Logging {
+        zooKeeperFactory: (String, Int, Watcher) => ZooKeeper = ZooKeeperClusterManager.defaultZooKeeperFactory) extends ClusterManager {
   private val SERVICE_ZNODE_PATH = "/" + serviceName
   private val AVAILABILITY_ZNODE_PATH = SERVICE_ZNODE_PATH + "/available"
   private val MEMBERSHIP_ZNODE_PATH = SERVICE_ZNODE_PATH + "/members"
@@ -264,7 +264,7 @@ class ZooKeeperClusterManager(protected val delegate: ClusterManagerDelegate, se
   }
 }
 
-private class ClusterWatcher(zooKeeperManager: Actor) extends Watcher {
+private[zookeeper] class ClusterWatcher(zooKeeperManager: Actor) extends Watcher {
   @volatile private var shutdownSwitch = false
 
   def process(event: WatchedEvent) {
