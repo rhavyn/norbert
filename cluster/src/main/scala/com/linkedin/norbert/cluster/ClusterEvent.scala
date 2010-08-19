@@ -17,6 +17,7 @@ package com.linkedin.norbert
 package cluster
 
 import notifications.{ObserverKey, Notification}
+import router.Router
 
 sealed trait ClusterEvent extends Notification
 
@@ -36,6 +37,8 @@ object ClusterEvents {
    * @param router a <code>Router</code> which is valid for the current state of the cluster
    */
   case class NodesChanged(nodes: Set[Node]) extends ClusterEvent
+
+  case class NewRouterEvent[A](router: Option[Router[A]]) extends ClusterEvent
 
   /**
    * <code>ClusterEvent</code> which indicates that the cluster is now disconnected.

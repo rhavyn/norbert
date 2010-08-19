@@ -20,7 +20,6 @@ package common
 import org.specs.Specification
 import actors.Actor
 import collection.immutable.Set
-import java.lang.Exception
 import org.specs.util.WaitFor
 
 trait ClusterManagerSpecification extends Specification with WaitFor {
