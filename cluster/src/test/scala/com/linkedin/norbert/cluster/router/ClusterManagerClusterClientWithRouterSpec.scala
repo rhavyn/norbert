@@ -24,7 +24,11 @@ class ClusterManagerClusterClientWithRouterSpec extends ClusterManagerClusterCli
 
   var throwInvalidClusterException = false
   var throwException = false
-  val router = new Router[Int] { }
+
+  val router = new Router[Int] {
+    def nodesFor(a: Int) = IndexedSeq()
+  }
+
   val clusterClient = new ClusterManagerClusterClient with RouterSupport[Int] {
     protected val routerFactory = new RouterFactory[Int] {
       def newRouter(availableNodes: Set[Node]) = {

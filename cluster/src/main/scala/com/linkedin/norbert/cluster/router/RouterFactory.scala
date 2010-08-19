@@ -21,4 +21,6 @@ trait RouterFactory[A] {
   def newRouter(availableNodes: Set[Node]): Router[A]
 }
 
-trait Router[A]
+trait Router[A] {
+  def nodesFor(a: A): IndexedSeq[Node]
+}
