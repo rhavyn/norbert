@@ -17,7 +17,7 @@ package com.linkedin.norbert
 package cluster
 package router
 
-import common.{ClusterManagerMessages, ClusterManagerDelegate, ClusterManagerClusterClient, ClusterManagerClusterClientSpecification}
+import common.{ClusterManagerMessages, ClusterManagerClusterClient, ClusterManagerClusterClientSpecification}
 
 class ClusterManagerClusterClientWithRouterSpec extends ClusterManagerClusterClientSpecification {
   var newRouterCalledCount = 0
@@ -36,13 +36,10 @@ class ClusterManagerClusterClientWithRouterSpec extends ClusterManagerClusterCli
       }
     }
 
-    def serviceName = "test"
+    protected val clusterManager = new TestClusterManager(this)
+    ClusterManagerClusterClientWithRouterSpec.this.clusterManager = clusterManager
 
-    protected def newClusterManager(delegate: ClusterManagerDelegate) = {
-      clusterManagerDelegate = delegate
-      clusterManager = new TestClusterManager(delegate)
-      clusterManager
-    }
+    def serviceName = "test"
   }
 
   "An unconnected ClusterManagerClusterClient" should {
@@ -65,7 +62,7 @@ class ClusterManagerClusterClientWithRouterSpec extends ClusterManagerClusterCli
     "behave like a ClusterManagerClusterClient" in { connectedExamples }
 
     "generate a new router instance if the set of available nodes changes" in {
-      clusterManagerDelegate.nodesDidChange(currentNodes.map(n => n.copy(available = true)))
+      clusterClient.nodesDidChange(currentNodes.map(n => n.copy(available = true)))
       newRouterCalledCount must be_==(1)
     }
 
@@ -79,15 +76,15 @@ class ClusterManagerClusterClientWithRouterSpec extends ClusterManagerClusterCli
       })
       val nodes = currentNodes.map(n => n.copy(available = true))
 
-      clusterManagerDelegate.nodesDidChange(nodes)
+      clusterClient.nodesDidChange(nodes)
       newRouterEventCount must eventually(be_==(1))
       newRouter must beSome.which { r => r must be_==(router) }
 
-      clusterManagerDelegate.didConnect(nodes.dropRight(1))
+      clusterClient.didConnect(nodes.dropRight(1))
       newRouterEventCount must eventually(be_==(2))
       newRouter must beSome.which { r => r must be_==(router) }
 
-      clusterManagerDelegate.didDisconnect
+      clusterClient.didDisconnect
       newRouterEventCount must eventually(be_==(3))
       newRouter must beNone
     }
@@ -98,8 +95,8 @@ class ClusterManagerClusterClientWithRouterSpec extends ClusterManagerClusterCli
       clusterClient.addListener(ClusterListener {
         case ClusterEvents.NewRouterEvent(r: Option[Router[Int]]) => newRouter = r
       })
-      clusterManagerDelegate.nodesDidChange(currentNodes.map(n => n.copy(available = true)))
-      newRouter must beNone
+      clusterClient.nodesDidChange(currentNodes.map(n => n.copy(available = true)))
+      newRouter must eventually(beNone)
     }
 
     "handle a RouterFactory that throws an Exception" in {
@@ -108,8 +105,8 @@ class ClusterManagerClusterClientWithRouterSpec extends ClusterManagerClusterCli
       clusterClient.addListener(ClusterListener {
         case ClusterEvents.NewRouterEvent(r: Option[Router[Int]]) => newRouter = r
       })
-      clusterManagerDelegate.nodesDidChange(currentNodes.map(n => n.copy(available = true)))
-      newRouter must beNone
+      clusterClient.nodesDidChange(currentNodes.map(n => n.copy(available = true)))
+      newRouter must eventually(beNone)
     }
   }
 }

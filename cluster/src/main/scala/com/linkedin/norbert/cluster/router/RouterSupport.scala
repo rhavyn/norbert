@@ -24,51 +24,47 @@ trait RouterSupport[A] extends ClusterManagerClusterClient {
 
   protected val routerFactory: RouterFactory[A]
 
-  override protected def newDelegate = new RouterSupportClusterManagerDelegate
+  import ClusterEvents.NewRouterEvent
 
-  protected class RouterSupportClusterManagerDelegate extends DefaultClusterManagerDelegate {
-    import ClusterEvents.NewRouterEvent
+  override def didConnect(nodes: Set[Node]) = {
+    val available = availableNodes
+    super.didConnect(nodes)
+    updateRouterIfNecessary(available)
+  }
 
-    override def didConnect(nodes: Set[Node]) = {
-      val available = availableNodes
-      super.didConnect(nodes)
-      updateRouterIfNecessary(available)
-    }
+  override def nodesDidChange(nodes: Set[Node]) = {
+    val available = availableNodes
+    super.nodesDidChange(nodes)
+    updateRouterIfNecessary(available)
+  }
 
-    override def nodesDidChange(nodes: Set[Node]) = {
-      val available = availableNodes
-      super.nodesDidChange(nodes)
-      updateRouterIfNecessary(available)
-    }
+  override def didShutdown = {
+    currentRouter = None
+    notificationCenter.postNotification(NewRouterEvent(currentRouter))
+    super.didShutdown
+  }
 
-    override def didShutdown = {
-      currentRouter = None
-      notificationCenter.postNotification(NewRouterEvent(currentRouter))
-      super.didShutdown
-    }
+  override def didDisconnect = {
+    currentRouter = None
+    notificationCenter.postNotification(NewRouterEvent(currentRouter))
+    super.didDisconnect
+  }
 
-    override def didDisconnect = {
-      currentRouter = None
-      notificationCenter.postNotification(NewRouterEvent(currentRouter))
-      super.didDisconnect
-    }
+  private def updateRouterIfNecessary(available: Set[Node]) {
+    if (available != availableNodes) {
+      currentRouter = try {
+        Some(routerFactory.newRouter(availableNodes))
+      } catch {
+        case ex: InvalidClusterException =>
+          log.info(ex, "Unable to create router because the cluster is in an invalid state")
+          None
 
-    private def updateRouterIfNecessary(available: Set[Node]) {
-      if (available != availableNodes) {
-        currentRouter = try {
-          Some(routerFactory.newRouter(availableNodes))
-        } catch {
-          case ex: InvalidClusterException =>
-            log.info(ex, "Unable to create router because the cluster is in an invalid state")
-            None
-
-          case ex: Exception =>
-            log.error(ex, "Exception thrown while creating new Router instance")
-            None
-        }
-
-        notificationCenter.postNotification(NewRouterEvent(currentRouter))
+        case ex: Exception =>
+          log.error(ex, "Exception thrown while creating new Router instance")
+          None
       }
+
+      notificationCenter.postNotification(NewRouterEvent(currentRouter))
     }
   }
 }

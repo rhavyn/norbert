@@ -20,12 +20,8 @@ package common
 class ClusterManagerClusterClientSpec extends ClusterManagerClusterClientSpecification {
   val clusterClient = new ClusterManagerClusterClient {
     def serviceName = "test"
-
-    protected def newClusterManager(delegate: ClusterManagerDelegate) = {
-      clusterManagerDelegate = delegate
-      clusterManager = new TestClusterManager(delegate)
-      clusterManager
-    }
+    protected val clusterManager = new TestClusterManager(this)
+    ClusterManagerClusterClientSpec.this.clusterManager = clusterManager
   }
 
   "An unconnected ClusterManagerClusterClient" should {

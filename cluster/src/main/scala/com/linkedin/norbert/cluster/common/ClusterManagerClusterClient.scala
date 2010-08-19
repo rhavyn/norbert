@@ -19,22 +19,22 @@ package common
 
 import util.GuardChain
 import java.util.concurrent.atomic.AtomicBoolean
-import java.lang.String
 import java.util.concurrent.{TimeUnit, CountDownLatch}
 import jmx.JMX
 import jmx.JMX.MBean
 import notifications.{Observer, NotificationCenter}
 
-trait ClusterManagerClusterClient extends ClusterClient {
+trait ClusterManagerClusterClient extends ClusterClient with ClusterManagerDelegate {
   @volatile private var currentNodes = Set.empty[Node]
   @volatile private var connectedLatch = new CountDownLatch(1)
   @volatile private var connectionException: Option[ClusterException] = None
   @volatile protected var availableNodes = Set.empty[Node]
 
-  private var connectCalled = new AtomicBoolean
+  private val connectCalled = new AtomicBoolean
   private val shutdownSwitch = new AtomicBoolean
-  private val clusterManager = newClusterManager(newDelegate)
   protected val notificationCenter = NotificationCenter.defaultNotificationCenter
+
+  protected val clusterManager: ClusterManager
 
   private val jmxHandle = JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
     def isConnected = ClusterManagerClusterClient.this.isConnected
@@ -139,9 +139,6 @@ trait ClusterManagerClusterClient extends ClusterClient {
   private val ifConnectCalled = GuardChain(connectCalled.get, throw new NotYetConnectedException)
   private val ifNotShutdown = GuardChain(!shutdownSwitch.get, throw new ClusterShutdownException)
 
-  protected def newDelegate: ClusterManagerDelegate = new DefaultClusterManagerDelegate
-  protected def newClusterManager(delegate: ClusterManagerDelegate): ClusterManager
-
   private def sendClusterManagerMessage(message: ClusterManagerMessage) {
     clusterManager !? (500, message) match {
       case Some(ClusterManagerResponse(o)) => o.foreach { throw _ }
@@ -149,46 +146,44 @@ trait ClusterManagerClusterClient extends ClusterClient {
     }
   }
 
-  protected class DefaultClusterManagerDelegate extends ClusterManagerDelegate {
-    import ClusterEvents._
+  import ClusterEvents._
 
-    def didShutdown = {
-      notificationCenter.postNotification(Shutdown)
-      // TODO: Fix this so that I'm not unnecessarily holding on to the actor thread pool
-      //notificationCenter.shutdown
-    }
+  def didShutdown = {
+    notificationCenter.postNotification(ClusterEvents.Shutdown)
+    // TODO: Fix this so that I'm not unnecessarily holding on to the actor thread pool
+    //notificationCenter.shutdown
+  }
 
-    def didDisconnect = {
-      connectedLatch = new CountDownLatch(1)
-      connectionException = None
-      currentNodes = Set.empty
-      availableNodes = Set.empty
-      notificationCenter.postNotification(Disconnected)
-    }
+  def didDisconnect = {
+    connectedLatch = new CountDownLatch(1)
+    connectionException = None
+    currentNodes = Set.empty
+    availableNodes = Set.empty
+    notificationCenter.postNotification(Disconnected)
+  }
 
-    def nodesDidChange(nodes: Set[Node]) = {
-      if (currentNodes != nodes) {
-        currentNodes = nodes
+  def nodesDidChange(nodes: Set[Node]) = {
+    if (currentNodes != nodes) {
+      currentNodes = nodes
 
-        val available = currentNodes.filter(_.available)
-        if (availableNodes != available) {
-          availableNodes = available
-          notificationCenter.postNotification(NodesChanged(availableNodes))
-        }
+      val available = currentNodes.filter(_.available)
+      if (availableNodes != available) {
+        availableNodes = available
+        notificationCenter.postNotification(NodesChanged(availableNodes))
       }
     }
+  }
 
-    def didConnect(nodes: Set[Node]) = {
-      connectionException = None
-      currentNodes = nodes
-      availableNodes = nodes.filter(_.available)
-      connectedLatch.countDown
-      notificationCenter.postNotification(Connected(availableNodes))
-    }
+  def didConnect(nodes: Set[Node]) = {
+    connectionException = None
+    currentNodes = nodes
+    availableNodes = nodes.filter(_.available)
+    connectedLatch.countDown
+    notificationCenter.postNotification(Connected(availableNodes))
+  }
 
-    def connectionFailed(ex: ClusterException) = {
-      connectionException = Some(ex)
-      connectedLatch.countDown
-    }
+  def connectionFailed(ex: ClusterException) = {
+    connectionException = Some(ex)
+    connectedLatch.countDown
   }
 }

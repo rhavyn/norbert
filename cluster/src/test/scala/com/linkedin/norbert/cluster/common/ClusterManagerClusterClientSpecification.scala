@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit
 trait ClusterManagerClusterClientSpecification extends Specification with WaitFor {
   val currentNodes = Set(Node(1, "localhost:31313"), Node(2, "localhost:31314"), Node(3, "localhost:31315"))
 
-  var clusterManagerDelegate: ClusterManagerDelegate = null
   var clusterManager: ClusterManager = null
 
   var started = false
@@ -138,7 +137,7 @@ trait ClusterManagerClusterClientSpecification extends Specification with WaitFo
   def connectedExamples = {
     "when nodes is called" in {
       "return the nodes" in {
-        clusterManagerDelegate.didConnect(currentNodes)
+        clusterClient.didConnect(currentNodes)
         clusterClient.nodes must be_==(currentNodes)
       }
 
@@ -150,7 +149,7 @@ trait ClusterManagerClusterClientSpecification extends Specification with WaitFo
 
     "when nodeWithId is called" in {
       "return the proper node" in {
-        clusterManagerDelegate.didConnect(currentNodes)
+        clusterClient.didConnect(currentNodes)
         clusterClient.nodeWithId(1) must beSome[Node].which { _.id must be_==(1) }
       }
 
@@ -248,7 +247,7 @@ trait ClusterManagerClusterClientSpecification extends Specification with WaitFo
 
     "when addListener is called" in {
       "register the listener with the notification center" in {
-        clusterManagerDelegate.didConnect(currentNodes)
+        clusterClient.didConnect(currentNodes)
         clusterClient.addListener(listener) must haveClass[ClusterListenerKey]
         connectedEventCount must eventually(be_==(1))
       }
@@ -261,10 +260,10 @@ trait ClusterManagerClusterClientSpecification extends Specification with WaitFo
 
     "when removeListener is called unregister the listener with the notification center" in {
       val key = clusterClient.addListener(listener)
-      clusterManagerDelegate.didConnect(currentNodes)
+      clusterClient.didConnect(currentNodes)
       connectedEventCount must eventually(be_==(1))
       clusterClient.removeListener(key)
-      clusterManagerDelegate.didConnect(currentNodes)
+      clusterClient.didConnect(currentNodes)
       waitFor(250.ms)
       connectedEventCount must eventually(be_==(1))
     }
@@ -279,6 +278,6 @@ trait ClusterManagerClusterClientSpecification extends Specification with WaitFo
         clusterClient.shutdown
         clusterClient.shutdown must throwA[ClusterShutdownException]
       }
-    }    
+    }
   }
 }

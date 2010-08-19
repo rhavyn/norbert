@@ -17,10 +17,8 @@ package com.linkedin.norbert
 package cluster
 package zookeeper
 
-import common.{ClusterManagerDelegate, ClusterManagerClusterClient}
+import common.ClusterManagerClusterClient
 
 class ZooKeeperClusterClient(val serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends ClusterManagerClusterClient {
-  protected def newClusterManager(delegate: ClusterManagerDelegate) = {
-    new ZooKeeperClusterManager(delegate, serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
-  }
+  protected val clusterManager = new ZooKeeperClusterManager(this, serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
 }
