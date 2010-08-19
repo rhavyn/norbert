@@ -100,7 +100,10 @@ class ZooKeeperClusterManager(protected val delegate: ClusterManagerDelegate, se
         }
       }
 
-      logError(currentNodes = lookupNodes)
+      logError {
+        availableNodeIds = lookupAvailability
+        currentNodes = lookupMembership
+      }
       connectedToZooKeeper = true
       invokeDelegate(delegate.didConnect(nodeSet))
     }
@@ -109,15 +112,16 @@ class ZooKeeperClusterManager(protected val delegate: ClusterManagerDelegate, se
   private def handleAvailabilityChanged {
     log.debug("Handling a ZooKeeper NodesChanged event for the availability node")
 
-    import collection.JavaConversions._
-
-    availableNodeIds = zooKeeper.getChildren(AVAILABILITY_ZNODE_PATH, true).foldLeft(Set.empty[Int]) { (set, i) => set + i.toInt }
-    updateCurrentNodesAndNotifyDelegate(currentNodes.mapValues { n => n.copy(available = availableNodeIds.contains(n.id)) })
+    availableNodeIds = lookupAvailability
+    updateCurrentNodesAndNotifyDelegate(currentNodes.mapValues { n =>
+      val shouldBeAvailable = availableNodeIds.contains(n.id)
+      if (n.available != shouldBeAvailable) n.copy(available = shouldBeAvailable) else n
+    })
   }
 
   private def handleMembershipChanged {
     log.debug("Handling a ZooKeeper NodesChanged event for the membership node")
-    updateCurrentNodesAndNotifyDelegate(lookupNodes)
+    updateCurrentNodesAndNotifyDelegate(lookupMembership)
   }
 
   private def handleDisconnected {
@@ -219,14 +223,20 @@ class ZooKeeperClusterManager(protected val delegate: ClusterManagerDelegate, se
     reply(ClusterManagerResponse(None))
   }
 
-  private def lookupNodes = {
+  private def lookupAvailability = {
+    import collection.JavaConversions._
+
+    zooKeeper.getChildren(AVAILABILITY_ZNODE_PATH, true).map(_.toInt).toSet
+  }
+
+  private def lookupMembership = {
     import collection.JavaConversions._
 
     val members = zooKeeper.getChildren(MEMBERSHIP_ZNODE_PATH, true)
-    val available = zooKeeper.getChildren(AVAILABILITY_ZNODE_PATH, true)
 
-    members.foldLeft(Map.empty[Int, Node]) { (map, id) =>
-      map + (id.toInt -> Node(zooKeeper.getData("%s/%s".format(MEMBERSHIP_ZNODE_PATH, id), false, null), available.contains(id)))
+    members.foldLeft(Map.empty[Int, Node]) { (map, idString) =>
+      val id = idString.toInt
+      map + (id.toInt -> Node(zooKeeper.getData("%s/%s".format(MEMBERSHIP_ZNODE_PATH, idString), false, null), availableNodeIds.contains(id)))
     }
   }
 

@@ -204,7 +204,7 @@ class MockedZooKeeperClusterManagerSpec extends ClusterManagerSpecification with
             nodesFromEvent must containAll(updatedNodes)
 
             got {
-              two(mockZooKeeper).getChildren(availabilityNode, true)
+              one(mockZooKeeper).getChildren(availabilityNode, true)
               two(mockZooKeeper).getChildren(membershipNode, true)
             }
           }
