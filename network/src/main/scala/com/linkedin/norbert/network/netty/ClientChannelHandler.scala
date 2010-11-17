@@ -36,10 +36,21 @@ class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry
     val staleRequestTimeoutMillis = TimeUnit.MILLISECONDS.convert(staleRequestTimeoutMins, TimeUnit.MINUTES)
 
     override def run = {
-      import collection.JavaConversions._
-      requestMap.keySet.foreach { uuid =>
-        val request = requestMap.get(uuid)
-        if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) requestMap.remove(uuid)
+      try {
+        import collection.JavaConversions._
+        var expiredEntryCount = 0
+
+        requestMap.keySet.foreach { uuid =>
+          val request = requestMap.get(uuid)
+          if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) {
+            requestMap.remove(uuid)
+            expiredEntryCount += 1
+          }
+        }
+
+        log.info("Expired %d stale entries from the request map".format(expiredEntryCount))
+      } catch {
+        case e: Exception => log.error("Exception caught in cleanup task, ignoring " + e)
       }
     }
   }
