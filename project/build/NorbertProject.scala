@@ -14,7 +14,7 @@ class NorbertProject(info: ProjectInfo) extends ParentProject(info) with IdeaPro
     val protobuf = "com.google.protobuf" % "protobuf-java" % "2.3.0"
     val log4j = "log4j" % "log4j" % "1.2.14"
 
-    val specs = "org.scala-tools.testing" %% "specs" % "1.6.5-SNAPSHOT" % "test"
+    val specs = "org.scala-tools.testing" %% "specs" % "1.6.5" % "test"
     val mockito = "org.mockito" % "mockito-all" % "1.8.4" % "test"
     val cglib = "cglib" % "cglib" % "2.1_3" % "test"
     val objenesis = "org.objenesis" % "objenesis" % "1.0" % "test"
