@@ -23,9 +23,9 @@ import com.linkedin.norbert.cluster.ClusterClient
 class NettyNetworkServer(config: NetworkServerConfig) extends NetworkServer {
   val c = new com.linkedin.norbert.network.netty.NetworkServerConfig
 
-  c.clusterClient = if (config.clusterClient != null)
+  c.clusterClient = if (config.getClusterClient != null)
     config.getClusterClient.asInstanceOf[BaseClusterClient].underlying
-  else new ClusterClient(config.serviceName, config.zooKeeperConnectString, config.zooKeeperSessionTimeoutMillis)
+  else ClusterClient(config.getServiceName, config.getZooKeeperConnectString, config.getZooKeeperSessionTimeoutMillis)
   
   c.zooKeeperSessionTimeoutMillis = config.getZooKeeperSessionTimeoutMillis
   c.requestThreadCorePoolSize = config.getRequestThreadCorePoolSize
