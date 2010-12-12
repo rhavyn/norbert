@@ -120,7 +120,7 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
         mockZooKeeper.getChildren(availabilityNode, true) returns availability
 
         clusterManager ! Connected
-        waitFor(10.ms)
+        waitFor(50.ms)
 
         got {
           one(mockZooKeeper).getChildren(membershipNode, true)
