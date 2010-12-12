@@ -13,9 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned.loadbalancer
+package com.linkedin.norbert
+package network
+package partitioned
+package loadbalancer
 
-import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
+import cluster.{InvalidClusterException, Node}
 
 /**
  * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
@@ -26,7 +29,7 @@ trait ConsistentHashLoadBalancerHelper {
   /**
    * A mapping from partition id to the <code>Node</code>s which can service that partition.
    */
-  protected val partitionToNodeMap: Map[Int, Seq[Node]]
+  protected val partitionToNodeMap: Map[Int, IndexedSeq[Node]]
 
   /**
    * Given the currently available <code>Node</code>s and the total number of partitions in the cluster, this method
@@ -39,13 +42,14 @@ trait ConsistentHashLoadBalancerHelper {
    * @throws InvalidClusterException thrown if every partition doesn't have at least one available <code>Node</code>
    * assigned to it
    */
-  protected def generatePartitionToNodeMap(nodes: Set[Node], numPartitions: Int): Map[Int, Seq[Node]] = {
-    val partitionToNodeMap = (for (n <- nodes; p <- n.partitions) yield (p, n)).foldLeft(Map.empty[Int, List[Node]].withDefaultValue(Nil)) {
-      case (map, (partitionId, node)) => map(partitionId) = node :: map(partitionId)
+  protected def generatePartitionToNodeMap(nodes: Set[Node], numPartitions: Int): Map[Int, IndexedSeq[Node]] = {
+    val partitionToNodeMap = (for (n <- nodes; p <- n.partitionIds) yield(p, n)).foldLeft(Map.empty[Int, IndexedSeq[Node]]) {
+      case (map, (partitionId, node)) => map + (partitionId -> (node +: map.get(partitionId).getOrElse(Vector.empty[Node])))
     }
 
-    for (i <- 0 until numPartitions)
-      if (!partitionToNodeMap.isDefinedAt(i)) throw new InvalidClusterException("Partition %d is not assigned a node".format(i))
+    for (i <- 0 until numPartitions) {
+      if (!partitionToNodeMap.contains(i)) throw new InvalidClusterException("Partition %d is not assigned a node".format(i))
+    }
 
     partitionToNodeMap
   }

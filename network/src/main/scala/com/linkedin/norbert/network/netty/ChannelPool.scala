@@ -13,17 +13,19 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.group.{ChannelGroup, DefaultChannelGroup}
 import org.jboss.netty.channel.{ChannelFutureListener, ChannelFuture, Channel}
-import com.linkedin.norbert.logging.Logging
 import java.util.concurrent.{TimeoutException, ArrayBlockingQueue, LinkedBlockingQueue}
 import java.net.InetSocketAddress
-import com.linkedin.norbert.jmx.JMX
-import com.linkedin.norbert.jmx.JMX.MBean
+import jmx.JMX.MBean
+import jmx.JMX
+import logging.Logging
 
 class ChannelPoolClosedException extends Exception
 
@@ -113,9 +115,9 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
   private def openChannel {
     if (poolSize.incrementAndGet > maxConnections) {
       poolSize.decrementAndGet
-      log.ifDebug("Unable to open channel, pool is full")
+      log.debug("Unable to open channel, pool is full")
     } else {
-      log.ifDebug("Opening a channel to: %s", address)
+      log.debug("Opening a channel to: %s".format(address))
 
       bootstrap.connect(address).addListener(new ChannelFutureListener {
         def operationComplete(openFuture: ChannelFuture) = {
@@ -124,7 +126,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
             channelGroup.add(channel)
             checkinChannel(channel)
           } else {
-            log.error(openFuture.getCause, "Error when opening channel to: %s", address)
+            log.error(openFuture.getCause, "Error when opening channel to: %s".format(address))
             poolSize.decrementAndGet
           }
         }
@@ -133,7 +135,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
   }
 
   private def writeRequestToChannel(request: Request, channel: Channel) {
-    log.ifDebug("Writing to %s: %s", channel, request)
+    log.debug("Writing to %s: %s".format(channel, request))
     requestsSent.incrementAndGet
     channel.write(request).addListener(new ChannelFutureListener {
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {

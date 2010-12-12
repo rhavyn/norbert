@@ -13,16 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import org.specs.mock.Mockito
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.InvalidMessageException
 import org.specs.util.WaitFor
-import com.linkedin.norbert.protos.NorbertExampleProtos
+import protos.NorbertExampleProtos
 
-class MessageExecutorSpec extends SpecificationWithJUnit with Mockito with WaitFor {
+class MessageExecutorSpec extends Specification with Mockito with WaitFor {
   val messageHandlerRegistry = mock[MessageHandlerRegistry]
   val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 1, 1, 1)
   val message = NorbertExampleProtos.Ping.getDefaultInstance
@@ -41,7 +42,7 @@ class MessageExecutorSpec extends SpecificationWithJUnit with Mockito with WaitF
 
       waitFor(10.ms)
 
-      messageHandlerRegistry.handlerFor(message) was called
+      there was one(messageHandlerRegistry).handlerFor(message)
     }
 
     "execute the handler associated with the specified message" in {

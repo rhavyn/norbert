@@ -13,21 +13,22 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import java.util.concurrent.Executors
-import com.linkedin.norbert.util.NamedPoolThreadFactory
 import org.jboss.netty.bootstrap.ServerBootstrap
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
 import org.jboss.netty.handler.logging.LoggingHandler
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
-import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel.group.DefaultChannelGroup
-import com.linkedin.norbert.network.NetworkDefaults
-import com.linkedin.norbert.network.server._
+import server._
+import cluster.{ClusterClient, ClusterClientComponent}
+import protos.NorbertProtos
+import util.NamedPoolThreadFactory
 import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterClientComponent}
 
 class NetworkServerConfig {
   var clusterClient: ClusterClient = _
@@ -59,12 +60,12 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   bootstrap.setOption("child.tcpNoDelay", true)
   bootstrap.setOption("child.reuseAddress", true)
   bootstrap.setPipelineFactory(new ChannelPipelineFactory {
-    private val loggingHandler = new LoggingHandler
-    private val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
-    private val requestContextDecoder = new RequestContextDecoder
-    private val frameEncoder = new LengthFieldPrepender(4)
-    private val protobufEncoder = new ProtobufEncoder
-    private val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
+    val loggingHandler = new LoggingHandler
+    val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
+    val requestContextDecoder = new RequestContextDecoder
+    val frameEncoder = new LengthFieldPrepender(4)
+    val protobufEncoder = new ProtobufEncoder
+    val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
 
     def getPipeline = {
       val p = Channels.pipeline
@@ -89,6 +90,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   override def shutdown = {
     if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+    messageExecutor.shutdown
     requestContextEncoder.shutdown
   }
 }

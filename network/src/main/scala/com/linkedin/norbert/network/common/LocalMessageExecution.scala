@@ -13,12 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert
+package network
+package common
 
-import java.lang.Throwable
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.server.MessageExecutorComponent
-import com.linkedin.norbert.cluster.{ClusterClientComponent, Node}
+import server.MessageExecutorComponent
+import cluster.{Node, ClusterClientComponent}
 
 trait LocalMessageExecution extends BaseNetworkClient {
   this: MessageExecutorComponent with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent =>

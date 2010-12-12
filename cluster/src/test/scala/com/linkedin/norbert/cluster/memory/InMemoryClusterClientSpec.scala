@@ -13,12 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.memory
+package com.linkedin.norbert
+package cluster
+package memory
 
-import org.specs.SpecificationWithJUnit
-import com.linkedin.norbert.cluster.InvalidNodeException
+import org.specs.Specification
 
-class InMemoryClusterClientSpec extends SpecificationWithJUnit {
+class InMemoryClusterClientSpec extends Specification {
   val clusterClient = new InMemoryClusterClient("test")
   clusterClient.start
   clusterClient.awaitConnectionUninterruptibly

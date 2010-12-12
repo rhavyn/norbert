@@ -13,9 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned.loadbalancer
+package com.linkedin.norbert
+package network
+package partitioned
+package loadbalancer
 
-import com.linkedin.norbert.cluster.Node
+import cluster.Node
 
 abstract class ConsistentHashPartitionedLoadBalancerFactory[PartitionedId](numPartitions: Int) extends PartitionedLoadBalancerFactory[PartitionedId] {
   def newLoadBalancer(nodes: Set[Node]) = new PartitionedLoadBalancer[PartitionedId] with ConsistentHashLoadBalancerHelper {

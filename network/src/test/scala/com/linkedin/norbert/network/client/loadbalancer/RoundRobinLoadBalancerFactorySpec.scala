@@ -13,12 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client.loadbalancer
+package com.linkedin.norbert
+package network
+package client
+package loadbalancer
 
-import org.specs.SpecificationWithJUnit
-import com.linkedin.norbert.cluster.Node
+import org.specs.Specification
+import cluster.Node
 
-class RoundRobinLoadBalancerFactorySpec extends SpecificationWithJUnit {
+class RoundRobinLoadBalancerFactorySpec extends Specification {
   "RoundRobinLoadBalancerFactory" should {
     "create a round robin load balancer" in {
       val nodes = Set(Node(1, "localhost:31310", true), Node(2, "localhost:31311", true), Node(3, "localhost:31312", true),

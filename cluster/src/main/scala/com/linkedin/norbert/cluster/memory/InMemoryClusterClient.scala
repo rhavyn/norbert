@@ -13,9 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.memory
+package com.linkedin.norbert
+package cluster
+package memory
 
-import com.linkedin.norbert.cluster.{ClusterNotificationManagerComponent, ClusterClient}
+import common.ClusterNotificationManagerComponent
 
 class InMemoryClusterClient(val serviceName: String) extends ClusterClient with ClusterNotificationManagerComponent
     with InMemoryClusterManagerComponent{

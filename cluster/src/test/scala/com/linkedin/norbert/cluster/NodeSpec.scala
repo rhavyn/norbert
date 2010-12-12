@@ -13,12 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert
+package cluster
 
-import org.specs.SpecificationWithJUnit
-import com.linkedin.norbert.protos.NorbertProtos
+import org.specs.Specification
+import protos.NorbertProtos
 
-class NodeSpec extends SpecificationWithJUnit {
+class NodeSpec extends Specification {
   "Node" should {
     "serialize into the correct format" in {
       val builder = NorbertProtos.Node.newBuilder
@@ -27,7 +28,7 @@ class NodeSpec extends SpecificationWithJUnit {
       builder.addPartition(0).addPartition(1)
       val bytes = builder.build.toByteArray
 
-      Node.nodeToByteArray(Node(1, "localhost:31313", Set(0, 1), false)) must containInOrder(bytes)
+      List(Node.nodeToByteArray(Node(1, "localhost:31313", false, Set(0, 1))): _*) must containInOrder(List(bytes: _*))
     }
 
     "deserialize into the corrent Node" in {
@@ -37,15 +38,15 @@ class NodeSpec extends SpecificationWithJUnit {
       builder.addPartition(0).addPartition(1)
       val bytes = builder.build.toByteArray
 
-      val node = Node(1, "localhost:31313", Set(0, 1), true)
+      val node = Node(1, "localhost:31313", true, Set(0, 1))
       Node(1, bytes, true) must be_==(node)
     }
 
     "have a sane equals method" in {
       val url = "localhost:31313"
-      val node1 = Node(1, url, Set(0, 1), true)
-      val node2 = Node(1, url, Set(2, 3), false)
-      val node3 = Node(1, url, Set(4, 5), true)
+      val node1 = Node(1, url, true, Set(0, 1))
+      val node2 = Node(1, url, false, Set(2, 3))
+      val node3 = Node(1, url, true, Set(4, 5))
 
       // Reflexive
       node1 must be_==(node1)
@@ -70,21 +71,21 @@ class NodeSpec extends SpecificationWithJUnit {
 
     "be equal to another node if they have the same id and url" in {
       val url = "localhost:31313"
-      val node1 = Node(1, url, Set(0, 1), true)
-      val node2 = Node(1, url, Set(1, 2), false)
+      val node1 = Node(1, url, true, Set(0, 1))
+      val node2 = Node(1, url, false, Set(1, 2))
       node1 must be_==(node2)
     }
 
     "not be equal to another node if they have a different id" in {
       val url = "localhost:31313"
-      val node1 = Node(1, url, Set(0, 1), true)
-      val node2 = Node(2, url, Set(1, 2), false)
+      val node1 = Node(1, url, true, Set(0, 1))
+      val node2 = Node(2, url, false, Set(1, 2))
       node1 must be_!=(node2)
     }
 
     "not be equal to another node if they have a different url" in {
-      val node1 = Node(1, "localhost:31313", Set(0, 1), true)
-      val node2 = Node(1, "localhost:16161", Set(0, 1), true)
+      val node1 = Node(1, "localhost:31313", true, Set(0, 1))
+      val node2 = Node(1, "localhost:16161", true, Set(0, 1))
       node1 must be_!=(node2)
     }
   }

@@ -13,9 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client.loadbalancer
+package com.linkedin.norbert
+package network
+package client
+package loadbalancer
 
-import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
+import cluster.{InvalidClusterException, Node}
 
 /**
  * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to.

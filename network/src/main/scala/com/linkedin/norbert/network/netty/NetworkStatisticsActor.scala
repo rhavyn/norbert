@@ -13,14 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
-import com.linkedin.norbert.logging.Logging
-import actors.Actor
-import Actor._
-import com.linkedin.norbert.jmx.{RequestsPerSecondTracker, AverageTimeTracker}
+import jmx.{AverageTimeTracker, RequestsPerSecondTracker}
+import logging.Logging
+import actors.DaemonActor
 
-class NetworkStatisticsActor(averageTimeSize: Int) extends Actor with Logging {
+class NetworkStatisticsActor(averageTimeSize: Int) extends DaemonActor with Logging {
   object Stats {
     case class NewProcessingTime(time: Int)
     case object GetAverageProcessingTime
@@ -44,8 +45,6 @@ class NetworkStatisticsActor(averageTimeSize: Int) extends Actor with Logging {
         case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
 
         case GetRequestsPerSecond => reply(RequestsPerSecond(rps.rps))
-
-        case 'quit => exit
 
         case msg => log.error("NetworkStatistics actor got invalid message: %s".format(msg))
       }

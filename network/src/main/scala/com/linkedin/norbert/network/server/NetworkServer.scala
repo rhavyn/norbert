@@ -13,14 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
-import com.linkedin.norbert.cluster._
 import java.util.concurrent.atomic.AtomicBoolean
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.network.{NetworkShutdownException, NetworkingException, NetworkServerNotBoundException}
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.netty.{NettyNetworkServer, NetworkServerConfig}
+import netty.{NettyNetworkServer, NetworkServerConfig}
+import cluster._
+import logging.Logging
 
 object NetworkServer {
   def apply(config: NetworkServerConfig): NetworkServer = new NettyNetworkServer(config)
@@ -75,9 +76,9 @@ trait NetworkServer extends Logging {
   def bind(nodeId: Int, markAvailable: Boolean): Unit = doIfNotShutdown {
     if (nodeOption.isDefined) throw new NetworkingException("Attempt to bind an already bound NetworkServer")
 
-    log.ifInfo("Starting NetworkServer...")
+    log.info("Starting NetworkServer...")
 
-    log.ifDebug("Ensuring ClusterClient is started")
+    log.debug("Ensuring ClusterClient is started")
     clusterClient.start
     clusterClient.awaitConnectionUninterruptibly
 
@@ -87,12 +88,12 @@ trait NetworkServer extends Logging {
     nodeOption = Some(node)
     markAvailableWhenConnected = markAvailable
 
-    log.ifDebug("Registering with ClusterClient")
+    log.debug("Registering with ClusterClient")
     listenerKey = clusterClient.addListener(new ClusterListener {
       def handleClusterEvent(event: ClusterEvent) = event match {
         case ClusterEvents.Connected(_) =>
           if (markAvailableWhenConnected) {
-            log.ifDebug("Marking node with id %d available".format(nodeId))
+            log.debug("Marking node with id %d available".format(nodeId))
             try {
               clusterClient.markNodeAvailable(nodeId)
             } catch {
@@ -106,7 +107,7 @@ trait NetworkServer extends Logging {
       }
     })
 
-    log.ifInfo("NetworkServer started")
+    log.info("NetworkServer started")
   }
 
   /**
@@ -139,15 +140,15 @@ trait NetworkServer extends Logging {
 
   private def doShutdown(fromCluster: Boolean) {
     if (shutdownSwitch.compareAndSet(false, true)) {
-      log.ifInfo("Shutting down NetworkServer for %s...", nodeOption.map(_.toString).getOrElse("[unbound]"))
+      log.info("Shutting down NetworkServer for %s...".format(nodeOption.map(_.toString).getOrElse("[unbound]")))
 
       if (!fromCluster) {
         nodeOption.foreach { node =>
           try {
-            log.ifDebug("Unregistering from ClusterClient")
+            log.debug("Unregistering from ClusterClient")
             clusterClient.removeListener(listenerKey)
 
-            log.ifDebug("Marking %s unavailable", node)
+            log.debug("Marking %s unavailable".format(node))
             clusterClient.markNodeUnavailable(node.id)
           } catch {
             case ex: ClusterShutdownException => // cluster already shut down, ignore
@@ -155,10 +156,10 @@ trait NetworkServer extends Logging {
         }
       }
 
-      log.ifDebug("Closing opened sockets")
+      log.debug("Closing opened sockets")
       clusterIoServer.shutdown
 
-      log.ifInfo("NetworkServer shut down")
+      log.info("NetworkServer shut down")
     }
   }
 

@@ -13,10 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.network.InvalidMessageException
 
 trait MessageHandlerRegistryComponent {
   val messageHandlerRegistry: MessageHandlerRegistry
@@ -42,7 +43,7 @@ class MessageHandlerRegistry {
   def requestMessageDefaultInstanceFor(name: String): Option[Message] = {
     handlerMap.get(name).map(_._1)
   }
-  
+
   def validResponseFor(requestMessage: Message, responseMessage: Message): Boolean = {
     if (requestMessage == null) throw new NullPointerException
     val (_, r, _) = getHandlerTuple(requestMessage)

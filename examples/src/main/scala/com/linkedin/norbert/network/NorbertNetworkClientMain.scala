@@ -13,14 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert
+package network
 
 import client._
 import client.loadbalancer.RoundRobinLoadBalancerFactory
 import org.jboss.netty.logging.{Log4JLoggerFactory, InternalLoggerFactory}
 import java.util.concurrent.{ExecutionException, TimeoutException, TimeUnit}
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterShutdownException, Node}
-import com.linkedin.norbert.protos.NorbertExampleProtos
+import cluster.{ClusterShutdownException, ClusterClient}
+import protos.NorbertExampleProtos
 
 object NorbertNetworkClientMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)

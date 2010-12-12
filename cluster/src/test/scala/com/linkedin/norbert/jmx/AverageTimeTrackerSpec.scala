@@ -13,11 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.jmx
+package com.linkedin.norbert
+package jmx
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 
-class AverageTimeTrackerSpec extends SpecificationWithJUnit {
+class AverageTimeTrackerSpec extends Specification {
   "AverageTimeTracker" should {
     "correctly average the times provided" in {
       val a = new AverageTimeTracker(100)

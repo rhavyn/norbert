@@ -13,21 +13,23 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert
+package cluster
 
+import common.{ClusterNotificationManagerComponent, ClusterManagerComponent}
 import java.util.concurrent.TimeUnit
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import actors.Actor
 import Actor._
 import org.specs.util.WaitFor
 import org.specs.mock.Mockito
 
-class ClusterClientSpec extends SpecificationWithJUnit with Mockito with WaitFor {
+class ClusterClientSpec extends Specification with Mockito with WaitFor {
 
   val clusterListenerKey = ClusterListenerKey(10101L)
-  val currentNodes = Set(Node(1, "localhost:31313", Set(0, 1), true),
-          Node(2, "localhost:31314", Set(0, 1), true),
-          Node(3, "localhost:31315", Set(0, 1), true))
+  val currentNodes = Set(Node(1, "localhost:31313", true, Set(0, 1)),
+          Node(2, "localhost:31314", true, Set(0, 1)),
+          Node(3, "localhost:31315", true, Set(0, 1)))
   var clusterActor: Actor = _
   var getCurrentNodesCount = 0
   var addListenerCount = 0

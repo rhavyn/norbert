@@ -13,16 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
+package com.linkedin.norbert
+package network
+package server
 
 import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
-import com.linkedin.norbert.jmx.{AverageTimeTracker, JMX}
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.network.InvalidMessageException
-import com.linkedin.norbert.util.NamedPoolThreadFactory
-import com.linkedin.norbert.jmx.JMX.MBean
-import actors.Actor._
+import util.NamedPoolThreadFactory
+import logging.Logging
+import jmx.JMX.MBean
+import jmx.{AverageTimeTracker, JMX}
+import actors.DaemonActor
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -38,44 +39,50 @@ trait MessageExecutor {
 
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int) extends MessageExecutor with Logging {
-  private val statsActor = actor {
-    val waitTime = new AverageTimeTracker(100)
-    val processingTime = new AverageTimeTracker(100)
-    var requestCount = 0L
+  private val statsActor = new DaemonActor {
+    private val waitTime = new AverageTimeTracker(100)
+    private val processingTime = new AverageTimeTracker(100)
+    private var requestCount = 0L
 
-    import Stats._
+    def act() = {
+      import Stats._
 
-    loop {
-      react {
-        case NewRequest(time) =>
-          waitTime.addTime(time)
-          requestCount += 1
+      loop {
+        react {
+          case NewRequest(time) =>
+            waitTime.addTime(time)
+            requestCount += 1
 
-        case NewProcessingTime(time) => processingTime.addTime(time)
+          case NewProcessingTime(time) => processingTime.addTime(time)
 
-        case GetAverageWaitTime => reply(AverageWaitTime(waitTime.average))
+          case GetAverageWaitTime => reply(AverageWaitTime(waitTime.average))
 
-        case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
+          case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
 
-        case GetRequestCount => reply(RequestCount(requestCount))
+          case GetRequestCount => reply(RequestCount(requestCount))
 
-        case 'quit => exit
-
-        case msg => log.error("Stats actor got invalid message: %s".format(msg))
+          case msg => log.error("Stats actor got invalid message: %s".format(msg))
+        }
       }
     }
   }
+  statsActor.start
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
     new NamedPoolThreadFactory("norbert-message-executor")) {
+    private val startedAt = new ThreadLocal[Long]
+
     override def beforeExecute(t: Thread, r: Runnable) = {
       val rr = r.asInstanceOf[RequestRunner]
-      rr.startedAt = System.currentTimeMillis
-      statsActor ! Stats.NewRequest((rr.startedAt - rr.queuedAt).toInt)
+      val ts = System.currentTimeMillis
+      statsActor ! Stats.NewRequest((ts - rr.queuedAt).toInt)
+      startedAt.set(ts)
     }
 
     override def afterExecute(r: Runnable, t: Throwable) = {
-      statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - r.asInstanceOf[RequestRunner].startedAt).toInt)
+      val ts = startedAt.get
+      startedAt.remove
+      statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - ts).toInt)
     }
   }
 
@@ -98,21 +105,18 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
   })
 
   def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
-    threadPool.execute(new RequestRunner(message, responseHandler, System.currentTimeMillis))
+    threadPool.execute(new RequestRunner(message, responseHandler))
   }
 
   def shutdown {
     jmxHandle.foreach { JMX.unregister(_) }
     threadPool.shutdown
-    statsActor ! 'quit
-    log.ifDebug("MessageExecutor shut down")
+    log.debug("MessageExecutor shut down")
   }
 
-  private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, val queuedAt: Long) extends Runnable {
-    var startedAt: Long = 0
-
+  private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, val queuedAt: Long = System.currentTimeMillis) extends Runnable {
     def run = {
-      log.ifDebug("Executing message: %s".format(message))
+      log.debug("Executing message: %s".format(message))
 
       val response: Option[Either[Exception, Message]] = try {
         val handler = messageHandlerRegistry.handlerFor(message)

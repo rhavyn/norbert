@@ -13,15 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert
+package cluster
 
 import actors.Actor._
+import common.{ClusterNotificationManagerComponent, ClusterManagerComponent}
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.{CountDownLatch, TimeUnit}
-import com.linkedin.norbert.logging.Logging
+import jmx.JMX.MBean
+import jmx.JMX
+import logging.Logging
 import zookeeper.ZooKeeperClusterClient
-import com.linkedin.norbert.jmx.JMX
-import com.linkedin.norbert.jmx.JMX.MBean
 
 /**
  * ClusterClient companion object provides factory methods for creating a <code>ClusterClient</code> instance.
@@ -56,12 +58,12 @@ trait ClusterClient extends Logging {
     if (shutdownSwitch.get) throw new ClusterShutdownException
 
     if (startedSwitch.compareAndSet(false, true)) {
-      log.ifInfo("Starting ClusterClient...")
+      log.info("Starting ClusterClient...")
 
-      log.ifDebug("Starting ClusterNotificationManager...")
+      log.debug("Starting ClusterNotificationManager...")
       clusterNotificationManager.start
 
-      log.ifDebug("Starting ClusterManager...")
+      log.debug("Starting ClusterManager...")
       clusterManager.start
 
       val a = actor {
@@ -77,7 +79,7 @@ trait ClusterClient extends Logging {
 
       clusterNotificationManager !? ClusterNotificationMessages.AddListener(a)
 
-      log.ifInfo("Cluster started")
+      log.info("Cluster started")
     }
   }
 
@@ -136,7 +138,7 @@ trait ClusterClient extends Logging {
   def addNode(nodeId: Int, url: String, partitions: Set[Int]): Node = doIfConnected {
     if (url == null) throw new NullPointerException
 
-    val node = Node(nodeId, url, partitions, false)
+    val node = Node(nodeId, url, false, partitions)
     clusterManager !? ClusterManagerMessages.AddNode(node) match {
       case ClusterManagerMessages.ClusterManagerResponse(Some(ex)) => throw ex
       case ClusterManagerMessages.ClusterManagerResponse(None) => node
@@ -186,7 +188,7 @@ trait ClusterClient extends Logging {
 
     val a = actor {
       loop {
-        receive {
+        react {
           case event: ClusterEvent =>
             try {
               listener.handleClusterEvent(event)
@@ -228,13 +230,13 @@ trait ClusterClient extends Logging {
     if (shutdownSwitch.compareAndSet(false, true)) {
       jmxHandle.foreach { JMX.unregister(_) }
 
-      log.ifDebug("Shutting down ZooKeeperManager...")
+      log.debug("Shutting down ZooKeeperManager...")
       clusterManager ! ClusterManagerMessages.Shutdown
 
-      log.ifDebug("Shutting down ClusterNotificationManager...")
+      log.debug("Shutting down ClusterNotificationManager...")
       clusterNotificationManager ! ClusterNotificationMessages.Shutdown
 
-      log.ifInfo("Cluster shut down")
+      log.info("Cluster shut down")
     }
   }
 
@@ -302,7 +304,7 @@ trait ClusterClient extends Logging {
     }
   }
 
-  private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).toSeq.firstOption)
+  private def nodeWith(predicate: (Node) => Boolean): Option[Node] = doIfConnected(nodes.filter(predicate).toSeq.headOption)
 }
 
 trait ClusterClientMBean {

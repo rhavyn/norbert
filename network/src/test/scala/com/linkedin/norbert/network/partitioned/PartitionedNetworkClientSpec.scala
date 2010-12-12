@@ -13,14 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned
+package com.linkedin.norbert
+package network
+package partitioned
 
+import common.{MessageRegistry, MessageRegistryComponent, ClusterIoClientComponent, BaseNetworkClientSpecification}
 import loadbalancer.{PartitionedLoadBalancerFactory, PartitionedLoadBalancer, PartitionedLoadBalancerFactoryComponent}
-import com.linkedin.norbert.network.common.{MessageRegistry, ClusterIoClientComponent, MessageRegistryComponent, BaseNetworkClientSpecification}
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster._
 import java.util.concurrent.ExecutionException
-import com.linkedin.norbert.network.{NetworkShutdownException, ResponseIterator, NoNodesAvailableException, InvalidMessageException}
+import cluster.{Node, InvalidClusterException, ClusterDisconnectedException, ClusterClientComponent}
 
 class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
   val networkClient = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent
@@ -79,7 +80,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         networkClient.start
         networkClient.sendMessage(1, message) must notBeNull
 
-        networkClient.lb.nextNode(1) was called
+        there was one(networkClient.lb).nextNode(1)
 //      clusterIoClient.sendMessage(node, message, null) was called
       }
 
@@ -105,7 +106,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         networkClient.start
         networkClient.sendMessage(1, message) must throwA[NoNodesAvailableException]
 
-        networkClient.lb.nextNode(1) was called
+        there was one(networkClient.lb).nextNode(1)
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
       }
     }
@@ -124,9 +125,11 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         networkClient.start
         networkClient.sendMessage(Set(1, 2, 3), message) must notBeNull
 
-        networkClient.lb.nextNode(1) was called
-        networkClient.lb.nextNode(2) was called
-        networkClient.lb.nextNode(3) was called
+        got {
+          one(networkClient.lb).nextNode(1)
+          one(networkClient.lb).nextNode(2)
+          one(networkClient.lb).nextNode(3)
+        }
 //      clusterIoClient.sendMessage(node, message, null) was called
       }
 
@@ -152,7 +155,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         networkClient.start
         networkClient.sendMessage(Set(1, 2, 3), message) must throwA[NoNodesAvailableException]
 
-        networkClient.lb.nextNode(1) was called
+        there was one(networkClient.lb).nextNode(1)
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
       }
     }
@@ -168,7 +171,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         networkClient.start
         networkClient.sendMessage(Set(1, 2, 3), message, messageCustomizer _)
 
-        List(1, 2, 3).foreach(networkClient.lb.nextNode(_) was called)
+        List(1, 2, 3).foreach(there was one(networkClient.lb).nextNode(_))
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
       }
 
@@ -235,7 +238,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         networkClient.start
         networkClient.sendMessage(Set(1, 2, 3), message, messageCustomizer _) must throwA[NoNodesAvailableException]
 
-        networkClient.lb.nextNode(1) was called
+        there was one(networkClient.lb).nextNode(1)
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
       }
     }

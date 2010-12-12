@@ -13,16 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client
+package com.linkedin.norbert
+package network
+package client
 
 import com.google.protobuf.Message
 import java.util.concurrent.Future
-import com.linkedin.norbert.network.netty.NettyNetworkClient
 import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
-import com.linkedin.norbert.network.common._
-import com.linkedin.norbert.cluster._
-import com.linkedin.norbert.network.{NetworkDefaults, NoNodesAvailableException}
-import com.linkedin.norbert.network.server.{MessageExecutorComponent, NetworkServer}
+import server.{MessageExecutorComponent, NetworkServer}
+import cluster._
+import network.common._
+import netty.NettyNetworkClient
 
 class NetworkClientConfig {
   var clusterClient: ClusterClient = _
@@ -93,12 +94,12 @@ trait NetworkClient extends BaseNetworkClient {
         Some(Right(loadBalancerFactory.newLoadBalancer(nodes)))
       } catch {
         case ex: InvalidClusterException =>
-          log.ifInfo(ex, "Unable to create new router instance")
+          log.info(ex, "Unable to create new router instance")
           Some(Left(ex))
 
         case ex: Exception =>
           val msg = "Exception while creating new router instance"
-          log.ifError(ex, msg)
+          log.error(ex, msg)
           Some(Left(new InvalidClusterException(msg, ex)))
       }
     } else {

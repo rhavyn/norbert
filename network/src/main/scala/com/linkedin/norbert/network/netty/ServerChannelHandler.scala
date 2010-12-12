@@ -13,25 +13,22 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import org.jboss.netty.channel.group.ChannelGroup
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.protos.NorbertProtos
-import com.linkedin.norbert.network.InvalidMessageException
 import org.jboss.netty.channel._
 import com.google.protobuf.{InvalidProtocolBufferException, Message}
-import com.linkedin.norbert.network.server.{MessageHandlerRegistry, MessageExecutor}
-import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
-import com.linkedin.norbert.jmx.{AverageTimeTracker, JMX}
-import com.linkedin.norbert.jmx.JMX.MBean
+import server.{MessageExecutor, MessageHandlerRegistry}
+import protos.NorbertProtos
+import logging.Logging
 import java.util.UUID
+import jmx.JMX.MBean
+import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
+import jmx.{AverageTimeTracker, JMX}
 
-object RequestContext {
-  def apply(requestId: UUID): RequestContext = RequestContext(requestId, System.currentTimeMillis)
-}
-
-case class RequestContext(requestId: UUID, receivedAt: Long)
+case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
 @ChannelPipelineCoverage("all")
 class RequestContextDecoder extends OneToOneDecoder {
@@ -76,17 +73,14 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
     norbertMessage
   }
 
-  def shutdown {
-    statsActor ! 'quit
-    jmxHandle.foreach { JMX.unregister(_) }
-  }
+  def shutdown: Unit = jmxHandle.foreach { JMX.unregister(_) }
 }
 
 @ChannelPipelineCoverage("all")
 class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
   override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     val channel = e.getChannel
-    log.ifTrace("channelOpen: " + channel)
+    log.trace("channelOpen: " + channel)
     channelGroup.add(channel)
   }
 
@@ -121,7 +115,7 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
               .build
     }
 
-    log.ifDebug("Sending response: %s", message)
+    log.debug("Sending response: %s".format(message))
 
     channel.write((context, message))
   }

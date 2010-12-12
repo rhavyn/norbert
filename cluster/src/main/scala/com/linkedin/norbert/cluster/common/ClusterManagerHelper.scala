@@ -13,9 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.common
-
-import com.linkedin.norbert.cluster.Node
+package com.linkedin.norbert
+package cluster
+package common
 
 trait ClusterManagerHelper {
   implicit def mapIntNodeToSetNode(map: collection.Map[Int, Node]): Set[Node] = map.foldLeft(Set[Node]()) { case (set, (key, node)) => set + node }

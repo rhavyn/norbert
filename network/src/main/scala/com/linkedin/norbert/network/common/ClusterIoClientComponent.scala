@@ -13,14 +13,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert
+package network
+package common
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.Node
+import cluster.Node
 
 trait ClusterIoClientComponent {
   val clusterIoClient: ClusterIoClient
-  
+
   trait ClusterIoClient {
     def sendMessage(node: Node, message: Message, responseCallback: Either[Throwable, Message] => Unit): Unit
     def nodesChanged(nodes: Set[Node])

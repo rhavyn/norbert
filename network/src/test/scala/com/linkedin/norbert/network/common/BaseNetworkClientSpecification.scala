@@ -13,15 +13,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert
+package network
+package common
 
 import com.google.protobuf.Message
-import com.linkedin.norbert.cluster._
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import org.specs.mock.Mockito
-import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancer, LoadBalancerFactory}
+import cluster._
 
-abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit with Mockito {
+abstract class BaseNetworkClientSpecification extends Specification with Mockito {
   val clusterClient = mock[ClusterClient]
   val networkClient: BaseNetworkClient
 
@@ -47,9 +48,11 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
 
       nc.start
 
-      cc.start was called
-      cc.addListener(any[ClusterListener]) was called
-      cc.nodes was called
+      got {
+        one(cc).start
+        one(cc).addListener(any[ClusterListener])
+        one(cc).nodes
+      }
       nc.updateLoadBalancerCalled must beTrue
     }
 
@@ -104,7 +107,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
       nc.start
       listener.handleClusterEvent(ClusterEvents.NodesChanged(Set()))
 
-      nc.clusterIoClient.nodesChanged(Set()) was called
+      there was one(nc.clusterIoClient).nodesChanged(Set())
     }
 
     "shut down the clusterIoClient and unregister from the cluster when shutdown is called" in {
@@ -124,8 +127,10 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
       nc.start
       nc.shutdown
 
-      nc.clusterIoClient.shutdown was called
-      cc.removeListener(key) was called
+      got {
+        one(nc.clusterIoClient).shutdown
+        one(cc).removeListener(key)
+      }
     }
 
     "do nothing if shutdown is called before start" in {
@@ -144,8 +149,8 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
 
       nc.shutdown
 
-      cc.removeListener(any[ClusterListenerKey]) wasnt called
-      nc.clusterIoClient.shutdown wasnt called
+      there was no(cc).removeListener(any[ClusterListenerKey])
+      there was no(nc.clusterIoClient).shutdown
     }
 
     "shut down the clusterIoClient when a Shutdown event is called" in {
@@ -166,7 +171,7 @@ abstract class BaseNetworkClientSpecification extends SpecificationWithJUnit wit
       nc.start
 
       listener.handleClusterEvent(ClusterEvents.Shutdown)
-      nc.clusterIoClient.shutdown was called
+      there was one(nc.clusterIoClient).shutdown
     }
 
     "send a message to every available node for broadcastMessage" in {
