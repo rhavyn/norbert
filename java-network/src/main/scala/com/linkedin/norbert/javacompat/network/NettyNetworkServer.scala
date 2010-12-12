@@ -18,12 +18,15 @@ package network
 
 import com.google.protobuf.Message
 import cluster.BaseClusterClient
+import com.linkedin.norbert.cluster.ClusterClient
 
 class NettyNetworkServer(config: NetworkServerConfig) extends NetworkServer {
   val c = new com.linkedin.norbert.network.netty.NetworkServerConfig
-  if (config.getClusterClient != null) c.clusterClient = config.getClusterClient.asInstanceOf[BaseClusterClient].underlying
-  c.serviceName = config.getServiceName
-  c.zooKeeperConnectString = config.getZooKeeperConnectString
+
+  c.clusterClient = if (config.clusterClient != null)
+    config.getClusterClient.asInstanceOf[BaseClusterClient].underlying
+  else new ClusterClient(config.serviceName, config.zooKeeperConnectString, config.zooKeeperSessionTimeoutMillis)
+  
   c.zooKeeperSessionTimeoutMillis = config.getZooKeeperSessionTimeoutMillis
   c.requestThreadCorePoolSize = config.getRequestThreadCorePoolSize
   c.requestThreadMaxPoolSize = config.getRequestThreadMaxPoolSize
