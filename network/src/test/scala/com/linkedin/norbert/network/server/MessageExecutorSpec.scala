@@ -35,6 +35,10 @@ class MessageExecutorSpec extends Specification with Mockito with WaitFor {
   }
 
   "MessageExecutor" should {
+    doAfter {
+      messageExecutor.shutdown
+    }
+
     "find the handler associated with the specified message" in {
       messageHandlerRegistry.handlerFor(message) returns returnHandler _
 

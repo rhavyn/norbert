@@ -42,7 +42,6 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
 
   def zkf(connectString: String, sessionTimeout: Int, watcher: Watcher) = mockZooKeeper
   val clusterManager = new ZooKeeperClusterManager("", 0, "test")(zkf _)
-  clusterManager.start
 
   val rootNode = "/test"
   val membershipNode = rootNode + "/members"
@@ -60,6 +59,13 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
   }
 
   "ZooKeeperClusterManager" should {
+    doBefore {
+      clusterManager.start
+    }
+    doAfter {
+      clusterManager ! Shutdown
+    }
+
     "instantiate a ZooKeeper instance when started" in {
       var callCount = 0
       def countedZkf(connectString: String, sessionTimeout: Int, watcher: Watcher) = {
@@ -71,6 +77,8 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
       zkm.start
 
       callCount must eventually(be_==(1))
+
+      zkm ! Shutdown
     }
 
     "when a Connected message is received" in {
@@ -81,6 +89,7 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
           znodes.foreach(mockZooKeeper.exists(_, false) returns mock[Stat])
 
           clusterManager ! Connected
+          waitFor(10.ms)
 
           znodes.foreach(there was one(mockZooKeeper).exists(_, false))
         }
@@ -187,6 +196,8 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
         zkm ! Expired
 
         callCount must eventually(be_==(2))
+
+        zkm ! Shutdown
       }
     }
 
@@ -405,6 +416,8 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
         waitFor(10.ms)
         callCount must eventually(be_==(1))
         there was one(mockZooKeeper).close
+
+        zkm ! Shutdown
       }
     }
 
@@ -658,6 +671,10 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
         }
       }
     }
+
+    doAfterSpec {
+      actors.Scheduler.shutdown
+    }
   }
 
   "ClusterWatcher" should {
@@ -722,6 +739,10 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
 
       nodesChangedCount must eventually(be_==(1))
       nodesChangedPath must be_==(path)
+    }
+
+    doAfterSpec {
+      actors.Scheduler.shutdown
     }
   }
 }

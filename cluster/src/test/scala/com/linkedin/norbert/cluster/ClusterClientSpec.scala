@@ -303,5 +303,9 @@ class ClusterClientSpec extends Specification with Mockito with WaitFor {
       currentListeners.head ! ClusterEvents.NodesChanged(Set())
       listener.callCount must eventually(be_==(2))
     }
+
+    doAfterSpec {
+      actors.Scheduler.shutdown
+    }
   }
 }

@@ -25,6 +25,11 @@ class InMemoryClusterClientSpec extends Specification {
   clusterClient.awaitConnectionUninterruptibly
 
   "InMemoryClusterClient" should {
+
+    doAfter {
+      clusterClient.shutdown
+    }
+
     "start with no nodes" in {
       clusterClient.nodes.size must be_==(0)
     }
