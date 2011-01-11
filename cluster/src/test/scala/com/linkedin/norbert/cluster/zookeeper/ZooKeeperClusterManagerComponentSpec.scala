@@ -356,8 +356,8 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
           newMembership.add("1")
           newMembership.add("3")
 
-          val nodes = Array(Node(1, "localhost:31313", Set(1, 2), true),
-            Node(2, "localhost:31314", Set(2, 3), true), Node(3, "localhost:31315", Set(2, 3), false))
+          val nodes = Array(Node(1, "localhost:31313", true, Set(1, 2)),
+            Node(2, "localhost:31314", true, Set(2, 3)), Node(3, "localhost:31315", false, Set(2, 3)))
 
           mockZooKeeper.getChildren(membershipNode, true) returns membership thenReturns newMembership
           nodes.foreach { node =>
@@ -377,7 +377,7 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
           nodesReceived.size must be_==(2)
           nodesReceived must containAll(List(nodes(0), nodes(2)))
 
-          mockZooKeeper.getChildren(membershipNode, true) was called.twice
+          there were two(mockZooKeeper).getChildren(membershipNode, true)
         }
 
         "do nothing if not connected" in {

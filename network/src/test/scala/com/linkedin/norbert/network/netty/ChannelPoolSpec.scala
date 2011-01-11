@@ -229,5 +229,7 @@ class ChannelPoolSpec extends Specification with Mockito {
     def cancel = false
 
     def setSuccess = false
+
+    def setProgress(p1: Long, p2: Long, p3: Long) = false
   }
 }
