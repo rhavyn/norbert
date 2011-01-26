@@ -25,14 +25,19 @@ import actors.Actor._
 class ClusterNotificationManagerComponentSpec extends Specification with Mockito with WaitFor with ClusterNotificationManagerComponent {
   val clusterNotificationManager = new ClusterNotificationManager
 
-  clusterNotificationManager.start
-
   val shortNodes = Set(Node(1, "localhost:31313", false, Set(1, 2)))
   val nodes = shortNodes ++ List(Node(2, "localhost:31314", true, Set(3, 4)),
     Node(3, "localhost:31315", false, Set(5, 6)))
 
   "ClusterNotificationManager" should {
     import ClusterNotificationMessages._
+
+    doBefore {
+      clusterNotificationManager.start
+    }
+    doAfter {
+      clusterNotificationManager ! Shutdown
+    }
 
     "when handling an AddListener message" in {
       "send a Connected event to the listener if the cluster is connected" in {
@@ -241,6 +246,10 @@ class ClusterNotificationManagerComponentSpec extends Specification with Mockito
 
       connectedCallCount must eventually(be_==(1))
       shutdownCallCount must eventually(be_==(1))
+    }
+
+    doAfterSpec {
+      actors.Scheduler.shutdown
     }
   }
 }
