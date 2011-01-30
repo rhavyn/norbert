@@ -18,7 +18,6 @@ package network
 package server
 
 import java.util.concurrent.atomic.AtomicBoolean
-import com.google.protobuf.Message
 import netty.{NettyNetworkServer, NetworkServerConfig}
 import cluster._
 import logging.Logging
@@ -44,8 +43,10 @@ trait NetworkServer extends Logging {
    * @param responseMessage an instance of an outgoing response message
    * @param handler the function to call when an incoming message of type <code>requestMessage</code> is recieved
    */
-  def registerHandler(requestMessage: Message, responseMessage: Message, handler: (Message) => Message) {
-    messageHandlerRegistry.registerHandler(requestMessage, responseMessage, handler)
+
+  def registerHandler[RequestMsg, ResponseMsg](handler: RequestMsg => ResponseMsg)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
+    messageHandlerRegistry.registerHandler(handler)
   }
 
   /**

@@ -15,10 +15,10 @@
  */
 package com.linkedin.norbert.javacompat.network;
 
-import com.google.protobuf.Message;
 import com.linkedin.norbert.cluster.InvalidNodeException;
 import com.linkedin.norbert.cluster.Node;
 import com.linkedin.norbert.network.NetworkingException;
+import com.linkedin.norbert.network.Serializer;
 
 public interface NetworkServer {
   /**
@@ -26,11 +26,10 @@ public interface NetworkServer {
    * provided handler when an incoming request of type <code>requestMessage</code> is received.  If a response is
    * expected then a response message should also be provided.
    *
-   * @param requestMessage an instance of an incoming request message
-   * @param responseMessage an instance of an outgoing response message
-   * @param handler the function to call when an incoming message of type <code>requestMessage</code> is recieved
+   * @param handler the function to call when an incoming message of type <code>requestMessage</code> is received
+   * @param serializer the serializer used to respond to RequestMsgs pairs
    */
-  void registerHandler(Message requestMessage, Message responseMessage, MessageHandler handler);
+  <RequestMsg, ResponseMsg> void registerHandler(RequestHandler<RequestMsg, ResponseMsg> handler, Serializer<RequestMsg, ResponseMsg> serializer);
 
   /**
    * Binds the network server instance to the wildcard address and the port of the <code>Node</code> identified

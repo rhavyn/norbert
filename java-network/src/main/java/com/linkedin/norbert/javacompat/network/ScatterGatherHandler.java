@@ -17,7 +17,6 @@ package com.linkedin.norbert.javacompat.network;
 
 import java.util.Set;
 
-import com.google.protobuf.Message;
 import com.linkedin.norbert.javacompat.cluster.Node;
 import com.linkedin.norbert.network.ResponseIterator;
 
@@ -25,29 +24,29 @@ import com.linkedin.norbert.network.ResponseIterator;
  * A <code>ScatterGatherHandler</code> is used to customize an outgoing <code>Message</code> and to
  * aggregate the incoming responses.
  */
-public interface ScatterGatherHandler<T, PartitionedId> {
+public interface ScatterGatherHandler<RequestMsg, ResponseMsg, T, PartitionedId> {
   /**
    * This method is called immediately before the <code>Message</code> is sent and allows the user to
    * customize it for the particular <code>Node</code> and ids the message is being sent to.  The
    * returned <code>Message</code> is the one that will actually be sent.
    *
-   * @param originalMessage the <code>Message</code> to be customized
+   * @param originalRequest the <code>Message</code> to be customized
    * @param node the <code>Node</code> the request is being sent to
    * @param ids the ids that are on the node the request is being sent to
    *
    * @return the customized message
    * @throws Exception any exception thrown will be passed on to the client
    */
-  Message customizeMessage(Message originalMessage, Node node, Set<PartitionedId> ids) throws Exception;
+  RequestMsg customizeRequest(RequestMsg originalRequest, Node node, Set<PartitionedId> ids) throws Exception;
 
   /**
    * This method is called after all messages are sent and allows the user to aggregate the responses.
    *
-   * @param originalMessage the original (uncustomized) request that was sent
+   * @param originalRequest the original (uncustomized) request that was sent
    * @param responseIterator the <code>ResponseIterator</code> to retrieve responses
    *
    * @return A user defined value.  This value is passed on to the client.
    * @throws Exception any exception thrown will be passed on to the client
    */
-  T gatherResponses(Message originalMessage, ResponseIterator responseIterator) throws Exception;
+  T gatherResponses(RequestMsg originalRequest, ResponseIterator<ResponseMsg> responseIterator) throws Exception;
 }

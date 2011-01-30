@@ -19,7 +19,6 @@ package netty
 
 import org.jboss.netty.channel.group.ChannelGroup
 import org.jboss.netty.channel._
-import com.google.protobuf.{InvalidProtocolBufferException, Message}
 import server.{MessageExecutor, MessageHandlerRegistry}
 import protos.NorbertProtos
 import logging.Logging
@@ -27,6 +26,8 @@ import java.util.UUID
 import jmx.JMX.MBean
 import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
 import jmx.{AverageTimeTracker, JMX}
+import java.lang.String
+import com.google.protobuf.{ByteString, InvalidProtocolBufferException, Message}
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -87,37 +88,44 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val (context, norbertMessage) = e.getMessage.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
     val channel = e.getChannel
-    val message = messageHandlerRegistry.requestMessageDefaultInstanceFor(norbertMessage.getMessageName) map { di =>
-      try {
-        di.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
-      } catch {
-        case ex: InvalidProtocolBufferException =>
-          Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
-          throw ex
-      }
-    } getOrElse {
-      val ex = new InvalidMessageException("No such message of type %s registered".format(norbertMessage.getMessageName))
-      Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
-      throw ex
+
+    val messageName = norbertMessage.getMessageName
+    val requestBytes = norbertMessage.getMessage.toByteArray
+
+    val (handler, serializer) = try {
+      val handler: Any => Any = messageHandlerRegistry.handlerFor(messageName)
+      val serializer: Serializer[Any, Any] = messageHandlerRegistry.serializerFor(messageName)
+
+      (handler, serializer)
+    } catch {
+      case ex: InvalidMessageException =>
+        Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
+        throw ex
     }
 
-    messageExecutor.executeMessage(message, either => responseHandler(context, e.getChannel, either))
+    val request = serializer.requestFromBytes(requestBytes)
+
+    messageExecutor.executeMessage(request, (either: Either[Exception, Any]) => {
+      responseHandler(context, e.getChannel, either)(serializer)
+    })(serializer)
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in channel: %s".format(e.getChannel))
 
-  def responseHandler(context: RequestContext, channel: Channel, either: Either[Exception, Message]) {
-    val message = either match {
+  def responseHandler[RequestMsg, ResponseMsg](context: RequestContext, channel: Channel, either: Either[Exception, ResponseMsg])
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
+    val response = either match {
       case Left(ex) => ResponseHelper.errorResponse(context.requestId, ex)
-      case Right(message) => ResponseHelper.responseBuilder(context.requestId)
-              .setMessageName(message.getDescriptorForType.getFullName)
-              .setMessage(message.toByteString)
-              .build
+      case Right(responseMsg) =>
+        ResponseHelper.responseBuilder(context.requestId)
+        .setMessageName(serializer.nameOfRequestMessage)
+        .setMessage(ByteString.copyFrom(serializer.responseToBytes(responseMsg)))
+        .build
     }
 
-    log.debug("Sending response: %s".format(message))
+    log.debug("Sending response: %s".format(response))
 
-    channel.write((context, message))
+    channel.write((context, response))
   }
 }
 

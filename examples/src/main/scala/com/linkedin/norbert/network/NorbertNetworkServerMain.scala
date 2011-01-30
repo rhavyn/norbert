@@ -37,7 +37,7 @@ object NorbertNetworkServerMain {
 
     val ns = NetworkServer(config)
 
-    ns.registerHandler(NorbertExampleProtos.Ping.getDefaultInstance, NorbertExampleProtos.PingResponse.getDefaultInstance, pingHandler _)
+    ns.registerHandler(pingHandler)
 
     ns.bind(args(2).toInt)
 
@@ -48,8 +48,8 @@ object NorbertNetworkServerMain {
     })
   }
 
-  private def pingHandler(message: Message): Message = {
-    val ping = message.asInstanceOf[NorbertExampleProtos.Ping]
-    NorbertExampleProtos.PingResponse.newBuilder.setTimestamp(ping.getTimestamp).build
+  private def pingHandler(ping: Ping): Ping = {
+    println("Requested ping from client %d milliseconds ago (assuming synchronized clocks)".format(ping.timestamp - System.currentTimeMillis) )
+    Ping(System.currentTimeMillis)
   }
 }

@@ -15,11 +15,9 @@
  */
 package com.linkedin.norbert.javacompat.network;
 
-import com.google.protobuf.Message;
 import com.linkedin.norbert.javacompat.cluster.ClusterClient;
 import com.linkedin.norbert.javacompat.cluster.Node;
 import com.linkedin.norbert.javacompat.cluster.ZooKeeperClusterClient;
-import com.linkedin.norbert.protos.NorbertExampleProtos;
 import org.jboss.netty.logging.InternalLoggerFactory;
 import org.jboss.netty.logging.Log4JLoggerFactory;
 
@@ -37,14 +35,14 @@ public class NorbertJavaNetworkClientMain {
     config.setClusterClient(cc);
     NetworkClient nc = new NettyNetworkClient(config, new RoundRobinLoadBalancerFactory());
 //    PartitionedNetworkClient<Integer> nc = new NettyPartitionedNetworkClient<Integer>(config, new IntegerConsistentHashPartitionedLoadBalancerFactory());
-    nc.registerRequest(NorbertExampleProtos.Ping.getDefaultInstance(), NorbertExampleProtos.PingResponse.getDefaultInstance());
+//    nc.registerRequest(NorbertExampleProtos.Ping.getDefaultInstance(), NorbertExampleProtos.PingResponse.getDefaultInstance());
 
     Node node = cc.getNodeWithId(1);
 
-    Future<Message> f = nc.sendMessageToNode(NorbertExampleProtos.Ping.newBuilder().setTimestamp(System.currentTimeMillis()).build(), node);
+    Future<Ping> f = nc.sendRequestToNode(new Ping(System.currentTimeMillis()), node, new PingSerializer());
     try {
-      NorbertExampleProtos.PingResponse response = (NorbertExampleProtos.PingResponse) f.get(750, TimeUnit.MILLISECONDS);
-      System.out.println(String.format("Ping took %dms", System.currentTimeMillis() - response.getTimestamp()));
+      Ping pong = f.get(750, TimeUnit.MILLISECONDS);
+      System.out.println(String.format("Ping took %dms", System.currentTimeMillis() - pong.timestamp));
     } catch (InterruptedException e) {
       e.printStackTrace();
     } catch (ExecutionException e) {

@@ -41,7 +41,7 @@ class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap
 class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap,
     channelGroup: ChannelGroup) extends Logging {
   private val pool = new ArrayBlockingQueue[Channel](maxConnections)
-  private val waitingWrites = new LinkedBlockingQueue[Request]
+  private val waitingWrites = new LinkedBlockingQueue[Request[_, _]]
   private val poolSize = new AtomicInteger(0)
   private val closed = new AtomicBoolean
   private val requestsSent = new AtomicInteger(0)
@@ -56,7 +56,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     def getNumberRequestsSent = requestsSent.get
   })
 
-  def sendRequest(request: Request): Unit = if (closed.get) {
+  def sendRequest[RequestMsg, ResponseMsg](request: Request[RequestMsg, ResponseMsg]): Unit = if (closed.get) {
     throw new ChannelPoolClosedException
   } else {
     checkoutChannel match {
@@ -84,7 +84,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
 
         case request =>
           if((System.currentTimeMillis - request.timestamp) < writeTimeoutMillis) writeRequestToChannel(request, channel)
-          else request.responseCallback(Left(new TimeoutException("Timed out while waiting to write")))
+          else request.processException(new TimeoutException("Timed out while waiting to write"))
       }
     }
 
@@ -134,12 +134,12 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     }
   }
 
-  private def writeRequestToChannel(request: Request, channel: Channel) {
+  private def writeRequestToChannel(request: Request[_, _], channel: Channel) {
     log.debug("Writing to %s: %s".format(channel, request))
     requestsSent.incrementAndGet
     channel.write(request).addListener(new ChannelFutureListener {
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
-        request.responseCallback(Left(writeFuture.getCause))
+        request.processException(writeFuture.getCause)
       }
     })
   }

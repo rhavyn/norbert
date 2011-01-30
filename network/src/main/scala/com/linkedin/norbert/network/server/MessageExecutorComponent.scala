@@ -17,7 +17,6 @@ package com.linkedin.norbert
 package network
 package server
 
-import com.google.protobuf.Message
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import util.NamedPoolThreadFactory
 import logging.Logging
@@ -33,7 +32,8 @@ trait MessageExecutorComponent {
 }
 
 trait MessageExecutor {
-  def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit
+  def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit
   def shutdown: Unit
 }
 
@@ -73,7 +73,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     private val startedAt = new ThreadLocal[Long]
 
     override def beforeExecute(t: Thread, r: Runnable) = {
-      val rr = r.asInstanceOf[RequestRunner]
+      val rr = r.asInstanceOf[RequestRunner[_, _]]
       val ts = System.currentTimeMillis
       statsActor ! Stats.NewRequest((ts - rr.queuedAt).toInt)
       startedAt.set(ts)
@@ -104,8 +104,9 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     }
   })
 
-  def executeMessage(message: Message, responseHandler: (Either[Exception, Message]) => Unit): Unit = {
-    threadPool.execute(new RequestRunner(message, responseHandler))
+
+  def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)(implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
+    threadPool.execute(new RequestRunner(request, responseHandler, serializer = serializer))
   }
 
   def shutdown {
@@ -114,23 +115,17 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     log.debug("MessageExecutor shut down")
   }
 
-  private class RequestRunner(message: Message, responseHandler: (Either[Exception, Message]) => Unit, val queuedAt: Long = System.currentTimeMillis) extends Runnable {
+  private class RequestRunner[RequestMsg, ResponseMsg](request: RequestMsg, callback: (Either[Exception, ResponseMsg]) => Unit, val queuedAt: Long = System.currentTimeMillis, implicit val serializer: Serializer[RequestMsg, ResponseMsg]) extends Runnable {
     def run = {
-      log.debug("Executing message: %s".format(message))
+      log.debug("Executing message: %s".format(request))
 
-      val response: Option[Either[Exception, Message]] = try {
-        val handler = messageHandlerRegistry.handlerFor(message)
-
+      val response: Option[Either[Exception, ResponseMsg]] =
+      try {
+        val handler = messageHandlerRegistry.handlerFor(request)
+        println(handler)
         try {
-          val response = handler(message)
-          if (messageHandlerRegistry.validResponseFor(message, response)) {
-            if (response == null) None else Some(Right(response))
-          } else {
-            val name = if (response == null) "<null>" else response.getDescriptorForType.getFullName
-            val errorMsg = "Message handler returned an invalid response message of type %s".format(name)
-            log.error(errorMsg)
-            Some(Left(new InvalidMessageException(errorMsg)))
-          }
+          val response = handler(request)
+          if(response == null) None else Some(Right(response))
         } catch {
           case ex: Exception =>
             log.error(ex, "Message handler threw an exception while processing message")
@@ -138,15 +133,15 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
         }
       } catch {
         case ex: InvalidMessageException =>
-          log.error(ex, "Received an invalid message: %s".format(message))
+          log.error(ex, "Received an invalid message: %s".format(request))
           Some(Left(ex))
 
         case ex: Exception =>
-          log.error(ex, "Unexpected error while handling message: %s".format(message))
+          log.error(ex, "Unexpected error while handling message: %s".format(request))
           Some(Left(ex))
       }
 
-      response.foreach(responseHandler)
+      response.foreach(callback)
     }
   }
 

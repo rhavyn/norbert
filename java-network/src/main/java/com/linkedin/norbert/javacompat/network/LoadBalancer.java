@@ -18,13 +18,13 @@ package com.linkedin.norbert.javacompat.network;
 import com.linkedin.norbert.javacompat.cluster.Node;
 
 /**
- * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to.
+ * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a request should be routed to.
  */
 public interface LoadBalancer {
   /**
-   * Returns the next <code>Node</code> a message should be routed to.
+   * Returns the next <code>Node</code> a request should be routed to.
    *
-   * @return the <code>Node</code> to route the next message to or null if there are no <code>Node</code>s available
+   * @return the <code>Node</code> to route the next request to or null if there are no <code>Node</code>s available
    */
   Node nextNode();
 }

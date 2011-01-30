@@ -17,7 +17,6 @@ package com.linkedin.norbert
 package network
 package partitioned
 
-import com.google.protobuf.Message
 import java.util.concurrent.Future
 import common._
 import loadbalancer.{PartitionedLoadBalancer, PartitionedLoadBalancerFactoryComponent, PartitionedLoadBalancerFactory}
@@ -49,9 +48,20 @@ object PartitionedNetworkClient {
  * The network client interface for interacting with nodes in a partitioned cluster.
  */
 trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
-  this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent with PartitionedLoadBalancerFactoryComponent[PartitionedId] =>
+  this: ClusterClientComponent with ClusterIoClientComponent  with PartitionedLoadBalancerFactoryComponent[PartitionedId] =>
 
   @volatile private var loadBalancer: Option[Either[InvalidClusterException, PartitionedLoadBalancer[PartitionedId]]] = None
+
+  def sendRequest[RequestMsg, ResponseMsg](id: PartitionedId, request: RequestMsg, callback: Either[Throwable, ResponseMsg] => Unit)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
+    if (id == null || request == null) throw new NullPointerException
+
+    val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
+      lb => lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id))))
+
+    doSendRequest(node, request, callback)
+  }
+
 
   /**
    * Sends a <code>Message</code> to the specified <code>PartitionedId</code>. The <code>PartitionedNetworkClient</code>
@@ -67,16 +77,10 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * to send the request to
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    */
-  def sendMessage(id: PartitionedId, message: Message): Future[Message] = doIfConnected {
-    if (id == null || message == null) throw new NullPointerException
-    verifyMessageRegistered(message)
-
-    val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
-      lb => lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id))))
-
-    val future = new NorbertFuture
-    doSendMessage(node, message, e => future.offerResponse(e))
-
+  def sendRequest[RequestMsg, ResponseMsg](id: PartitionedId, request: RequestMsg)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
+    val future = new FutureAdapter[ResponseMsg]
+    sendRequest(id, request, future)
     future
   }
 
@@ -95,15 +99,15 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
   * to send the request to
   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
   */
-  def sendMessage(ids: Set[PartitionedId], message: Message): ResponseIterator = doIfConnected {
-    if (ids == null || message == null) throw new NullPointerException
-    verifyMessageRegistered(message)
+  def sendRequest[RequestMsg, ResponseMsg](ids: Set[PartitionedId], request: RequestMsg)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
+    if (ids == null || request == null) throw new NullPointerException
 
     val nodes = calculateNodesFromIds(ids)
-    val ri = new NorbertResponseIterator(nodes.size)
-    nodes.keySet.foreach { node => doSendMessage(node, message, e => ri.offerResponse(e)) }
+    val queue = new ResponseQueue[ResponseMsg]
+    nodes.keySet.foreach { node => doSendRequest(node, request, queue.+=) }
 
-    ri
+    new NorbertResponseIterator(nodes.size, queue)
   }
 
   /**
@@ -114,7 +118,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @param ids the <code>PartitionedId</code>s to which the message is addressed
    * @param message the message to send
    * @param messageCustomizer a callback method which allows the user to customize the <code>Message</code>
-   * before it is sent to the <code>Node</code>. The callback will receive the original message passed to <code>sendMessage</code>
+   * before it is sent to the <code>Node</code>. The callback will receive the original message passed to <code>sendRequest</code>
    * the <code>Node</code> the request is being sent to and the <code>Id</code>s which reside on that
    * <code>Node</code>. The callback should return a <code>Message</code> which has been customized.
    *
@@ -125,21 +129,21 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * to send the request to
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    */
-  def sendMessage(ids: Set[PartitionedId], message: Message, messageCustomizer: (Message, Node, Set[PartitionedId]) => Message): ResponseIterator = doIfConnected {
-    if (ids == null || message == null || messageCustomizer == null) throw new NullPointerException
-    verifyMessageRegistered(message)
+  def sendRequest[RequestMsg, ResponseMsg](ids: Set[PartitionedId], initialRequest: RequestMsg, requestCustomizer: (RequestMsg, Node, Set[PartitionedId]) => RequestMsg)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
+    if (ids == null || initialRequest == null || requestCustomizer == null) throw new NullPointerException
 
     val nodes = calculateNodesFromIds(ids)
-    val ri = new NorbertResponseIterator(nodes.size)
+    val queue = new ResponseQueue[ResponseMsg]
     nodes.foreach { case (node, idsForNode) =>
       try {
-        doSendMessage(node, messageCustomizer(message, node, idsForNode), e => ri.offerResponse(e))
+        doSendRequest(node, requestCustomizer(initialRequest, node, idsForNode), queue.+=)
       } catch {
-        case ex: Exception => ri.offerResponse(Left(ex))
+        case ex: Exception => queue += Left(ex)
       }
     }
 
-    ri
+    new NorbertResponseIterator(nodes.size, queue)
   }
 
   /**
@@ -151,7 +155,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @param message the message to send
    * @param responseAggregator a callback method which allows the user to aggregate all the responses
    * and return a single object to the caller.  The callback will receive the original message passed to
-   * <code>sendMessage</code> and the <code>ResponseIterator</code> for the request.
+   * <code>sendRequest</code> and the <code>ResponseIterator</code> for the request.
    *
    * @return the return value of the <code>responseAggregator</code>
    * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
@@ -160,9 +164,10 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
-  def sendMessage[A](ids: Set[PartitionedId], message: Message, responseAggregator: (Message, ResponseIterator) => A): A = doIfConnected{
+  def sendRequest[RequestMsg, ResponseMsg, Result](ids: Set[PartitionedId], request: RequestMsg, responseAggregator: (RequestMsg, ResponseIterator[ResponseMsg]) => Result)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Result = doIfConnected{
     if (responseAggregator == null) throw new NullPointerException
-    responseAggregator(message, sendMessage(ids, message))
+    responseAggregator(request, sendRequest(ids, request))
   }
 
   /**
@@ -173,12 +178,12 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @param ids the <code>PartitionedId</code>s to which the message is addressed
    * @param message the message to send
    * @param messageCustomizer a callback method which allows the user to customize the <code>Message</code>
-   * before it is sent to the <code>Node</code>. The callback will receive the original message passed to <code>sendMessage</code>
+   * before it is sent to the <code>Node</code>. The callback will receive the original message passed to <code>sendRequest</code>
    * the <code>Node</code> the request is being sent to and the <code>Id</code>s which reside on that
    * <code>Node</code>. The callback should return a <code>Message</code> which has been customized.
    * @param responseAggregator a callback method which allows the user to aggregate all the responses
    * and return a single object to the caller.  The callback will receive the original message passed to
-   * <code>sendMessage</code> and the <code>ResponseIterator</code> for the request.
+   * <code>sendRequest</code> and the <code>ResponseIterator</code> for the request.
    *
    * @return the return value of the <code>responseAggregator</code>
    * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
@@ -187,10 +192,11 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
-  def sendMessage[A](ids: Set[PartitionedId], message: Message, messageCustomizer: (Message, Node, Set[PartitionedId]) => Message,
-              responseAggregator: (Message, ResponseIterator) => A): A = doIfConnected {
+  def sendRequest[RequestMsg, ResponseMsg, Result](ids: Set[PartitionedId], request: RequestMsg, requestCustomizer: (RequestMsg, Node, Set[PartitionedId]) => RequestMsg,
+              responseAggregator: (RequestMsg, ResponseIterator[ResponseMsg]) => Result)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Result = doIfConnected {
     if (responseAggregator == null) throw new NullPointerException
-    responseAggregator(message, sendMessage(ids, message, messageCustomizer))
+    responseAggregator(request, sendRequest(ids, request, requestCustomizer))
   }
 
   protected def updateLoadBalancer(nodes: Set[Node]) {

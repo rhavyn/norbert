@@ -17,7 +17,6 @@ package com.linkedin.norbert
 package network
 package client
 
-import com.google.protobuf.Message
 import java.util.concurrent.Future
 import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
 import server.{MessageExecutorComponent, NetworkServer}
@@ -59,32 +58,49 @@ object NetworkClient {
  * The network client interface for interacting with nodes in a cluster.
  */
 trait NetworkClient extends BaseNetworkClient {
-  this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent with LoadBalancerFactoryComponent =>
+  this: ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent =>
 
   @volatile private var loadBalancer: Option[Either[InvalidClusterException, LoadBalancer]] = None
 
   /**
-   * Sends a message to a node in the cluster. The <code>NetworkClient</code> defers to the current
-   * <code>LoadBalancer</code> to decide which <code>Node</code> the message should be sent to.
+   * Sends a request to a node in the cluster. The <code>NetworkClient</code> defers to the current
+   * <code>LoadBalancer</code> to decide which <code>Node</code> the request should be sent to.
    *
-   * @param message the message to send
+   * @param request the message to send
+   * @param callback a method to be called with either a Throwable in the case of an error along
+   * the way or a ResponseMsg representing the result
    *
-   * @return a future which will become available when a response to the message is received
    * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
    * @throws NoNodesAvailableException thrown if the <code>LoadBalancer</code> was unable to provide a <code>Node</code>
    * to send the request to
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  def sendMessage(message: Message): Future[Message] = doIfConnected {
-    if (message == null) throw new NullPointerException
-    verifyMessageRegistered(message)
+  def sendRequest[RequestMsg, ResponseMsg](request: RequestMsg, callback: Either[Throwable, ResponseMsg] => Unit)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
+    if (request == null) throw new NullPointerException
 
     val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
-      lb => lb.nextNode.getOrElse(throw new NoNodesAvailableException("No node available that can handle the message: %s".format(message))))
+      lb => lb.nextNode.getOrElse(throw new NoNodesAvailableException("No node available that can handle the request: %s".format(request))))
 
-    val future = new NorbertFuture
-    doSendMessage(node, message, e => future.offerResponse(e))
+    doSendRequest(node, request, callback)
+  }
 
+  /**
+   * Sends a request to a node in the cluster. The <code>NetworkClient</code> defers to the current
+   * <code>LoadBalancer</code> to decide which <code>Node</code> the request should be sent to.
+   *
+   * @param request the message to send
+   *
+   * @return a future which will become available when a response to the request is received
+   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
+   * @throws NoNodesAvailableException thrown if the <code>LoadBalancer</code> was unable to provide a <code>Node</code>
+   * to send the request to
+   * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
+   */
+  def sendRequest[RequestMsg, ResponseMsg](request: RequestMsg)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
+    val future = new FutureAdapter[ResponseMsg]
+    sendRequest(request, future)
     future
   }
 

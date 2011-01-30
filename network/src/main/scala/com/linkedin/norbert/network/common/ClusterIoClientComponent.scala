@@ -17,14 +17,13 @@ package com.linkedin.norbert
 package network
 package common
 
-import com.google.protobuf.Message
 import cluster.Node
 
 trait ClusterIoClientComponent {
   val clusterIoClient: ClusterIoClient
 
   trait ClusterIoClient {
-    def sendMessage(node: Node, message: Message, responseCallback: Either[Throwable, Message] => Unit): Unit
+    def sendMessage[RequestMsg, ResponseMsg](node: Node, request: Request[RequestMsg, ResponseMsg]): Unit
     def nodesChanged(nodes: Set[Node])
     def shutdown: Unit
   }

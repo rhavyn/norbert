@@ -19,18 +19,17 @@ package netty
 
 import java.util.UUID
 import org.jboss.netty.channel._
-import com.google.protobuf.InvalidProtocolBufferException
-import common.MessageRegistry
 import protos.NorbertProtos
 import logging.Logging
 import jmx.JMX.MBean
 import jmx.JMX
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit, ConcurrentHashMap}
+import com.google.protobuf.{ByteString, InvalidProtocolBufferException}
 
 @ChannelPipelineCoverage("all")
-class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry, staleRequestTimeoutMins: Int,
+class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
         staleRequestCleanupFrequencyMins: Int) extends SimpleChannelHandler with Logging {
-  private val requestMap = new ConcurrentHashMap[UUID, Request]
+  private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
   val cleanupTask = new Runnable() {
     val staleRequestTimeoutMillis = TimeUnit.MILLISECONDS.convert(staleRequestTimeoutMins, TimeUnit.MINUTES)
@@ -74,16 +73,14 @@ class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry
   })
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
-    val request = e.getMessage.asInstanceOf[Request]
+    val request = e.getMessage.asInstanceOf[Request[_, _]]
     log.debug("Writing request: %s".format(request))
-
-    if (messageRegistry.hasResponse(request.message)) requestMap.put(request.id, request)
 
     val message = NorbertProtos.NorbertMessage.newBuilder
     message.setRequestIdMsb(request.id.getMostSignificantBits)
     message.setRequestIdLsb(request.id.getLeastSignificantBits)
-    message.setMessageName(request.message.getDescriptorForType.getFullName)
-    message.setMessage(request.message.toByteString)
+    message.setMessageName(request.name)
+    message.setMessage(ByteString.copyFrom(request.requestBytes))
 
     super.writeRequested(ctx, new DownstreamMessageEvent(e.getChannel, e.getFuture, message.build, e.getRemoteAddress))
   }
@@ -101,20 +98,10 @@ class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry
         statsActor ! statsActor.Stats.NewProcessingTime((System.currentTimeMillis - request.timestamp).toInt)
 
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
-          try {
-            if (messageRegistry.validResponseFor(request.message, message.getMessageName)) {
-              val rdi = messageRegistry.responseMessageDefaultInstanceFor(request.message)
-              request.responseCallback(Right(rdi.newBuilderForType.mergeFrom(message.getMessage).build))
-            } else {
-              request.responseCallback(Left(new InvalidMessageException("Response message of type %s doesn't match registered response for %s".format(message.getMessageName,
-                request.message.getDescriptorForType.getFullName))))
-            }
-          } catch {
-            case ex: InvalidProtocolBufferException => request.responseCallback(Left(ex))
-          }
+          request.processResponseBytes(message.getMessage.toByteArray)
         } else {
           val errorMsg = if (message.hasErrorMessage()) message.getErrorMessage else "<null>"
-          request.responseCallback(Left(new RemoteException(message.getMessageName, message.getErrorMessage)))
+          request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))
         }
     }
   }

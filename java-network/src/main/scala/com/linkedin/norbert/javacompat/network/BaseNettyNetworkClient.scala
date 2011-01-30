@@ -16,19 +16,20 @@
 package com.linkedin.norbert.javacompat
 package network
 
-import com.google.protobuf.Message
 import cluster.{Node, BaseClusterClient}
+import com.linkedin.norbert.network.{ResponseIterator, Serializer}
 
 abstract class BaseNettyNetworkClient extends BaseNetworkClient {
   val underlying: com.linkedin.norbert.network.common.BaseNetworkClient
 
   def shutdown = underlying.shutdown
 
-  def broadcastMessage(message: Message) = underlying.broadcastMessage(message)
+  def broadcastMessage[RequestMsg, ResponseMsg](message: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) = underlying.broadcastMessage(message)(serializer)
 
-  def sendMessageToNode(message: Message, node: Node) = underlying.sendMessageToNode(message, node)
+  def sendRequestToNode[RequestMsg, ResponseMsg](request: RequestMsg, node: Node, serializer: Serializer[RequestMsg, ResponseMsg]) =
+    underlying.sendRequestToNode(request, node)(serializer)
 
-  def registerRequest(requestMessage: Message, responseMessage: Message) = underlying.registerRequest(requestMessage, responseMessage)
+//  def registerRequest(requestMessage: Message, responseMessage: Message) = underlying.registerRequest(requestMessage, responseMessage)
 
   protected def convertConfig(config: NetworkClientConfig) = {
     val c = new com.linkedin.norbert.network.client.NetworkClientConfig
@@ -65,7 +66,9 @@ class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadB
 
   underlying.start
 
-  def sendMessage(message: Message) = underlying.sendMessage(message)
+  def sendRequest[RequestMsg, ResponseMsg](requestMsg: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
+    underlying.sendRequest(requestMsg)(serializer)
+
 }
 
 class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId],
@@ -88,17 +91,24 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
 
   underlying.start
 
-  def sendMessage[T](ids: java.util.Set[PartitionedId], message: Message, scatterGather: ScatterGatherHandler[T, PartitionedId]) = {
-    underlying.sendMessage(ids, message,
-      (message, node, ids) => {
-        val i = new java.util.HashSet[PartitionedId]
-        ids.foreach { id => i.add(id) }
-        scatterGather.customizeMessage(message, node, i)
-      },
-      (message, responseIterator) => scatterGather.gatherResponses(message, responseIterator))
+
+  def sendRequest[RequestMsg, ResponseMsg](id: PartitionedId, request: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
+    underlying.sendRequest(id, request)(serializer)
+
+
+  def sendRequest[RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId], request: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
+    underlying.sendRequest(ids, request)(serializer)
+
+
+  def sendRequest[T, RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId], request: RequestMsg,
+                                              scatterGather: ScatterGatherHandler[RequestMsg, ResponseMsg, T, PartitionedId],
+                                              serializer: Serializer[RequestMsg, ResponseMsg]) = {
+    underlying.sendRequest(ids, request, (request: RequestMsg, node: com.linkedin.norbert.cluster.Node, ids: Set[PartitionedId]) => {
+      val i = new java.util.HashSet[PartitionedId]
+      ids.foreach { id => i.add(id) }
+      scatterGather.customizeRequest(request, node, i)
+    }, (request: RequestMsg, responseIterator: ResponseIterator[ResponseMsg]) => scatterGather.gatherResponses(request, responseIterator))(serializer)
   }
 
-  def sendMessage(ids: java.util.Set[PartitionedId], message: Message) = underlying.sendMessage(ids, message)
 
-  def sendMessage(id: PartitionedId, message: Message) = underlying.sendMessage(id, message)
 }

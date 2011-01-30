@@ -17,10 +17,11 @@ package com.linkedin.norbert.javacompat.network;
 
 import java.util.concurrent.Future;
 
-import com.google.protobuf.Message;
 import com.linkedin.norbert.cluster.ClusterDisconnectedException;
 import com.linkedin.norbert.cluster.InvalidNodeException;
 import com.linkedin.norbert.javacompat.cluster.Node;
+import com.linkedin.norbert.network.ResponseIterator;
+import com.linkedin.norbert.network.Serializer;
 
 public interface BaseNetworkClient {
   /**
@@ -31,30 +32,32 @@ public interface BaseNetworkClient {
    * @param requestMessage an instance of an outgoing request message
    * @param responseMessage an instance of the expected response message or null if this is a one way message
    */
-  void registerRequest(Message requestMessage, Message responseMessage);
+//  void registerRequest(RequestMsg requestMessage, Message responseMessage);
 
   /**
    * Sends a message to the specified node in the cluster.
    *
-   * @param message the message to send
+   * @param request the message to send
    * @param node the node to send the message to
+   * @param serializer the serializer needed to encode and decode the request and response pairs to byte arrays
    *
    * @return a future which will become available when a response to the message is received
    * @throws InvalidNodeException thrown if the node specified is not currently available
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  Future<Message> sendMessageToNode(Message message, Node node) throws InvalidNodeException, ClusterDisconnectedException;
+  <RequestMsg, ResponseMsg> Future<ResponseMsg> sendRequestToNode(RequestMsg request, Node node, Serializer<RequestMsg, ResponseMsg> serializer) throws InvalidNodeException, ClusterDisconnectedException;
 
   /**
    * Broadcasts a message to all the currently available nodes in the cluster.
    *
-   * @param message the message to send
+   * @param request the message to send
+   * @param serializer the serializer needed to encode and decode the request and response pairs to byte arrays
    *
    * @return a <code>ResponseIterator</code> which will provide the responses from the nodes in the cluster
    * as they are received
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  com.linkedin.norbert.network.ResponseIterator broadcastMessage(Message message) throws ClusterDisconnectedException;
+  <RequestMsg, ResponseMsg> ResponseIterator<ResponseMsg> broadcastMessage(RequestMsg request, Serializer<RequestMsg, ResponseMsg> serializer) throws ClusterDisconnectedException;
 
   /**
    * Shuts down the <code>NetworkClient</code> and releases resources held.

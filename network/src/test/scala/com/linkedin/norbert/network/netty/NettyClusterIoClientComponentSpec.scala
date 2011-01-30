@@ -21,11 +21,9 @@ import org.specs.Specification
 import java.net.InetSocketAddress
 import org.specs.util.WaitFor
 import org.specs.mock.Mockito
-import com.google.protobuf.Message
-import common.MessageRegistryComponent
 import cluster.{InvalidNodeException, Node}
 
-class NettyClusterIoClientComponentSpec extends Specification with Mockito with WaitFor with NettyClusterIoClientComponent with MessageRegistryComponent {
+class NettyClusterIoClientComponentSpec extends Specification with Mockito with WaitFor with NettyClusterIoClientComponent {
   val messageRegistry = null
 
   val channelPoolFactory = mock[ChannelPoolFactory]
@@ -38,37 +36,38 @@ class NettyClusterIoClientComponentSpec extends Specification with Mockito with 
 
   "NettyClusterIoClient" should {
     "create a new ChannelPool if no pool is available" in {
-      doNothing.when(channelPool).sendRequest(any[Request])
+      doNothing.when(channelPool).sendRequest(any[Request[_, _]])
       channelPoolFactory.newChannelPool(address) returns channelPool
 
-      clusterIoClient.sendMessage(node, mock[Message], e => null)
+
+
+      clusterIoClient.sendMessage(node, mock[Request[_, _]])
 
       got {
-        one(channelPool).sendRequest(any[Request])
+        one(channelPool).sendRequest(any[Request[_, _]])
         one(channelPoolFactory).newChannelPool(address)
       }
     }
 
     "not create a ChannelPool if a pool is available" in {
       channelPoolFactory.newChannelPool(address) returns channelPool
-      doNothing.when(channelPool).sendRequest(any[Request])
+      doNothing.when(channelPool).sendRequest(any[Request[_, _]])
 
-      clusterIoClient.sendMessage(node, mock[Message], e => null)
-
-      clusterIoClient.sendMessage(node, mock[Message], e => null)
+      clusterIoClient.sendMessage(node, mock[Request[_, _]])
+      clusterIoClient.sendMessage(node, mock[Request[_, _]])
 
       got {
-        two(channelPool).sendRequest(any[Request])
+        two(channelPool).sendRequest(any[Request[_, _]])
         one(channelPoolFactory).newChannelPool(address)
       }
     }
 
     "close an open ChannelPool if the Node is no longer available" in {
-      doNothing.when(channelPool).sendRequest(any[Request])
+      doNothing.when(channelPool).sendRequest(any[Request[_, _]])
       doNothing.when(channelPool).close
       channelPoolFactory.newChannelPool(address) returns channelPool
 
-      clusterIoClient.sendMessage(node, mock[Message], e => null)
+      clusterIoClient.sendMessage(node, mock[Request[_, _]])
       clusterIoClient.nodesChanged(Set())
 
       got {
@@ -79,8 +78,8 @@ class NettyClusterIoClientComponentSpec extends Specification with Mockito with 
 
     "throw an InvalidNodeException if a Node with an invalid url is provided" in {
       channelPoolFactory.newChannelPool(address) returns channelPool
-      clusterIoClient.sendMessage(Node(1, "foo", true), mock[Message], e => null) must throwA[InvalidNodeException]
-      clusterIoClient.sendMessage(Node(1, "foo:foo", true), mock[Message], e => null) must throwA[InvalidNodeException]
+      clusterIoClient.sendMessage(Node(1, "foo", true), mock[Request[_, _]]) must throwA[InvalidNodeException]
+      clusterIoClient.sendMessage(Node(1, "foo:foo", true), mock[Request[_, _]]) must throwA[InvalidNodeException]
     }
 
     "close all ChannelPools when shutdown is called" in {
@@ -88,7 +87,7 @@ class NettyClusterIoClientComponentSpec extends Specification with Mockito with 
       doNothing.when(channelPool).close
       doNothing.when(channelPoolFactory).shutdown
 
-      clusterIoClient.sendMessage(node, mock[Message], e => null)
+      clusterIoClient.sendMessage(node, mock[Request[_, _]])
       clusterIoClient.shutdown
 
       got {

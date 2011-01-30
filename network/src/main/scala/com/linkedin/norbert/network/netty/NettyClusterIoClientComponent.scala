@@ -17,11 +17,10 @@ package com.linkedin.norbert
 package network
 package netty
 
-import com.google.protobuf.Message
 import java.net.InetSocketAddress
 import java.util.concurrent.{ConcurrentHashMap}
 import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
-import common.{MessageRegistryComponent, ClusterIoClientComponent}
+import common.{ClusterIoClientComponent}
 import cluster.Node
 import logging.Logging
 
@@ -29,13 +28,13 @@ import logging.Logging
  * A <code>ClusterIoClientComponent</code> implementation that uses Netty for network communication.
  */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
-  this: MessageRegistryComponent =>
 
   class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory) extends ClusterIoClient with UrlParser with Logging {
     private val channelPools = new ConcurrentHashMap[Node, ChannelPool]
 
-    def sendMessage(node: Node, message: Message, responseCallback: (Either[Throwable, Message]) => Unit) = {
-      if (node == null || message == null || responseCallback == null) throw new NullPointerException
+
+    def sendMessage[RequestMsg, ResponseMsg](node: Node, request: Request[RequestMsg, ResponseMsg]) {
+      if (node == null || request == null) throw new NullPointerException
 
       var pool = channelPools.get(node)
       if (pool == null) {
@@ -47,11 +46,11 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
       }
 
       try {
-        pool.sendRequest(Request(message, responseCallback))
+        pool.sendRequest(request)
       } catch {
         case ex: ChannelPoolClosedException =>
           // ChannelPool was closed, try again
-          sendMessage(node, message, responseCallback)
+          sendMessage(node, request)
       }
     }
 

@@ -22,7 +22,7 @@ import java.util.concurrent.{TimeoutException, ExecutionException, TimeUnit}
 /**
  * An iterator over the responses from a network request.
  */
-trait ResponseIterator {
+trait ResponseIterator[ResponseMsg] extends Iterator[ResponseMsg] {
   /**
    * Calculates whether you have iterated over all of the responses. A return value of true indicates
    * that there are more responses, it does not indicate that those responses have been received and
@@ -46,7 +46,7 @@ trait ResponseIterator {
    * @throws ExecutionException thrown if there was an error
    */
   @throws(classOf[ExecutionException])
-  def next: Message
+  def next: ResponseMsg
 
   /**
    * Retrieves the next response, waiting for the specified time if there are no responses available.
@@ -62,5 +62,5 @@ trait ResponseIterator {
   @throws(classOf[ExecutionException])
   @throws(classOf[TimeoutException])
   @throws(classOf[InterruptedException])
-  def next(timeout: Long, unit: TimeUnit): Message
+  def next(timeout: Long, unit: TimeUnit): ResponseMsg
 }

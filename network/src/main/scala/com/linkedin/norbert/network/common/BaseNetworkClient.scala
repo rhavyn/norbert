@@ -17,14 +17,13 @@ package com.linkedin.norbert
 package network
 package common
 
-import com.google.protobuf.Message
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.Future
 import cluster._
 import logging.Logging
 
 trait BaseNetworkClient extends Logging {
-  this: ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent =>
+  this: ClusterClientComponent with ClusterIoClientComponent =>
 
   @volatile protected var currentNodes: Set[Node] = Set()
   @volatile protected var connected = false
@@ -67,30 +66,46 @@ trait BaseNetworkClient extends Logging {
    * @param requestMessage an instance of an outgoing request message
    * @param responseMessage an instance of the expected response message or null if this is a one way message
    */
-  def registerRequest(requestMessage: Message, responseMessage: Message) {
-    messageRegistry.registerMessage(requestMessage, responseMessage)
-  }
+//  def registerRequest(requestMessage: Message, responseMessage: Message) {
+//    messageRegistry.registerMessage(requestMessage, responseMessage)
+//  }
 
   /**
-   * Sends a message to the specified node in the cluster.
+   * Sends a request to the specified node in the cluster.
    *
-   * @param message the message to send
+   * @param request the message to send
+   * @param node the node to send the message to
+   * @param callback a method to be called with either a Throwable in the case of an error along
+   * the way or a ResponseMsg representing the result
+   *
+   * @throws InvalidNodeException thrown if the node specified is not currently available
+   * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
+   */
+  def sendRequestToNode[RequestMsg, ResponseMsg](request: RequestMsg, node: Node, callback: Either[Throwable, ResponseMsg] => Unit)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
+    if (request == null || node == null) throw new NullPointerException
+
+    val candidate = currentNodes.filter(_ == node)
+    if (candidate.size == 0) throw new InvalidNodeException("Unable to send message, %s is not available".format(node))
+
+    doSendRequest(node, request, callback)
+  }
+
+
+  /**
+   * Sends a request to the specified node in the cluster.
+   *
+   * @param request the message to send
    * @param node the node to send the message to
    *
    * @return a future which will become available when a response to the message is received
    * @throws InvalidNodeException thrown if the node specified is not currently available
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  def sendMessageToNode(message: Message, node: Node): Future[Message] = doIfConnected {
-    if (message == null || node == null) throw new NullPointerException
-    verifyMessageRegistered(message)
-
-    val candidate = currentNodes.filter(_ == node)
-    if (candidate.size == 0) throw new InvalidNodeException("Unable to send message, %s is not available".format(node))
-
-    val future = new NorbertFuture
-    doSendMessage(node, message, e => future.offerResponse(e))
-
+  def sendRequestToNode[RequestMsg, ResponseMsg](request: RequestMsg, node: Node)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
+    val future = new FutureAdapter[ResponseMsg]
+    sendRequestToNode(request, node, future)
     future
   }
 
@@ -103,16 +118,16 @@ trait BaseNetworkClient extends Logging {
    * as they are received
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  def broadcastMessage(message: Message): ResponseIterator = doIfConnected {
-    if (message == null) throw new NullPointerException
-    verifyMessageRegistered(message)
+  def broadcastMessage[RequestMsg, ResponseMsg](request: RequestMsg)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
+    if (request == null) throw new NullPointerException
 
     val nodes = currentNodes
-    val it = new NorbertResponseIterator(nodes.size)
+    val queue = new ResponseQueue[ResponseMsg]
 
-    currentNodes.foreach(doSendMessage(_, message, e => it.offerResponse(e)))
+    currentNodes.foreach(doSendRequest(_, request, queue +=))
 
-    it
+    new NorbertResponseIterator(nodes.size, queue)
   }
 
   /**
@@ -122,12 +137,9 @@ trait BaseNetworkClient extends Logging {
 
   protected def updateLoadBalancer(nodes: Set[Node]): Unit
 
-  protected def verifyMessageRegistered(message: Message) {
-    if (!messageRegistry.contains(message)) throw new InvalidMessageException("The message provided [%s] is not a registered request message".format(message))
-  }
-
-  protected def doSendMessage(node: Node, message: Message, responseHandler: (Either[Throwable, Message]) => Unit) {
-    clusterIoClient.sendMessage(node, message, responseHandler)
+  protected def doSendRequest[RequestMsg, ResponseMsg](node: Node, request: RequestMsg, callback: Either[Throwable, ResponseMsg] => Unit)
+  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = {
+    clusterIoClient.sendMessage(node, Request(request, node, serializer, callback))
   }
 
   protected def doIfConnected[T](block: => T): T = {

@@ -52,14 +52,14 @@ class ChannelPoolSpec extends Specification with Mockito {
       future.awaitUninterruptibly returns future
 
       channelPool.close
-      channelPool.sendRequest(mock[Request]) must throwA[ChannelPoolClosedException]
+      channelPool.sendRequest(mock[Request[_, _]]) must throwA[ChannelPoolClosedException]
     }
 
     "open a new channel if no channels are open" in {
       val future = mock[ChannelFuture]
       bootstrap.connect(address) returns future
 
-      channelPool.sendRequest(mock[Request])
+      channelPool.sendRequest(mock[Request[_, _]])
 
       there was one(bootstrap).connect(address)
     }
@@ -70,13 +70,13 @@ class ChannelPoolSpec extends Specification with Mockito {
       val future = new TestChannelFuture(channel, true)
       bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
-      channel.write(any[Request]) returns future
+      channel.write(any[Request[_, _]]) returns future
 
-      val request = Request(mock[Message], (e) => null)
+      val request = mock[Request[_, _]]
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      channelPool.sendRequest(mock[Request])
+      channelPool.sendRequest(mock[Request[_, _]])
 
       got {
         one(channelGroup).add(channel)
@@ -90,9 +90,10 @@ class ChannelPoolSpec extends Specification with Mockito {
       val future = new TestChannelFuture(channel, true)
       bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
-      channel.write(any[Request]) returns future
+      channel.write(any[Request[_, _]]) returns future
 
-      val request = Request(mock[Message], (e) => null)
+//      val request = Request(mock[Request], (e) => null)
+      val request = mock[Request[_, _]]
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
@@ -107,7 +108,7 @@ class ChannelPoolSpec extends Specification with Mockito {
 
     "write all queued requests" in {
       val channel = mock[Channel]
-      val request = mock[Request]
+      val request = mock[Request[_, _]]
       request.timestamp returns System.currentTimeMillis + 10000
       channel.isConnected returns true
       val future = new TestChannelFuture(channel, true)
@@ -121,15 +122,15 @@ class ChannelPoolSpec extends Specification with Mockito {
       future.listener.operationComplete(future)
 
       got {
-        three(channel).write(any[Request])
+        three(channel).write(any[Request[_, _]])
         one(bootstrap).connect(address)
       }
     }
 
     "properly handle a failed write" in {
       val channel = mock[Channel]
-      var either: Either[Throwable, Message] = null
-      val request = spy(Request(mock[Message], (e) => either = e))
+      var either: Either[Throwable, Any] = null
+      val request = spy(Request(null, null, null, (e: Either[Throwable, Any]) => either = e))
       request.timestamp returns System.currentTimeMillis + 10000
       channel.isConnected returns true
       val openFuture = new TestChannelFuture(channel, true)
@@ -148,9 +149,11 @@ class ChannelPoolSpec extends Specification with Mockito {
 
     "not write queued requests if the request timed out" in {
       val channel = mock[Channel]
-      val goodRequest = spy(Request(mock[Message], (e) => null))
-      var either: Either[Throwable, Message] = null
-      val badRequest = spy(Request(mock[Message], (e) => either = e))
+      val goodRequest = spy(new Request(null, null, null, (e: Either[Throwable, Any]) => null))
+
+      var either: Either[Throwable, Any] = null
+      val badRequest = spy(new Request(null, null, null, (e: Either[Throwable, Any]) => either = e))
+
       goodRequest.timestamp returns System.currentTimeMillis + 10000
       badRequest.timestamp returns System.currentTimeMillis - 10000
       channel.isConnected returns true
@@ -177,7 +180,7 @@ class ChannelPoolSpec extends Specification with Mockito {
 
     "not write queued requests if the open failed" in {
       val channel = mock[Channel]
-      val request = mock[Request]
+      val request = mock[Request[_, _]]
       request.timestamp returns System.currentTimeMillis + 10000
       channel.isConnected returns true
       val future = new TestChannelFuture(channel, false)
@@ -190,7 +193,7 @@ class ChannelPoolSpec extends Specification with Mockito {
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      there was no(channel).write(any[Request])
+      there was no(channel).write(any[Request[_, _]])
       there was one(bootstrap).connect(address)
     }
   }

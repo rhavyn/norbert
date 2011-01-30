@@ -13,17 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert
-package network
-package netty
+package com.linkedin.norbert.javacompat.network;
 
-import com.google.protobuf.Message
-import java.util.UUID
-
-object Request {
-  def apply(message: Message, responseCallback: (Either[Throwable, Message]) => Unit): Request = {
-    Request(UUID.randomUUID, message, System.currentTimeMillis, responseCallback)
-  }
+public interface RequestHandler<RequestMsg, ResponseMsg> {
+  ResponseMsg handleRequest(RequestMsg request) throws Exception;
 }
-
-case class Request(id: UUID, message: Message, timestamp: Long, responseCallback: (Either[Throwable, Message]) => Unit)

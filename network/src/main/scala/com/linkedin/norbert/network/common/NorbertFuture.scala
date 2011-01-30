@@ -21,39 +21,46 @@ import com.google.protobuf.Message
 import java.util.concurrent._
 import atomic.AtomicInteger
 
-class NorbertFuture extends Future[Message] with ResponseHelper {
+class ResponseQueue[ResponseMsg] extends java.util.concurrent.LinkedBlockingQueue[Either[Throwable, ResponseMsg]] {
+  def += (res: Either[Throwable, ResponseMsg]): ResponseQueue[ResponseMsg] = {
+    add(res)
+    this
+  }
+}
+
+class FutureAdapter[ResponseMsg] extends Future[ResponseMsg] with Function1[Either[Throwable, ResponseMsg], Unit] with ResponseHelper {
   private val latch = new CountDownLatch(1)
-  @volatile private var response: Either[Throwable, Message] = null
+  @volatile private var response: Either[Throwable, ResponseMsg] = null
 
-  def get(timeout: Long, unit: TimeUnit): Message = if (latch.await(timeout, unit)) translateResponse(response) else throw new TimeoutException
+  override def apply(callback: Either[Throwable, ResponseMsg]): Unit = {
+    response = callback
+    latch.countDown
+  }
 
-  def get: Message = {
+  def cancel(mayInterruptIfRunning: Boolean) = false
+
+  def isCancelled = false
+
+  def isDone = latch.getCount == 0
+
+  def get = {
     latch.await
     translateResponse(response)
   }
 
-  def isDone: Boolean = latch.getCount == 0
-
-  def isCancelled: Boolean = false
-
-  def cancel(mayInterruptIfRunning: Boolean): Boolean = false
-
-  def offerResponse(r: Either[Throwable, Message]) {
-    response = r
-    latch.countDown
-  }
+  def get(timeout: Long, timeUnit: TimeUnit) =
+    if (latch.await(timeout, timeUnit)) translateResponse(response) else throw new TimeoutException
 }
 
-class NorbertResponseIterator(numResponses: Int) extends ResponseIterator with ResponseHelper {
+class NorbertResponseIterator[ResponseMsg](numResponses: Int, queue: ResponseQueue[ResponseMsg]) extends ResponseIterator[ResponseMsg] with ResponseHelper {
   private val remaining = new AtomicInteger(numResponses)
-  private val responses = new LinkedBlockingQueue[Either[Throwable, Message]]
 
   def next = {
     remaining.decrementAndGet
-    translateResponse(responses.take)
+    translateResponse(queue.poll)
   }
 
-  def next(timeout: Long, unit: TimeUnit) = responses.poll(timeout, unit) match {
+  def next(timeout: Long, unit: TimeUnit) = queue.poll(timeout, unit) match {
     case null => throw new TimeoutException("Timed out waiting for response")
 
     case e =>
@@ -61,13 +68,11 @@ class NorbertResponseIterator(numResponses: Int) extends ResponseIterator with R
       translateResponse(e)
   }
 
-  def nextAvailable = responses.size > 0
+  def nextAvailable = queue.size > 0
 
   def hasNext = remaining.get > 0
-
-  def offerResponse(response: Either[Throwable, Message]) = responses.offer(response)
 }
 
 private[common] trait ResponseHelper {
-  protected def translateResponse(response: Either[Throwable, Message]) = response.fold(ex => throw new ExecutionException(ex), msg => msg)
+  protected def translateResponse[T](response: Either[Throwable, T]) = response.fold(ex => throw new ExecutionException(ex), msg => msg)
 }

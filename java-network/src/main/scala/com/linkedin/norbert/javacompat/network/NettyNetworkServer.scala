@@ -16,9 +16,9 @@
 package com.linkedin.norbert.javacompat
 package network
 
-import com.google.protobuf.Message
 import cluster.BaseClusterClient
 import com.linkedin.norbert.cluster.ClusterClient
+import com.linkedin.norbert.network.Serializer
 
 class NettyNetworkServer(config: NetworkServerConfig) extends NetworkServer {
   val c = new com.linkedin.norbert.network.netty.NetworkServerConfig
@@ -46,7 +46,7 @@ class NettyNetworkServer(config: NetworkServerConfig) extends NetworkServer {
 
   def bind(nodeId: Int) = underlying.bind(nodeId)
 
-  def registerHandler(requestMessage: Message, responseMessage: Message, handler: MessageHandler) = {
-    underlying.registerHandler(requestMessage, responseMessage, (message) => handler.handleMessage(message))
+  def registerHandler[RequestMsg, ResponseMsg](handler: RequestHandler[RequestMsg, ResponseMsg], serializer: Serializer[RequestMsg, ResponseMsg]) = {
+    underlying.registerHandler((request: RequestMsg) => handler.handleRequest(request))(serializer)
   }
 }

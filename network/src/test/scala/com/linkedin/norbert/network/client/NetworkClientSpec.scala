@@ -18,20 +18,20 @@ package network
 package client
 
 import com.google.protobuf.Message
-import common.{MessageRegistry, MessageRegistryComponent, ClusterIoClientComponent, BaseNetworkClientSpecification}
+import common.{ClusterIoClientComponent, BaseNetworkClientSpecification}
 import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
 import cluster.{InvalidClusterException, ClusterDisconnectedException, ClusterClientComponent}
 
 class NetworkClientSpec extends BaseNetworkClientSpecification {
-  val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent with MessageRegistryComponent {
+  val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
     val lb = mock[LoadBalancer]
     val loadBalancerFactory = mock[LoadBalancerFactory]
     val clusterIoClient = mock[ClusterIoClient]
-    val messageRegistry = mock[MessageRegistry]
+//    val messageRegistry = mock[MessageRegistry]
     val clusterClient = NetworkClientSpec.this.clusterClient
   }
 
-  networkClient.messageRegistry.contains(any[Message]) returns true
+//  networkClient.messageRegistry.contains(any[Message]) returns true
 
   "NetworkClient" should {
     "provide common functionality" in { sharedFunctionality }
@@ -39,29 +39,17 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     "throw ClusterDisconnectedException if the cluster is disconnected when a method is called" in {
       networkClient.start
 
-      networkClient.broadcastMessage(message) must throwA[ClusterDisconnectedException]
-      networkClient.sendMessageToNode(message, nodes(1)) must throwA[ClusterDisconnectedException]
-      networkClient.sendMessage(message) must throwA[ClusterDisconnectedException]
+      networkClient.broadcastMessage(request) must throwA[ClusterDisconnectedException]
+      networkClient.sendRequestToNode(request, nodes(1)) must throwA[ClusterDisconnectedException]
+      networkClient.sendRequest(request) must throwA[ClusterDisconnectedException]
     }
 
     "throw ClusterShutdownException if the cluster is shut down when a method is called" in {
       networkClient.shutdown
 
-      networkClient.broadcastMessage(message) must throwA[NetworkShutdownException]
-      networkClient.sendMessageToNode(message, nodes(1)) must throwA[NetworkShutdownException]
-      networkClient.sendMessage(message) must throwA[NetworkShutdownException]
-    }
-
-    "throw an InvalidMessageException if an unregistered message is sent" in {
-      clusterClient.nodes returns nodeSet
-      clusterClient.isConnected returns true
-      networkClient.messageRegistry.contains(any[Message]) returns false
-
-      networkClient.start
-
-      networkClient.broadcastMessage(message) must throwA[InvalidMessageException]
-      networkClient.sendMessageToNode(message, nodes(1)) must throwA[InvalidMessageException]
-      networkClient.sendMessage(message) must throwA[InvalidMessageException]
+      networkClient.broadcastMessage(request) must throwA[NetworkShutdownException]
+      networkClient.sendRequestToNode(request, nodes(1)) must throwA[NetworkShutdownException]
+      networkClient.sendRequest(request) must throwA[NetworkShutdownException]
     }
 
     "send the provided message to the node specified by the load balancer for sendMessage" in {
@@ -72,7 +60,7 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClient.start
-      networkClient.sendMessage(message) must notBeNull
+      networkClient.sendRequest(request) must notBeNull
 
       there was one(networkClient.lb).nextNode
 //      clusterIoClient.sendMessage(node, message, null) was called
@@ -85,7 +73,7 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClient.start
-      networkClient.sendMessage(message) must throwA[InvalidClusterException]
+      networkClient.sendRequest(request) must throwA[InvalidClusterException]
 
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
     }
@@ -98,7 +86,7 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClient.start
-      networkClient.sendMessage(message) must throwA[NoNodesAvailableException]
+      networkClient.sendRequest(request) must throwA[NoNodesAvailableException]
 
       there was one(networkClient.lb).nextNode
 //      clusterIoClient.sendMessage(node, message, null) wasnt called

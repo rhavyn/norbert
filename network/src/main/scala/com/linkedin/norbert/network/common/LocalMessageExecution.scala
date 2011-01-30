@@ -17,16 +17,17 @@ package com.linkedin.norbert
 package network
 package common
 
-import com.google.protobuf.Message
 import server.MessageExecutorComponent
 import cluster.{Node, ClusterClientComponent}
 
 trait LocalMessageExecution extends BaseNetworkClient {
-  this: MessageExecutorComponent with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent =>
+  this: MessageExecutorComponent with ClusterClientComponent with ClusterIoClientComponent =>
 
   val myNode: Node
 
-  override protected def doSendMessage(node: Node, message: Message, responseHandler: (Either[Throwable, Message]) => Unit) = {
-    if (node == myNode) messageExecutor.executeMessage(message, responseHandler) else super.doSendMessage(node, message, responseHandler)
+  override protected def doSendRequest[RequestMsg, ResponseMsg](node: Node, request: RequestMsg, callback: (Either[Throwable, ResponseMsg]) => Unit)
+                                                               (implicit serializer: Serializer[RequestMsg, ResponseMsg]) = {
+    if(node == myNode) messageExecutor.executeMessage(request, callback)
+    else super.doSendRequest(node, request, callback)
   }
 }

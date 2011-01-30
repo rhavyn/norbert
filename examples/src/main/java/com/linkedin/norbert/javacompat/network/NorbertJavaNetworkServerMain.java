@@ -15,8 +15,6 @@
  */
 package com.linkedin.norbert.javacompat.network;
 
-import com.google.protobuf.Message;
-import com.linkedin.norbert.protos.NorbertExampleProtos;
 import org.jboss.netty.logging.InternalLoggerFactory;
 import org.jboss.netty.logging.Log4JLoggerFactory;
 
@@ -29,7 +27,7 @@ public class NorbertJavaNetworkServerMain {
     config.setZooKeeperConnectString(args[1]);
     config.setZooKeeperSessionTimeoutMillis(30000);
     final NetworkServer ns = new NettyNetworkServer(config);
-    ns.registerHandler(NorbertExampleProtos.Ping.getDefaultInstance(), NorbertExampleProtos.PingResponse.getDefaultInstance(), new PingHandler());
+    ns.registerHandler(new PingHandler(), new PingSerializer());
     ns.bind(Integer.parseInt(args[2]));
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -40,10 +38,10 @@ public class NorbertJavaNetworkServerMain {
     });
   }
 
-  private static class PingHandler implements MessageHandler {
-    public Message handleMessage(Message message) throws Exception {
-      NorbertExampleProtos.Ping ping = (NorbertExampleProtos.Ping) message;
-      return NorbertExampleProtos.PingResponse.newBuilder().setTimestamp(ping.getTimestamp()).build();
+  private static class PingHandler implements RequestHandler<Ping, Ping> {
+    public Ping handleRequest(Ping ping) throws Exception {
+      System.out.printf("Requested ping from client %d milliseconds ago (assuming synchronized clocks)", (ping.timestamp - System.currentTimeMillis()));
+      return new Ping(System.currentTimeMillis());
     }
   }
 }

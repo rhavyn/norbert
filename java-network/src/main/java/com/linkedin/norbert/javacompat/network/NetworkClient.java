@@ -17,23 +17,24 @@ package com.linkedin.norbert.javacompat.network;
 
 import java.util.concurrent.Future;
 
-import com.google.protobuf.Message;
 import com.linkedin.norbert.cluster.ClusterDisconnectedException;
 import com.linkedin.norbert.cluster.InvalidClusterException;
 import com.linkedin.norbert.network.NoNodesAvailableException;
+import com.linkedin.norbert.network.Serializer;
 
 public interface NetworkClient extends BaseNetworkClient {
   /**
-   * Sends a message to a node in the cluster. The <code>NetworkClient</code> defers to the current
-   * <code>LoadBalancer</code> to decide which <code>Node</code> the message should be sent to.
+   * Sends a request to a node in the cluster. The <code>NetworkClient</code> defers to the current
+   * <code>LoadBalancer</code> to decide which <code>Node</code> the request should be sent to.
    *
-   * @param message the message to send
+   * @param request the request to send
+   * @param serializer the serializer needed to encode and decode the request and response pairs to byte arrays
    *
-   * @return a future which will become available when a response to the message is received
+   * @return a future which will become available when a response to the request is received
    * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
    * @throws NoNodesAvailableException thrown if the <code>LoadBalancer</code> was unable to provide a <code>Node</code>
    * to send the request to
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
-  Future<Message> sendMessage(Message message) throws InvalidClusterException, NoNodesAvailableException, ClusterDisconnectedException;
+  <RequestMsg, ResponseMsg> Future<ResponseMsg> sendRequest(RequestMsg request, Serializer<RequestMsg, ResponseMsg> serializer) throws InvalidClusterException, NoNodesAvailableException, ClusterDisconnectedException;
 }

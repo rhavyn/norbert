@@ -33,7 +33,7 @@ object NorbertNetworkClientMain {
     config.clusterClient = cc
 
     val nc = NetworkClient(config, new RoundRobinLoadBalancerFactory)
-    nc.registerRequest(NorbertExampleProtos.Ping.getDefaultInstance, NorbertExampleProtos.PingResponse.getDefaultInstance)
+//    nc.registerRequest(NorbertExampleProtos.Ping.getDefaultInstance, NorbertExampleProtos.PingResponse.getDefaultInstance)
 
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run = {
@@ -97,7 +97,7 @@ object NorbertNetworkClientMain {
           val node = cc.nodeWithId(args.head.toInt)
           node match {
             case Some(n) =>
-              val future = nc.sendMessageToNode(NorbertExampleProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build, n)
+              val future = nc.sendRequestToNode(Ping(System.currentTimeMillis), n)
               try {
                 val response = future.get(500, TimeUnit.MILLISECONDS).asInstanceOf[NorbertExampleProtos.PingResponse]
                 println("Ping took %dms".format(System.currentTimeMillis - response.getTimestamp))

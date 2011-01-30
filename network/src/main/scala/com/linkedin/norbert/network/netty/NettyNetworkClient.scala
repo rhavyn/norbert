@@ -27,21 +27,20 @@ import partitioned.loadbalancer.{PartitionedLoadBalancerFactoryComponent, Partit
 import partitioned.PartitionedNetworkClient
 import client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancerFactory}
 import client.{NetworkClient, NetworkClientConfig}
-import common.{MessageRegistry, MessageRegistryComponent, BaseNetworkClient}
+import common.{BaseNetworkClient}
 import cluster.{ClusterClient, ClusterClientComponent}
 import protos.NorbertProtos
 import util.NamedPoolThreadFactory
 import org.jboss.netty.channel.{ChannelPipelineFactory, Channels}
 
-abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with MessageRegistryComponent {
-  val messageRegistry = new MessageRegistry
+abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent {
   val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
     clientConfig.zooKeeperSessionTimeoutMillis)
 
   private val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
   private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
-  private val handler = new ClientChannelHandler(clusterClient.serviceName, messageRegistry, clientConfig.maxConnectionsPerNode,
+  private val handler = new ClientChannelHandler(clusterClient.serviceName, clientConfig.maxConnectionsPerNode,
     clientConfig.staleRequestCleanupFrequenceMins)
 
   // TODO why isn't clientConfig visible here?

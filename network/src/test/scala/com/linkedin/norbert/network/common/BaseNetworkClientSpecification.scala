@@ -17,18 +17,17 @@ package com.linkedin.norbert
 package network
 package common
 
-import com.google.protobuf.Message
 import org.specs.Specification
 import org.specs.mock.Mockito
 import cluster._
+import java.util.concurrent.Future
 
-abstract class BaseNetworkClientSpecification extends Specification with Mockito {
+abstract class BaseNetworkClientSpecification extends Specification with Mockito with SampleMessage {
   val clusterClient = mock[ClusterClient]
   val networkClient: BaseNetworkClient
 
   val nodes = List(Node(1, "", true), Node(2, "", true), Node(3, "", true))
   val nodeSet = Set() ++ nodes
-  val message = mock[Message]
 
   def sharedFunctionality = {
     "start the cluster, creates a load balancer and register itself as a listener when started" in {
@@ -36,9 +35,9 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
       cc.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
       cc.nodes returns nodeSet
 
-      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
+      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent {
         val clusterIoClient = mock[ClusterIoClient]
-        val messageRegistry = mock[MessageRegistry]
+//        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
         var updateLoadBalancerCalled = false
 
@@ -64,9 +63,9 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
       cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
       cc.nodes returns nodeSet
 
-      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
+      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent {
         val clusterIoClient = mock[ClusterIoClient]
-        val messageRegistry = mock[MessageRegistry]
+//        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
         var updateLoadBalancerCalled = 0
 
@@ -91,9 +90,9 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
       cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
       cc.nodes returns nodeSet
 
-      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
+      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent {
         val clusterIoClient = mock[ClusterIoClient]
-        val messageRegistry = mock[MessageRegistry]
+//        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
         var updateLoadBalancerCalled = 0
 
@@ -116,9 +115,9 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
       cc.addListener(any[ClusterListener]) returns key
       cc.nodes returns nodeSet
 
-      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
+      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent {
         val clusterIoClient = mock[ClusterIoClient]
-        val messageRegistry = mock[MessageRegistry]
+//        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
         protected def updateLoadBalancer(nodes: Set[Node]) = null
@@ -139,9 +138,9 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
       cc.addListener(any[ClusterListener]) returns key
       doNothing.when(cc).removeListener(any[ClusterListenerKey])
 
-      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
+      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent {
         val clusterIoClient = mock[ClusterIoClient]
-        val messageRegistry = mock[MessageRegistry]
+//        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
         protected def updateLoadBalancer(nodes: Set[Node]) = null
@@ -160,9 +159,9 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
       var listener: ClusterListener = null
       cc.addListener(any[ClusterListener]) answers { l => listener = l.asInstanceOf[ClusterListener]; ClusterListenerKey(1) }
 
-      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent with MessageRegistryComponent {
+      val nc = new BaseNetworkClient with ClusterClientComponent with ClusterIoClientComponent {
         val clusterIoClient = mock[ClusterIoClient]
-        val messageRegistry = mock[MessageRegistry]
+//        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
         protected def updateLoadBalancer(nodes: Set[Node]) = null
@@ -180,30 +179,33 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
 //      nodes.foreach(n => doNothing.when(clusterIoClient).sendMessage(n, message, null))
 
       networkClient.start
-      networkClient.broadcastMessage(message) must notBeNull
+
+      val responseIterator = networkClient.broadcastMessage(request)
+      responseIterator must notBeNull
 
 //      nodes.foreach(n => clusterIoClient.sendMessage(n, message, null) was called)
     }
 
-    "send message to the specified node in sendMessageToNode" in {
+    "send message to the specified node in sendRequestToNode" in {
       clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClient.start
-      networkClient.sendMessageToNode(message, nodes(1)) must notBeNull
+      val pong = networkClient.sendRequestToNode(request, nodes(1))
+      pong must notBeNull
 
 //      clusterIoClient.sendMessage(node, message, null) was called
     }
 
-    "throw an InvalidNodeException if the node provided to sendMessageToNode is not currently availabe" in {
+    "throw an InvalidNodeException if the node provided to sendRequestToNode is not currently availabe" in {
       val node = Node(4, "", true)
       clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClient.start
-      networkClient.sendMessageToNode(message, node) must throwA[InvalidNodeException]
+      networkClient.sendRequestToNode(request, node) must throwA[InvalidNodeException]
 
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
     }

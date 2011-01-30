@@ -1,3 +1,7 @@
+package com.linkedin.norbert.network
+
+import java.io.{OutputStream, InputStream}
+
 /*
  * Copyright 2009-2010 LinkedIn, Inc
  *
@@ -13,10 +17,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.javacompat.network;
 
-import com.google.protobuf.Message;
+trait Serializer[RequestMsg, ResponseMsg] {
+  def nameOfRequestMessage: String
+//  def writeSerializedRequestMessage(message: RequestMsg, output: OutputStream): Unit
+//  def readSerializedResponseMessage(input: InputStream): ResponseMsg
 
-public interface MessageHandler {
-  Message handleMessage(Message message) throws Exception;
+  def requestToBytes(message: RequestMsg): Array[Byte]
+  def requestFromBytes(bytes: Array[Byte]): RequestMsg
+
+  def responseToBytes(message: ResponseMsg): Array[Byte]
+  def responseFromBytes(bytes: Array[Byte]): ResponseMsg
 }

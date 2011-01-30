@@ -19,10 +19,10 @@ package server
 
 import org.specs.Specification
 import org.specs.mock.Mockito
-import com.google.protobuf.Message
 import cluster._
+import network.common.SampleMessage
 
-class NetworkServerSpec extends Specification with Mockito {
+class NetworkServerSpec extends Specification with Mockito with SampleMessage {
   val networkServer = new NetworkServer with ClusterClientComponent with ClusterIoServerComponent with MessageHandlerRegistryComponent
       with MessageExecutorComponent {
     val clusterIoServer = mock[ClusterIoServer]
@@ -53,15 +53,9 @@ class NetworkServerSpec extends Specification with Mockito {
     }
 
     "register messages with the MessageHandlerRegistry" in {
-      def handler(msg: Message): Message = msg
-      def h = handler _
-      val request = mock[Message]
-      val response = mock[Message]
-      doNothing.when(networkServer.messageHandlerRegistry).registerHandler(request, response, h)
+      doNothing.when(networkServer.messageHandlerRegistry).registerHandler((ping: Ping) => new Ping)
 
-      networkServer.registerHandler(request, response, h)
-
-//      networkServer.messageHandlerRegistry.registerHandler(request, response, h) was called
+      networkServer.registerHandler((ping : Ping) => new Ping)
     }
 
     "when bind is called" in {
