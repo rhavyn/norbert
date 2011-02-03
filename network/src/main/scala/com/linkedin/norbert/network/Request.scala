@@ -1,9 +1,3 @@
-package com.linkedin.norbert.network
-
-import java.util.UUID
-import common.ResponseQueue
-import com.linkedin.norbert.cluster.{ClusterException, Node}
-
 /*
  * Copyright 2009-2010 LinkedIn, Inc
  *
@@ -19,6 +13,10 @@ import com.linkedin.norbert.cluster.{ClusterException, Node}
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+package com.linkedin.norbert.network
+
+import java.util.UUID
+import com.linkedin.norbert.cluster.{ClusterException, Node}
 
 case class Request[RequestMsg, ResponseMsg](message: RequestMsg, node: Node, serializer: Serializer[RequestMsg, ResponseMsg], callback: Either[Throwable, ResponseMsg] => Unit) {
   val id = UUID.randomUUID

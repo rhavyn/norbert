@@ -1,7 +1,3 @@
-package com.linkedin.norbert.network
-
-import java.io._
-
 /*
  * Copyright 2009-2010 LinkedIn, Inc
  *
@@ -17,6 +13,9 @@ import java.io._
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+package com.linkedin.norbert.network
+
+import java.io._
 
 object JavaSerializer {
   def build[RequestMsg, ResponseMsg]
@@ -24,7 +23,6 @@ object JavaSerializer {
     new JavaSerializer[RequestMsg, ResponseMsg](requestManifest.erasure.asInstanceOf[Class[RequestMsg]],
                                                 responseManifest.erasure.asInstanceOf[Class[ResponseMsg]])
 }
-
 
 class JavaSerializer[RequestMsg, ResponseMsg](requestClass: Class[RequestMsg], responseClass: Class[ResponseMsg])
   extends Serializer[RequestMsg, ResponseMsg] {
