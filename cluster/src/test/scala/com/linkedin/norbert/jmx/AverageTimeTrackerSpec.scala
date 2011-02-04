@@ -19,9 +19,9 @@ package jmx
 import org.specs.Specification
 
 class AverageTimeTrackerSpec extends Specification {
-  "AverageTimeTracker" should {
+  "FinishedRequestTimeTracker" should {
     "correctly average the times provided" in {
-      val a = new AverageTimeTracker(100)
+      val a = new RequestTimeTracker(100)
       (1 to 100).foreach(a.addTime(_))
       a.average must be_==(50)
       a.addTime(101)

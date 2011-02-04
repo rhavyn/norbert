@@ -25,9 +25,10 @@ import logging.Logging
 import java.util.UUID
 import jmx.JMX.MBean
 import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
-import jmx.{AverageTimeTracker, JMX}
+import jmx.{FinishedRequestTimeTracker, JMX}
 import java.lang.String
-import com.google.protobuf.{ByteString, InvalidProtocolBufferException, Message}
+import com.google.protobuf.{ByteString}
+import common.NetworkStatisticsActor
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -48,11 +49,22 @@ class RequestContextDecoder extends OneToOneDecoder {
 }
 
 @ChannelPipelineCoverage("all")
-class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Logging {
-  private val statsActor = new NetworkStatisticsActor(100)
-  statsActor.start
+class RequestContextEncoder extends OneToOneEncoder with Logging {
 
-  private val requestProcessingTime = new AverageTimeTracker(100)
+  def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Any) = {
+    val (context, norbertMessage) = msg.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
+
+//    statsActor ! statsActor.Stats.NewProcessingTime((System.currentTimeMillis - context.receivedAt).toInt)
+
+    norbertMessage
+  }
+
+}
+
+@ChannelPipelineCoverage("all")
+class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](100)
+  statsActor.start
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
     import statsActor.Stats._
@@ -61,24 +73,13 @@ class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Lo
       case RequestsPerSecond(rps) => rps
     }
 
-    def getAverageRequestProcessingTime = statsActor !? GetAverageProcessingTime match {
-      case AverageProcessingTime(time) => time
+    def getAverageRequestProcessingTime = statsActor !? GetTotalAverageProcessingTime match {
+      case TotalAverageProcessingTime(time) => time
     }
   })
 
-  def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Any) = {
-    val (context, norbertMessage) = msg.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
-
-    statsActor ! statsActor.Stats.NewProcessingTime((System.currentTimeMillis - context.receivedAt).toInt)
-
-    norbertMessage
-  }
-
   def shutdown: Unit = jmxHandle.foreach { JMX.unregister(_) }
-}
 
-@ChannelPipelineCoverage("all")
-class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
   override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     val channel = e.getChannel
     log.trace("channelOpen: " + channel)
@@ -91,6 +92,8 @@ class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: M
 
     val messageName = norbertMessage.getMessageName
     val requestBytes = norbertMessage.getMessage.toByteArray
+
+    statsActor ! statsActor.Stats.BeginRequest(0, context.requestId)
 
     val (handler, serializer) = try {
       val handler: Any => Any = messageHandlerRegistry.handlerFor(messageName)

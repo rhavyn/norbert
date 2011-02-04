@@ -16,13 +16,14 @@
 package com.linkedin.norbert
 package jmx
 
-import collection.mutable.Queue
+import collection.mutable.{Map, Queue}
+import java.util.UUID
 
-class AverageTimeTracker(size: Int) {
+trait FinishedRequestTimeTracker {
   private val q = Queue[Int]()
   private var n = 0
 
-  def +=(time: Int) = addTime(time)
+  def size: Int
 
   def addTime(time: Int) {
     q += time
@@ -31,6 +32,43 @@ class AverageTimeTracker(size: Int) {
   }
 
   def average: Int = if (q.size > 0) n / q.size else n
+}
+
+trait UnfinishedRequestTimeTracker[KeyT] {
+  private val unfinishedRequests = Map.empty[KeyT, Long]
+
+  // We can have about 7 million requests outstanding before overflow.
+  // Long.MAX_LONG / System.currentTimeMillis
+  // TODO: Make sure dead requests get properly expired from this value
+  private var totalUnfinishedTime = 0L
+
+  def pendingAverage: Int = {
+    val now = System.currentTimeMillis
+    val numUnfinishedRequests = unfinishedRequests.size
+    (now - (totalUnfinishedTime / numUnfinishedRequests)).asInstanceOf[Int]
+  }
+
+  def getStartTime(key: KeyT) = unfinishedRequests.get(key)
+
+  def beginRequest(key: KeyT) = {
+    val now = System.currentTimeMillis
+    unfinishedRequests += key -> now
+    totalUnfinishedTime += now
+  }
+
+  def endRequest(key: KeyT) = {
+    getStartTime(key).foreach { time => totalUnfinishedTime -= time }
+    unfinishedRequests -= key
+  }
+}
+
+class RequestTimeTracker[KeyT](val size: Int) extends FinishedRequestTimeTracker with UnfinishedRequestTimeTracker[KeyT] {
+  override def endRequest(key: KeyT) = {
+    getStartTime(key).foreach { startTime =>
+      addTime((System.currentTimeMillis - startTime).asInstanceOf[Int])
+    }
+    super.endRequest(key)
+  }
 }
 
 class RequestsPerSecondTracker {

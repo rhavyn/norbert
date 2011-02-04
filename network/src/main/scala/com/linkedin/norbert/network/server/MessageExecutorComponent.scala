@@ -21,8 +21,10 @@ import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import util.NamedPoolThreadFactory
 import logging.Logging
 import jmx.JMX.MBean
-import jmx.{AverageTimeTracker, JMX}
+import jmx.{FinishedRequestTimeTracker, JMX}
 import actors.DaemonActor
+import java.util.concurrent.atomic.AtomicInteger
+import common.NetworkStatisticsActor
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -39,83 +41,41 @@ trait MessageExecutor {
 
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int) extends MessageExecutor with Logging {
-  private val statsActor = new DaemonActor {
-    private val waitTime = new AverageTimeTracker(100)
-    private val processingTime = new AverageTimeTracker(100)
-    private var requestCount = 0L
 
-    def act() = {
-      import Stats._
-
-      loop {
-        react {
-          case NewRequest(time) =>
-            waitTime.addTime(time)
-            requestCount += 1
-
-          case NewProcessingTime(time) => processingTime.addTime(time)
-
-          case GetAverageWaitTime => reply(AverageWaitTime(waitTime.average))
-
-          case GetAverageProcessingTime => reply(AverageProcessingTime(processingTime.average))
-
-          case GetRequestCount => reply(RequestCount(requestCount))
-
-          case msg => log.error("Stats actor got invalid message: %s".format(msg))
-        }
-      }
-    }
-  }
-  statsActor.start
+    private val statsActor = new NetworkStatisticsActor[Int, Int](100)
+    statsActor.start
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
     new NamedPoolThreadFactory("norbert-message-executor")) {
-    private val startedAt = new ThreadLocal[Long]
 
     override def beforeExecute(t: Thread, r: Runnable) = {
       val rr = r.asInstanceOf[RequestRunner[_, _]]
-      val ts = System.currentTimeMillis
-      statsActor ! Stats.NewRequest((ts - rr.queuedAt).toInt)
-      startedAt.set(ts)
+
+      statsActor ! statsActor.Stats.BeginRequest(0, rr.id)
     }
 
     override def afterExecute(r: Runnable, t: Throwable) = {
-      val ts = startedAt.get
-      startedAt.remove
-      statsActor ! Stats.NewProcessingTime((System.currentTimeMillis - ts).toInt)
+      val rr = r.asInstanceOf[RequestRunner[_, _]]
+      statsActor ! statsActor.Stats.EndRequest(0, rr.id)
     }
   }
-
-  private val jmxHandle = JMX.register(new MBean(classOf[RequestProcessorMBean]) with RequestProcessorMBean {
-    import Stats._
-
-    def getQueueSize = threadPool.getQueue.size
-
-    def getAverageWaitTime = statsActor !? GetAverageWaitTime match {
-      case AverageWaitTime(t) => t
-    }
-
-    def getAverageProcessingTime = statsActor !? GetAverageProcessingTime match {
-      case AverageProcessingTime(t) => t
-    }
-
-    def getRequestCount = statsActor !? GetRequestCount match {
-      case RequestCount(c) => c
-    }
-  })
-
 
   def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)(implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
     threadPool.execute(new RequestRunner(request, responseHandler, serializer = serializer))
   }
 
   def shutdown {
-    jmxHandle.foreach { JMX.unregister(_) }
     threadPool.shutdown
     log.debug("MessageExecutor shut down")
   }
 
-  private class RequestRunner[RequestMsg, ResponseMsg](request: RequestMsg, callback: (Either[Exception, ResponseMsg]) => Unit, val queuedAt: Long = System.currentTimeMillis, implicit val serializer: Serializer[RequestMsg, ResponseMsg]) extends Runnable {
+  private val idGenerator = new AtomicInteger(0)
+
+  private class RequestRunner[RequestMsg, ResponseMsg](request: RequestMsg,
+                                                       callback: (Either[Exception, ResponseMsg]) => Unit,
+                                                       val queuedAt: Long = System.currentTimeMillis,
+                                                       val id: Int = idGenerator.getAndIncrement,
+                                                       implicit val serializer: Serializer[RequestMsg, ResponseMsg]) extends Runnable {
     def run = {
       log.debug("Executing message: %s".format(request))
 
@@ -145,16 +105,16 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     }
   }
 
-  private object Stats {
-    case class NewRequest(waitTime: Int)
-    case object GetAverageWaitTime
-    case class AverageWaitTime(time: Int)
-    case class NewProcessingTime(time: Int)
-    case object GetAverageProcessingTime
-    case class AverageProcessingTime(time: Int)
-    case object GetRequestCount
-    case class RequestCount(count: Long)
-  }
+//  private object Stats {
+//    case class NewRequest(waitTime: Int)
+//    case object GetAverageWaitTime
+//    case class AverageWaitTime(time: Int)
+//    case class NewProcessingTime(time: Int)
+//    case object GetAverageProcessingTime
+//    case class AverageProcessingTime(time: Int)
+//    case object GetRequestCount
+//    case class RequestCount(count: Long)
+//  }
 }
 
 trait RequestProcessorMBean {

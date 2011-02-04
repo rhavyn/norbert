@@ -24,7 +24,8 @@ import logging.Logging
 import jmx.JMX.MBean
 import jmx.JMX
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit, ConcurrentHashMap}
-import com.google.protobuf.{ByteString, InvalidProtocolBufferException}
+import com.google.protobuf.ByteString
+import common.NetworkStatisticsActor
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
@@ -49,7 +50,10 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
 
         log.info("Expired %d stale entries from the request map".format(expiredEntryCount))
       } catch {
-        case e: Exception => log.error("Exception caught in cleanup task, ignoring " + e)
+        case e: InterruptedException =>
+          Thread.currentThread.interrupt
+          log.error(e, "Interrupted exception in cleanup task")
+        case e: Exception => log.error(e, "Exception caught in cleanup task, ignoring ")
       }
     }
   }
@@ -57,7 +61,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   val cleanupExecutor = new ScheduledThreadPoolExecutor(1)
   cleanupExecutor.scheduleAtFixedRate(cleanupTask, staleRequestCleanupFrequencyMins, staleRequestCleanupFrequencyMins, TimeUnit.MINUTES)
 
-  private val statsActor = new NetworkStatisticsActor(100)
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](100)
   statsActor.start
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
@@ -67,14 +71,20 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
       case RequestsPerSecond(rps) => rps
     }
 
-    def getAverageRequestProcessingTime = statsActor !? GetAverageProcessingTime match {
-      case AverageProcessingTime(time) => time
+    def getAverageRequestProcessingTime = statsActor !? GetTotalAverageProcessingTime match {
+      case TotalAverageProcessingTime(time) => time
+    }
+
+    def getAveragePendingRequestTime = statsActor !? GetTotalAveragePendingTime match {
+      case TotalAveragePendingTime(time) => time
     }
   })
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request[_, _]]
     log.debug("Writing request: %s".format(request))
+
+    statsActor ! statsActor.Stats.BeginRequest(request.node.id, request.id)
 
     val message = NorbertProtos.NorbertMessage.newBuilder
     message.setRequestIdMsb(request.id.getMostSignificantBits)
@@ -95,7 +105,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
       case request =>
         requestMap.remove(requestId)
 
-        statsActor ! statsActor.Stats.NewProcessingTime((System.currentTimeMillis - request.timestamp).toInt)
+        statsActor ! statsActor.Stats.EndRequest(request.node.id, request.id)
 
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           request.processResponseBytes(message.getMessage.toByteArray)
@@ -114,4 +124,5 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
 trait NetworkClientStatisticsMBean {
   def getRequestsPerSecond: Int
   def getAverageRequestProcessingTime: Int
+  def getAveragePendingRequestTime: Int
 }
