@@ -13,11 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.javacompat
+package com.linkedin.norbert
+package javacompat
 package network
 
 import cluster.{Node, BaseClusterClient}
 import com.linkedin.norbert.network.{ResponseIterator, Serializer}
+import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactory => SLoadBalancerFactory, LoadBalancer => SLoadBalancer}
+import com.linkedin.norbert.network.partitioned.loadbalancer.{PartitionedLoadBalancerFactory => SPartitionedLoadBalancerFactory, PartitionedLoadBalancer => SPartitionedLoadBalancer}
+import com.linkedin.norbert.network.common.{Endpoint => SEndpoint}
+import EndpointConversions._
+
 
 abstract class BaseNettyNetworkClient extends BaseNetworkClient {
   val underlying: com.linkedin.norbert.network.common.BaseNetworkClient
@@ -50,9 +56,9 @@ abstract class BaseNettyNetworkClient extends BaseNetworkClient {
 class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory, server: NetworkServer) extends BaseNettyNetworkClient with NetworkClient {
   def this(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory) = this(config, loadBalancerFactory, null)
 
-  val lbf = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancerFactory {
-    def newLoadBalancer(nodes: Set[com.linkedin.norbert.cluster.Node]) = new com.linkedin.norbert.network.client.loadbalancer.LoadBalancer {
-      private val lb = loadBalancerFactory.newLoadBalancer(nodes)
+  val lbf = new SLoadBalancerFactory {
+    def newLoadBalancer(endpoints: Set[SEndpoint]) = new SLoadBalancer {
+      private val lb = loadBalancerFactory.newLoadBalancer(endpoints)
 
       def nextNode = Option(lb.nextNode)
     }
@@ -75,9 +81,9 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
     server: NetworkServer) extends BaseNettyNetworkClient with PartitionedNetworkClient[PartitionedId] {
   def this(config: NetworkClientConfig, loadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId]) = this(config, loadBalancerFactory, null)
 
-  val lbf = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancerFactory[PartitionedId] {
-    def newLoadBalancer(nodes: Set[com.linkedin.norbert.cluster.Node]) = new com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancer[PartitionedId] {
-      private val lb = loadBalancerFactory.newLoadBalancer(nodes)
+  val lbf = new SPartitionedLoadBalancerFactory[PartitionedId] {
+    def newLoadBalancer(endpoints: Set[SEndpoint]) = new SPartitionedLoadBalancer[PartitionedId] {
+      private val lb = loadBalancerFactory.newLoadBalancer(endpoints)
 
       def nextNode(id: PartitionedId) = Option(lb.nextNode(id))
     }

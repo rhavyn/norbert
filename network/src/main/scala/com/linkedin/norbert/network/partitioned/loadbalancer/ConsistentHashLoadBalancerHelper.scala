@@ -19,17 +19,19 @@ package partitioned
 package loadbalancer
 
 import cluster.{InvalidClusterException, Node}
+import common.Endpoint
+import java.util.concurrent.atomic.AtomicInteger
+import annotation.tailrec
 
 /**
  * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
  */
 trait ConsistentHashLoadBalancerHelper {
-  private val random = new scala.util.Random()
 
   /**
    * A mapping from partition id to the <code>Node</code>s which can service that partition.
    */
-  protected val partitionToNodeMap: Map[Int, IndexedSeq[Node]]
+  protected val partitionToNodeMap: Map[Int, (IndexedSeq[Endpoint], AtomicInteger)]
 
   /**
    * Given the currently available <code>Node</code>s and the total number of partitions in the cluster, this method
@@ -42,16 +44,16 @@ trait ConsistentHashLoadBalancerHelper {
    * @throws InvalidClusterException thrown if every partition doesn't have at least one available <code>Node</code>
    * assigned to it
    */
-  protected def generatePartitionToNodeMap(nodes: Set[Node], numPartitions: Int): Map[Int, IndexedSeq[Node]] = {
-    val partitionToNodeMap = (for (n <- nodes; p <- n.partitionIds) yield(p, n)).foldLeft(Map.empty[Int, IndexedSeq[Node]]) {
-      case (map, (partitionId, node)) => map + (partitionId -> (node +: map.get(partitionId).getOrElse(Vector.empty[Node])))
+  protected def generatePartitionToNodeMap(nodes: Set[Endpoint], numPartitions: Int): Map[Int, (IndexedSeq[Endpoint], AtomicInteger)] = {
+    val partitionToNodeMap = (for (n <- nodes; p <- n.node.partitionIds) yield(p, n)).foldLeft(Map.empty[Int, IndexedSeq[Endpoint]]) {
+      case (map, (partitionId, node)) => map + (partitionId -> (node +: map.get(partitionId).getOrElse(Vector.empty[Endpoint])))
     }
 
     for (i <- 0 until numPartitions) {
       if (!partitionToNodeMap.contains(i)) throw new InvalidClusterException("Partition %d is not assigned a node".format(i))
     }
 
-    partitionToNodeMap
+    partitionToNodeMap.map { case (pId, endPoints) => pId -> (endPoints, new AtomicInteger(0)) }
   }
 
   /**
@@ -62,8 +64,25 @@ trait ConsistentHashLoadBalancerHelper {
    * @return <code>Some</code> with the <code>Node</code> which can service the partition id, <code>None</code>
    * if there are no available <code>Node</code>s for the partition requested
    */
-  protected def nodeForPartition(partitionId: Int): Option[Node] = partitionToNodeMap.get(partitionId).map { nodes =>
-    val i = random.nextInt(nodes.size)
-    nodes(i)
+  protected def nodeForPartition(partitionId: Int): Option[Node] = nodeForPartition(partitionId, 0)
+
+  @tailrec
+  private def nodeForPartition(partitionId: Int, numIterations: Int): Option[Node] = {
+    val endpoint = partitionToNodeMap.get(partitionId).map { case (endpoints, counter) =>
+      endpoints(counter.getAndIncrement % endpoints.size)
+    }
+
+    val maxIterations = 4 * partitionToNodeMap.get(partitionId).map(_._1.size).getOrElse(0)
+
+    endpoint match {
+      case None => None
+      case Some(endpoint) =>
+        if(endpoint.canServeRequests)
+          Some(endpoint.node)
+        else if(numIterations > maxIterations)
+          None
+        else
+          nodeForPartition(partitionId, numIterations + 1)
+    }
   }
 }

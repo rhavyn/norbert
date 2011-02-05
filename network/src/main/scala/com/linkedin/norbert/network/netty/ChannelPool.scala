@@ -26,16 +26,21 @@ import java.net.InetSocketAddress
 import jmx.JMX.MBean
 import jmx.JMX
 import logging.Logging
+import common.ClusterIoClientComponent
+import cluster.{Node, ClusterClient}
 
 class ChannelPoolClosedException extends Exception
 
 class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap) {
+
   def newChannelPool(address: InetSocketAddress): ChannelPool = {
     val group = new DefaultChannelGroup("norbert-client [%s]".format(address))
     new ChannelPool(address, maxConnections, writeTimeoutMillis, bootstrap, group)
   }
 
-  def shutdown: Unit = bootstrap.releaseExternalResources
+  def shutdown: Unit = {
+    bootstrap.releaseExternalResources
+  }
 }
 
 class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap,
@@ -134,12 +139,22 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     }
   }
 
+  val UNAVAILABLE_AFTER_ERROR_TIME_MS = 5000L
+  @volatile var lastIOErrorTime = System.currentTimeMillis
+
+  def canServeRequests(node: Node): Boolean = {
+    val now = System.currentTimeMillis
+    now - lastIOErrorTime > UNAVAILABLE_AFTER_ERROR_TIME_MS
+  }
+
   private def writeRequestToChannel(request: Request[_, _], channel: Channel) {
     log.debug("Writing to %s: %s".format(channel, request))
     requestsSent.incrementAndGet
     channel.write(request).addListener(new ChannelFutureListener {
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
         request.processException(writeFuture.getCause)
+        // Take the node out of rotation for a bit
+        lastIOErrorTime = System.currentTimeMillis
       }
     })
   }

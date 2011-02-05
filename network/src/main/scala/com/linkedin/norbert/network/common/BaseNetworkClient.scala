@@ -135,7 +135,7 @@ trait BaseNetworkClient extends Logging {
    */
   def shutdown: Unit = doShutdown(false)
 
-  protected def updateLoadBalancer(nodes: Set[Node]): Unit
+  protected def updateLoadBalancer(nodes: Set[Endpoint]): Unit
 
   protected def doSendRequest[RequestMsg, ResponseMsg](node: Node, request: RequestMsg, callback: Either[Throwable, ResponseMsg] => Unit)
   (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = {
@@ -151,8 +151,8 @@ trait BaseNetworkClient extends Logging {
 
   private def updateCurrentState(nodes: Set[Node]) {
     currentNodes = nodes
-    updateLoadBalancer(nodes)
-    clusterIoClient.nodesChanged(nodes)
+    val endpoints = clusterIoClient.nodesChanged(nodes)
+    updateLoadBalancer(endpoints)
   }
 
   private def doShutdown(fromCluster: Boolean) {

@@ -18,7 +18,6 @@ package com.linkedin.norbert.javacompat.network;
 import java.util.Set;
 
 import com.linkedin.norbert.cluster.InvalidClusterException;
-import com.linkedin.norbert.javacompat.cluster.Node;
 
 /**
  * A factory which can generate <code>PartitionedLoadBalancer</code>s.
@@ -27,11 +26,11 @@ public interface PartitionedLoadBalancerFactory<PartitionedId> {
   /**
    * Create a new load balancer instance based on the currently available <code>Node</code>s.
    *
-   * @param nodes the currently available <code>Node</code>s in the cluster
+   * @param endpoints the currently available <code>Node</code>s in the cluster
    *
    * @return a new <code>PartitionedLoadBalancer</code> instance
    * @throws InvalidClusterException thrown to indicate that the current cluster topology is invalid in some way and
    * it is impossible to create a <code>LoadBalancer</code>
    */
-  PartitionedLoadBalancer<PartitionedId> newLoadBalancer(Set<Node> nodes) throws InvalidClusterException;
+  PartitionedLoadBalancer<PartitionedId> newLoadBalancer(Set<Endpoint> endpoints) throws InvalidClusterException;
 }

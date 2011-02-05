@@ -19,6 +19,7 @@ package partitioned
 package loadbalancer
 
 import cluster.{InvalidClusterException, Node}
+import common.Endpoint
 
 /**
  * A <code>PartitionedLoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to
@@ -49,7 +50,7 @@ trait PartitionedLoadBalancerFactory[PartitionedId] {
    * it is impossible to create a <code>LoadBalancer</code>
    */
   @throws(classOf[InvalidClusterException])
-  def newLoadBalancer(nodes: Set[Node]): PartitionedLoadBalancer[PartitionedId]
+  def newLoadBalancer(nodes: Set[Endpoint]): PartitionedLoadBalancer[PartitionedId]
 }
 
 /**

@@ -15,29 +15,26 @@
  */
 package com.linkedin.norbert.javacompat.network;
 
+import com.linkedin.norbert.EndpointConversions;
 import com.linkedin.norbert.cluster.InvalidClusterException;
 import com.linkedin.norbert.javacompat.cluster.Node;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
 import java.util.Set;
 
 public class RoundRobinLoadBalancerFactory implements LoadBalancerFactory {
-  public LoadBalancer newLoadBalancer(Set<Node> nodes) throws InvalidClusterException {
-    return new RoundRobinLoadBalancer(nodes);
-  }
+    private final com.linkedin.norbert.network.client.loadbalancer.RoundRobinLoadBalancerFactory scalaLbf =
+            new com.linkedin.norbert.network.client.loadbalancer.RoundRobinLoadBalancerFactory();
 
-  private static class RoundRobinLoadBalancer implements LoadBalancer {
-    private final Random random = new Random();
-    private final List<Node> nodes;
+    @Override
+    public LoadBalancer newLoadBalancer(Set<Endpoint> endpoints) throws InvalidClusterException {
+      final com.linkedin.norbert.network.client.loadbalancer.LoadBalancer loadBalancer =
+        scalaLbf.newLoadBalancer(EndpointConversions.convertJavaEndpointSet(endpoints));
 
-    private RoundRobinLoadBalancer(Set<Node> nodes) {
-      this.nodes = new ArrayList<Node>(nodes);
+      return new LoadBalancer() {
+        @Override
+        public Node nextNode() {
+          return loadBalancer.nextNode().getOrElse(null);
+        }
+      };
     }
-
-    public Node nextNode() {
-      return nodes.get(random.nextInt(nodes.size()));
-    }
-  }
 }

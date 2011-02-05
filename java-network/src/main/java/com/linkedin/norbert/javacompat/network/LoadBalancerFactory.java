@@ -27,11 +27,11 @@ public interface LoadBalancerFactory {
   /**
    * Create a new load balancer instance based on the currently available <code>Node</code>s.
    *
-   * @param nodes the currently available <code>Node</code>s in the cluster
+   * @param endpoints the currently available <code>Node</code>s in the cluster
    *
    * @return a new <code>LoadBalancer</code> instance
    * @throws InvalidClusterException thrown to indicate that the current cluster topology is invalid in some way and
    * it is impossible to create a <code>LoadBalancer</code>
    */
-  LoadBalancer newLoadBalancer(Set<Node> nodes) throws InvalidClusterException;
+  LoadBalancer newLoadBalancer(Set<Endpoint> endpoints) throws InvalidClusterException;
 }

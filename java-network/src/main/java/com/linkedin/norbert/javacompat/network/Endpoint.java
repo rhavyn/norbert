@@ -1,4 +1,8 @@
-/*
+package com.linkedin.norbert.javacompat.network;
+
+import com.linkedin.norbert.javacompat.cluster.Node;
+
+/**
  * Copyright 2009-2010 LinkedIn, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -13,15 +17,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.javacompat.network;
-
-public class IntegerConsistentHashPartitionedLoadBalancerFactory extends ConsistentHashPartitionedLoadBalancerFactory<Integer> {
-  public IntegerConsistentHashPartitionedLoadBalancerFactory(int numPartitions) {
-    super(numPartitions);
-  }
-
-    @Override
-  protected int hashPartitionedId(Integer i) {
-    return i.hashCode();
-  }
+public interface Endpoint {
+  Node getNode();
+  boolean canServeRequests();
 }

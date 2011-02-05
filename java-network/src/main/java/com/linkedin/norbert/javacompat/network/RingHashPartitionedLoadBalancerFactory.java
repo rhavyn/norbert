@@ -16,16 +16,12 @@
 package com.linkedin.norbert.javacompat.network;
 
 import java.util.Set;
-import java.util.HashSet;
 import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
 
 import com.linkedin.norbert.cluster.InvalidClusterException;
 import com.linkedin.norbert.javacompat.cluster.Node;
-import com.linkedin.norbert.javacompat.cluster.JavaNode;
-import com.linkedin.norbert.javacompat.network.PartitionedLoadBalancer;
-import com.linkedin.norbert.javacompat.network.PartitionedLoadBalancerFactory;
 
 /**
  * Consistent hash load balancer factory.
@@ -53,19 +49,21 @@ public class RingHashPartitionedLoadBalancerFactory implements PartitionedLoadBa
   public RingHashPartitionedLoadBalancerFactory(int numberOfReplicas){
       this(numberOfReplicas,new HashFunction.MD5HashFunction());
   }
-  public PartitionedLoadBalancer<Integer> newLoadBalancer(Set<Node> nodes) throws InvalidClusterException
+  public PartitionedLoadBalancer<Integer> newLoadBalancer(Set<Endpoint> endpoints) throws InvalidClusterException
   {
-    return new RingHashPartitionedLoadBalancer(nodes);
+    return new RingHashPartitionedLoadBalancer(endpoints);
   }
-  
+
   private class RingHashPartitionedLoadBalancer implements PartitionedLoadBalancer<Integer> {
     private final TreeMap<Long, Node> nodeCircleMap = new TreeMap<Long, Node>();
 
-    private RingHashPartitionedLoadBalancer(Set<Node> nodes)
+    private RingHashPartitionedLoadBalancer(Set<Endpoint> nodes)
     {
-      for (Node node : nodes)
+      for (Endpoint endpoint : nodes)
       {
-        for (Integer partitionId : node.getPartitionIds())
+        Node node = endpoint.getNode();
+        Set<Integer> partitionedIds = node.getPartitionIds();
+          for (Integer partitionId : partitionedIds)
         {
           for (int r = 0; r < _numberOfReplicas; r++)
           {

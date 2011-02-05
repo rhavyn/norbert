@@ -199,7 +199,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
     responseAggregator(request, sendRequest(ids, request, requestCustomizer))
   }
 
-  protected def updateLoadBalancer(nodes: Set[Node]) {
+  protected def updateLoadBalancer(nodes: Set[Endpoint]) {
     loadBalancer = if (nodes != null && nodes.size > 0) {
       try {
         Some(Right(loadBalancerFactory.newLoadBalancer(nodes)))

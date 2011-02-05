@@ -19,6 +19,16 @@ import javacompat.cluster.{JavaNode, Node => JNode}
 import com.linkedin.norbert.cluster.{Node => SNode}
 
 package object javacompat {
+  implicit def scalaSetToJavaSet[T](set: Set[T]): java.util.Set[T] = {
+    val s = new java.util.HashSet[T]
+    set.foreach { elem => s.add(elem) }
+    s
+  }
+
+  implicit def javaSetToImmutableSet[T](nodes: java.util.Set[T]): Set[T] = {
+    collection.JavaConversions.asSet(nodes).foldLeft(Set[T]()) { (set, n) => set + n }
+  }
+
   implicit def scalaNodeToJavaNode(node: SNode): JNode = {
     if (node == null) null else JavaNode(node)
   }
@@ -28,13 +38,6 @@ package object javacompat {
       node.getPartitionIds.asInstanceOf[java.util.Set[Int]].foldLeft(Set[Int]()) { (set, id) => set + id })
   }
 
-  implicit def scalaNodeSetToJavaNodeSet(nodes: Set[SNode]): java.util.Set[JNode] = {
-    val s = new java.util.HashSet[JNode]
-    nodes.foreach { n => s.add(n) }
-    s
-  }
-
-  implicit def javaSetToImmutableSet[T](nodes: java.util.Set[T]): Set[T] = {
-    collection.JavaConversions.asSet(nodes).foldLeft(Set[T]()) { (set, n) => set + n }
-  }
+  implicit def convertNodeSet(set: Set[SNode]): java.util.Set[JNode] =
+    set.map(node => scalaNodeToJavaNode(node))
 }

@@ -18,13 +18,30 @@ package network
 package client
 package loadbalancer
 
+import common.Endpoint
 import cluster.Node
+import java.util.concurrent.atomic.AtomicInteger
+import annotation.tailrec
 
 class RoundRobinLoadBalancerFactory extends LoadBalancerFactory {
-  def newLoadBalancer(nodes: Set[Node]) = new LoadBalancer {
-    private val random = new scala.util.Random
-    private val myNodes = nodes.toArray
+  def newLoadBalancer(endpoints: Set[Endpoint]): LoadBalancer = new LoadBalancer {
+    val MAX_ITERATIONS = endpoints.size * 4
 
-    def nextNode = Some(myNodes(random.nextInt(myNodes.length)))
+    val counter = new AtomicInteger(0)
+    val indexedNodes = endpoints.toArray
+
+    def nextNode = nextNode(0)
+
+    @tailrec
+    private final def nextNode(numIterations: Int): Option[Node] = {
+      val index = counter.getAndIncrement % indexedNodes.length
+      val endpoint = indexedNodes(index)
+
+      if(endpoint.canServeRequests)
+        Some(endpoint.node)
+      else if(numIterations > MAX_ITERATIONS)
+        None
+      else nextNode(numIterations + 1)
+    }
   }
 }

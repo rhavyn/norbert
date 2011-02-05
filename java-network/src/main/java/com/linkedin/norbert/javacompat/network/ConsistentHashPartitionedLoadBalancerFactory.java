@@ -15,38 +15,38 @@
  */
 package com.linkedin.norbert.javacompat.network;
 
+import com.linkedin.norbert.EndpointConversions;
 import com.linkedin.norbert.cluster.InvalidClusterException;
+import com.linkedin.norbert.javacompat.cluster.JavaNode;
 import com.linkedin.norbert.javacompat.cluster.Node;
 
 import java.util.*;
 
 public abstract class ConsistentHashPartitionedLoadBalancerFactory<PartitionedId> implements PartitionedLoadBalancerFactory<PartitionedId> {
-  public PartitionedLoadBalancer<PartitionedId> newLoadBalancer(Set<Node> nodes) throws InvalidClusterException {
-    return new ConsistentHashLoadBalancer(nodes);
-  }
+    private final int numPartitions;
+    private final com.linkedin.norbert.network.partitioned.loadbalancer.ConsistentHashPartitionedLoadBalancerFactory<PartitionedId> scalaBalancer;
 
-  abstract protected int hashPartitionedId(PartitionedId id);
-
-  private class ConsistentHashLoadBalancer implements PartitionedLoadBalancer<PartitionedId> {
-    private final Map<Integer, List<Node>> nodeMap = new HashMap<Integer, List<Node>>();
-    private final Random random = new Random();
-
-    private ConsistentHashLoadBalancer(Set<Node> nodes) {
-      for (Node node : nodes) {
-        for (int partitionId : node.getPartitionIds()) {
-          List<Node> nodeList = nodeMap.get(partitionId);
-          if (nodeList == null) {
-            nodeList = new ArrayList<Node>();
-            nodeMap.put(partitionId, nodeList);
+    public ConsistentHashPartitionedLoadBalancerFactory(int numPartitions) {
+        this.numPartitions = numPartitions;
+        scalaBalancer =
+        new com.linkedin.norbert.network.partitioned.loadbalancer.ConsistentHashPartitionedLoadBalancerFactory<PartitionedId>(numPartitions) {
+          public int calculateHash(PartitionedId id) {
+            return hashPartitionedId(id);
           }
-          nodeList.add(node);
-        }
-      }
+        };
     }
 
-    public Node nextNode(PartitionedId partitionedId) {
-      List<Node> nodes = nodeMap.get(hashPartitionedId(partitionedId));
-      return nodes.get(random.nextInt(nodes.size()));
+    @Override
+    public PartitionedLoadBalancer<PartitionedId> newLoadBalancer(Set<Endpoint> endpoints) throws InvalidClusterException {
+      final com.linkedin.norbert.network.partitioned.loadbalancer.PartitionedLoadBalancer<PartitionedId> lbf =
+                scalaBalancer.newLoadBalancer(EndpointConversions.convertJavaEndpointSet(endpoints));
+
+      return new PartitionedLoadBalancer<PartitionedId>() {
+        public Node nextNode(PartitionedId id) {
+          return (Node) lbf.nextNode(id).getOrElse(null);
+        }
+      };
     }
-  }
+
+    abstract protected int hashPartitionedId(PartitionedId id);
 }
