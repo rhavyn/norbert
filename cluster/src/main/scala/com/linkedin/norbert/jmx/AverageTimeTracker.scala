@@ -18,6 +18,7 @@ package jmx
 
 import collection.mutable.{Map, Queue}
 import java.util.UUID
+import util.ClockComponent
 
 trait FinishedRequestTimeTracker {
   private val q = Queue[Int]()
@@ -34,7 +35,7 @@ trait FinishedRequestTimeTracker {
   def average: Int = if (q.size > 0) n / q.size else n
 }
 
-trait UnfinishedRequestTimeTracker[KeyT] {
+trait UnfinishedRequestTimeTracker[KeyT] extends ClockComponent {
   private val unfinishedRequests = Map.empty[KeyT, Long]
 
   // We can have about 7 million requests outstanding before overflow.
@@ -43,7 +44,7 @@ trait UnfinishedRequestTimeTracker[KeyT] {
   private var totalUnfinishedTime = 0L
 
   def pendingAverage: Int = {
-    val now = System.currentTimeMillis
+    val now = clock.getCurrentTime
     val numUnfinishedRequests = unfinishedRequests.size
     (now - (totalUnfinishedTime / numUnfinishedRequests)).asInstanceOf[Int]
   }
@@ -51,7 +52,7 @@ trait UnfinishedRequestTimeTracker[KeyT] {
   def getStartTime(key: KeyT) = unfinishedRequests.get(key)
 
   def beginRequest(key: KeyT) = {
-    val now = System.currentTimeMillis
+    val now = clock.getCurrentTime
     unfinishedRequests += key -> now
     totalUnfinishedTime += now
   }
@@ -65,7 +66,7 @@ trait UnfinishedRequestTimeTracker[KeyT] {
 class RequestTimeTracker[KeyT](val size: Int) extends FinishedRequestTimeTracker with UnfinishedRequestTimeTracker[KeyT] {
   override def endRequest(key: KeyT) = {
     getStartTime(key).foreach { startTime =>
-      addTime((System.currentTimeMillis - startTime).asInstanceOf[Int])
+      addTime((clock.getCurrentTime - startTime).asInstanceOf[Int])
     }
     super.endRequest(key)
   }

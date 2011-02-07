@@ -39,12 +39,42 @@ class RoundRobinLoadBalancerFactorySpec extends Specification {
 
       val lb = loadBalancerFactory.newLoadBalancer(endpoints)
 
-
-
       for (i <- 0 until 100) {
         val node = lb.nextNode
         node must beSome[Node].which { nodes must contain(_) }
       }
+    }
+
+    "Not route to offline endpoints" in {
+      val nodes = for(i <- 0 until 3) yield Node(i, "localhost:3131" + i, true)
+
+      var availabilityMap = nodes.map(n => (n, true)).toMap
+
+      val lbf = new RoundRobinLoadBalancerFactory
+
+      val endpoints = nodes.map(n => new Endpoint {
+        def node = n
+
+        def canServeRequests = availabilityMap(n)
+      }).toSet
+
+      val lb = lbf.newLoadBalancer(endpoints)
+
+      for(i <- 0 until 9) {
+        val node = lb.nextNode.get
+        val nodeId = i % 3
+        node must be_==(Node(nodeId, "localhost:3131" + nodeId, true))
+      }
+
+      availabilityMap += Node(0, "localhost:31310", true) -> false
+
+      for(i <- 0 until 9) {
+        val node = lb.nextNode.get
+        val nodeId = i % 2 + 1
+        node must be_==(Node(nodeId, "localhost:3131" + nodeId, true))
+      }
+
+
     }
   }
 }
