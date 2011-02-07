@@ -19,11 +19,11 @@ package common
 
 import org.specs.Specification
 import org.specs.mock.Mockito
-import com.google.protobuf.Message
 import client.NetworkClient
 import client.loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
 import server.{MessageExecutorComponent, MessageExecutor}
 import cluster.{Node, ClusterClientComponent, ClusterClient}
+import com.google.protobuf.Message
 
 class LocalMessageExecutionSpec extends Specification with Mockito with SampleMessage {
   val clusterClient = mock[ClusterClient]
@@ -57,12 +57,17 @@ class LocalMessageExecutionSpec extends Specification with Mockito with SampleMe
 
 
   val nodes = Set(Node(1, "", true), Node(2, "", true), Node(3, "", true))
+  val endpoints = nodes.map { n => new Endpoint {
+    def node = n
+    def canServeRequests = true
+  }}
   val message = mock[Message]
 
 //  networkClient.messageRegistry.contains(any[Message]) returns true
   clusterClient.nodes returns nodes
   clusterClient.isConnected returns true
-  networkClient.loadBalancerFactory.newLoadBalancer(nodes) returns networkClient.lb
+  networkClient.clusterIoClient.nodesChanged(nodes) returns endpoints
+  networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
 
   "LocalMessageExecution" should {
     "call the MessageExecutor if myNode is equal to the node the request is to be sent to" in {

@@ -20,6 +20,7 @@ package loadbalancer
 
 import org.specs.Specification
 import cluster.Node
+import common.Endpoint
 
 class RoundRobinLoadBalancerFactorySpec extends Specification {
   "RoundRobinLoadBalancerFactory" should {
@@ -29,7 +30,16 @@ class RoundRobinLoadBalancerFactorySpec extends Specification {
         Node(7, "localhost:31316", true), Node(8, "localhost:31317", true), Node(9, "localhost:31318", true),
         Node(10, "localhost:31319", true))
       val loadBalancerFactory = new RoundRobinLoadBalancerFactory
-      val lb = loadBalancerFactory.newLoadBalancer(nodes)
+
+      val endpoints = nodes.map(n => new Endpoint {
+        def node = n
+
+        def canServeRequests = true
+      })
+
+      val lb = loadBalancerFactory.newLoadBalancer(endpoints)
+
+
 
       for (i <- 0 until 100) {
         val node = lb.nextNode

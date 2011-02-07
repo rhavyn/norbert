@@ -63,12 +63,11 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
         }
       }
 
-      nodes.map { node =>
-        val channelPool = getChannelPool(node)
+      nodes.map { n =>
+        val channelPool = getChannelPool(n)
 
         new Endpoint {
-          def node = node
-
+          def node = n
           def canServeRequests = channelPool.canServeRequests(node)
         }
       }

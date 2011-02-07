@@ -28,6 +28,11 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
 
   val nodes = List(Node(1, "", true), Node(2, "", true), Node(3, "", true))
   val nodeSet = Set() ++ nodes
+  val endpoints = nodeSet.map { n => new Endpoint {
+    def node = n
+
+    def canServeRequests = true
+  }}
 
   def sharedFunctionality = {
     "start the cluster, creates a load balancer and register itself as a listener when started" in {
@@ -41,7 +46,7 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
         val clusterClient = cc
         var updateLoadBalancerCalled = false
 
-        protected def updateLoadBalancer(nodes: Set[Node]) = updateLoadBalancerCalled = true
+        protected def updateLoadBalancer(nodes: Set[Endpoint]) = updateLoadBalancerCalled = true
       }
 
 
@@ -69,7 +74,7 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
         val clusterClient = cc
         var updateLoadBalancerCalled = 0
 
-        protected def updateLoadBalancer(nodes: Set[Node]) = {
+        protected def updateLoadBalancer(nodes: Set[Endpoint]) = {
           updateLoadBalancerCalled += 1
         }
       }
@@ -96,12 +101,12 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
         val clusterClient = cc
         var updateLoadBalancerCalled = 0
 
-        protected def updateLoadBalancer(nodes: Set[Node]) = {
+        protected def updateLoadBalancer(nodes: Set[Endpoint]) = {
           updateLoadBalancerCalled += 1
         }
       }
 
-      doNothing.when(nc.clusterIoClient).nodesChanged(Set())
+      doReturn(Set.empty[Endpoint]).when(nc.clusterIoClient).nodesChanged(Set())
 
       nc.start
       listener.handleClusterEvent(ClusterEvents.NodesChanged(Set()))
@@ -120,7 +125,7 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
 //        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
-        protected def updateLoadBalancer(nodes: Set[Node]) = null
+        protected def updateLoadBalancer(nodes: Set[Endpoint]) = null
       }
 
       nc.start
@@ -143,7 +148,7 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
 //        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
-        protected def updateLoadBalancer(nodes: Set[Node]) = null
+        protected def updateLoadBalancer(nodes: Set[Endpoint]) = null
       }
 
       nc.shutdown
@@ -164,7 +169,7 @@ abstract class BaseNetworkClientSpecification extends Specification with Mockito
 //        val messageRegistry = mock[MessageRegistry]
         val clusterClient = cc
 
-        protected def updateLoadBalancer(nodes: Set[Node]) = null
+        protected def updateLoadBalancer(nodes: Set[Endpoint]) = null
       }
 
       nc.start

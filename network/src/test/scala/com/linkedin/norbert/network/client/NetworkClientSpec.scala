@@ -17,10 +17,9 @@ package com.linkedin.norbert
 package network
 package client
 
-import com.google.protobuf.Message
-import common.{ClusterIoClientComponent, BaseNetworkClientSpecification}
 import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
 import cluster.{InvalidClusterException, ClusterDisconnectedException, ClusterClientComponent}
+import common.{Endpoint, ClusterIoClientComponent, BaseNetworkClientSpecification}
 
 class NetworkClientSpec extends BaseNetworkClientSpecification {
   val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
@@ -29,6 +28,7 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     val clusterIoClient = mock[ClusterIoClient]
 //    val messageRegistry = mock[MessageRegistry]
     val clusterClient = NetworkClientSpec.this.clusterClient
+
   }
 
 //  networkClient.messageRegistry.contains(any[Message]) returns true
@@ -55,7 +55,8 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     "send the provided message to the node specified by the load balancer for sendMessage" in {
       clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
-      networkClient.loadBalancerFactory.newLoadBalancer(nodeSet) returns networkClient.lb
+      networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+      networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
       networkClient.lb.nextNode returns Some(nodes(1))
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
@@ -69,7 +70,8 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     "throw InvalidClusterException if there is no load balancer instance when sendMessage is called" in {
       clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
-      networkClient.loadBalancerFactory.newLoadBalancer(nodeSet) throws new InvalidClusterException("")
+      networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+      networkClient.loadBalancerFactory.newLoadBalancer(endpoints) throws new InvalidClusterException("")
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 
       networkClient.start
@@ -81,7 +83,8 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
     "throw NoSuchNodeException if load balancer returns None when sendMessage is called" in {
       clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
-      networkClient.loadBalancerFactory.newLoadBalancer(nodeSet) returns networkClient.lb
+      networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+      networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
       networkClient.lb.nextNode returns None
 //      doNothing.when(clusterIoClient).sendMessage(node, message, null)
 

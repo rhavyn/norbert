@@ -20,6 +20,7 @@ package loadbalancer
 
 import org.specs.Specification
 import cluster.{InvalidClusterException, Node}
+import common.Endpoint
 
 class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
   case class EId(id: Int)
@@ -28,6 +29,12 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
   class EIdConsistentHashLoadBalancerFactory(numPartitions: Int) extends ConsistentHashPartitionedLoadBalancerFactory[EId](numPartitions) {
     protected def calculateHash(id: EId) = HashFunctions.fnv(id)
   }
+
+  def toEndpoints(nodes: Set[Node]) = nodes.map(n => new Endpoint {
+      def node = n
+
+      def canServeRequests = true
+    })
 
   val loadBalancerFactory = new EIdConsistentHashLoadBalancerFactory(5)
 
@@ -46,7 +53,7 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
         Node(3, "localhost:31313", true, Set(3, 4)),
         Node(4, "localhost:31313", true, Set(0, 4)))
 
-      val lb = loadBalancerFactory.newLoadBalancer(nodes)
+      val lb = loadBalancerFactory.newLoadBalancer(toEndpoints(nodes))
       lb.nextNode(EId(1210)) must beSome[Node].which(List(Node(0, "localhost:31313", true, Set(0, 1)),
         Node(4, "localhost:31313", true, Set(0, 4))) must contain(_))
     }
@@ -59,7 +66,8 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
         Node(3, "localhost:31313", true, Set(3, 6)),
         Node(4, "localhost:31313", true, Set(4, 5, 1)))
 
-      new EIdConsistentHashLoadBalancerFactory(10).newLoadBalancer(nodes) must throwA[InvalidClusterException]
+
+      new EIdConsistentHashLoadBalancerFactory(10).newLoadBalancer(toEndpoints(nodes)) must throwA[InvalidClusterException]
     }
   }
 }
