@@ -17,7 +17,6 @@ package com.linkedin.norbert
 package network
 package netty
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.group.{ChannelGroup, DefaultChannelGroup}
 import org.jboss.netty.channel.{ChannelFutureListener, ChannelFuture, Channel}
@@ -26,8 +25,11 @@ import java.net.InetSocketAddress
 import jmx.JMX.MBean
 import jmx.JMX
 import logging.Logging
-import common.ClusterIoClientComponent
 import cluster.{Node, ClusterClient}
+import common.{CanServeRequestStrategy, ClusterIoClientComponent}
+import util.ClockComponent
+import java.util.concurrent.atomic.{AtomicLong, AtomicBoolean, AtomicInteger}
+import scala.math._
 
 class ChannelPoolClosedException extends Exception
 
@@ -139,13 +141,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     }
   }
 
-  val UNAVAILABLE_AFTER_ERROR_TIME_MS = 5000L
-  @volatile var lastIOErrorTime = System.currentTimeMillis
-
-  def canServeRequests(node: Node): Boolean = {
-    val now = System.currentTimeMillis
-    now - lastIOErrorTime > UNAVAILABLE_AFTER_ERROR_TIME_MS
-  }
+  val errorStrategy = new ChannelPoolErrorStrategy
 
   private def writeRequestToChannel(request: Request[_, _], channel: Channel) {
     log.debug("Writing to %s: %s".format(channel, request))
@@ -154,9 +150,40 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
         request.processException(writeFuture.getCause)
         // Take the node out of rotation for a bit
-        lastIOErrorTime = System.currentTimeMillis
+        errorStrategy.addError
       }
     })
+  }
+}
+
+/**
+ * A simple exponential backoff strategy
+ */
+class ChannelPoolErrorStrategy extends CanServeRequestStrategy with ClockComponent {
+  val MIN_BACKOFF_TIME = 100L
+  val MAX_BACKOFF_TIME = 3200L
+
+  @volatile var lastIOErrorTime = 0L
+  val backoffTime = new AtomicLong(0)
+
+  def addError {
+    lastIOErrorTime = clock.getCurrentTime
+
+    // Increase the backoff
+    val currentBackoffTime = backoffTime.get
+    val newBackoffTime = max(MIN_BACKOFF_TIME, min(2L * currentBackoffTime, MAX_BACKOFF_TIME))
+    backoffTime.compareAndSet(currentBackoffTime, newBackoffTime)
+  }
+
+  def canServeRequest(node: Node): Boolean = {
+    val now = clock.getCurrentTime
+
+    // If it's been a while since the last error, reset the backoff back to 0
+    val currentBackoffTime = backoffTime.get
+    if(currentBackoffTime != 0L && now - lastIOErrorTime > 2 * MAX_BACKOFF_TIME)
+      backoffTime.compareAndSet(currentBackoffTime, 0L)
+
+    now - lastIOErrorTime > backoffTime.get
   }
 }
 

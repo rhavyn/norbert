@@ -82,7 +82,6 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
       val response: Option[Either[Exception, ResponseMsg]] =
       try {
         val handler = messageHandlerRegistry.handlerFor(request)
-        println(handler)
         try {
           val response = handler(request)
           if(response == null) None else Some(Right(response))

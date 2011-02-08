@@ -25,7 +25,9 @@ import jmx.JMX.MBean
 import jmx.JMX
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit, ConcurrentHashMap}
 import com.google.protobuf.ByteString
-import common.NetworkStatisticsActor
+import cluster.Node
+import common.{CanServeRequestStrategy, NetworkStatisticsActor}
+import scala.math._
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
@@ -119,6 +121,49 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in network layer")
 
   def shutdown: Unit = jmxHandle.foreach { JMX.unregister(_) }
+}
+
+class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID]) extends CanServeRequestStrategy {
+  def canServeRequest(node: Node): Boolean = {
+    val processingTime = statsActor !? statsActor.Stats.GetAverageProcessingTime match {
+      case statsActor.Stats.AverageProcessingTime(map) => map
+    }
+
+    val pendingTime = statsActor !? statsActor.Stats.GetAveragePendingTime match {
+      case statsActor.Stats.AveragePendingTime(map) => map
+    }
+
+    canServeRequests(node.id, processingTime) && canServeRequests(node.id, pendingTime)
+  }
+
+  def canServeRequests(key: Int, map: Map[Int, Int]): Boolean = {
+    val sum = calcSum(map.values)
+    // val variance = calcVariance(map.values, sum)
+    //  val stdDev = calcStandardDeviation(values, variance)
+
+    // If one is more than double the average response time, take it out
+    // map(key) * map.values > 2 * sum
+    (map.getOrElse(key, 0) * map.size) < (2 * sum)
+  }
+
+  def calcSum(values: Iterable[Int]) = values.reduceLeft(_ + _)
+
+  def calcVariance(values: Iterable[Int], sum: Int) = {
+    lazy val average = sum.toDouble / values.size
+    values.foldLeft(0.0) { (sum, value) => sum + ((value - average) * (value - average)) }
+  }
+
+  def calcStandardDeviation(values: Iterable[Int], variance: Double): Double = {
+    if(values.size == 0 || values.size == 1)
+      0
+    else {
+      sqrt(variance / (values.size - 1))
+    }
+  }
+
+  def calcStandardDeviation(values: Iterable[Int]): Double = {
+    calcStandardDeviation(values, calcVariance(values, calcSum(values)))
+  }
 }
 
 trait NetworkClientStatisticsMBean {
