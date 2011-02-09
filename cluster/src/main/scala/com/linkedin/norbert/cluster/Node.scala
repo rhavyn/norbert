@@ -83,4 +83,7 @@ final case class Node(id: Int, url: String, available: Boolean, partitionIds: Se
   }
 
   override def toString = "Node(%d,%s,[%s],%b)".format(id, url, partitionIds.mkString(","), available)
+  var health: Int = 10
+  def getHealthScore = health;
+  def setHealth(h: Int) { health = h }
 }

@@ -24,4 +24,5 @@ object ClusterDefaults {
    * The default ZooKeeper session timeout in milliseconds.
    */
   val ZOOKEEPER_SESSION_TIMEOUT_MILLIS = 30000
+  val MAXREPSONETIME = 200
 }

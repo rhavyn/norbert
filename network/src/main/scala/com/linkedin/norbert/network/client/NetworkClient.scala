@@ -36,6 +36,15 @@ class NetworkClientConfig {
   var staleRequestTimeoutMins = NetworkDefaults.STALE_REQUEST_TIMEOUT_MINS
   var staleRequestCleanupFrequenceMins = NetworkDefaults.STALE_REQUEST_CLEANUP_FREQUENCY_MINS
 }
+object NetworkClientConfig {
+  var MAXRESPONETIME: Int = ClusterDefaults.MAXREPSONETIME
+  def calculateScore(t: Int) = {
+      val score: Double = (10 - (t * 9.0 / NetworkClientConfig.MAXRESPONETIME ) )
+      val healthScore = if (score < 0) 0 else score.intValue
+      healthScore
+
+  }
+}
 
 object NetworkClient {
   def apply(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory): NetworkClient = {

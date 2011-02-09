@@ -25,7 +25,10 @@ import jmx.JMX.MBean
 import jmx.JMX
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit, ConcurrentHashMap}
 import com.google.protobuf.ByteString
+
 import common.NetworkStatisticsActor
+import cluster.Node
+import com.linkedin.norbert.network.client.NetworkClientConfig
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
@@ -79,6 +82,14 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
       case TotalAveragePendingTime(time) => time
     }
   })
+  import statsActor.Stats._
+  def getAverageRequestProcessingTime(n: Int) = statsActor !? GetTotalAverageProcessingTime match {
+      case AverageProcessingTime(times) => times.get(n).getOrElse(NetworkClientConfig.MAXRESPONETIME * 2)
+  }
+
+   def getAverageRequestProcessingTime() = statsActor !? GetTotalAverageProcessingTime match {
+      case AverageProcessingTime(times) => times
+  }
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request[_, _]]
@@ -95,6 +106,10 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
     super.writeRequested(ctx, new DownstreamMessageEvent(e.getChannel, e.getFuture, message.build, e.getRemoteAddress))
   }
 
+  def updateNodeHealth (node: Node) = {
+    node.setHealth(NetworkClientConfig.calculateScore(getAverageRequestProcessingTime(node.id)))
+  }
+
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val message = e.getMessage.asInstanceOf[NorbertProtos.NorbertMessage]
     log.debug("Received message: %s".format(message))
@@ -106,7 +121,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
         requestMap.remove(requestId)
 
         statsActor ! statsActor.Stats.EndRequest(request.node.id, request.id)
-
+        updateNodeHealth(request.node)
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           request.processResponseBytes(message.getMessage.toByteArray)
         } else {
@@ -120,6 +135,8 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
 
   def shutdown: Unit = jmxHandle.foreach { JMX.unregister(_) }
 }
+
+
 
 trait NetworkClientStatisticsMBean {
   def getRequestsPerSecond: Int
