@@ -18,13 +18,13 @@ package network
 package server
 
 import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
-import util.NamedPoolThreadFactory
 import logging.Logging
 import jmx.JMX.MBean
 import jmx.{FinishedRequestTimeTracker, JMX}
 import actors.DaemonActor
 import java.util.concurrent.atomic.AtomicInteger
 import common.NetworkStatisticsActor
+import util.{SystemClock, NamedPoolThreadFactory}
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -42,7 +42,7 @@ trait MessageExecutor {
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int) extends MessageExecutor with Logging {
 
-    private val statsActor = new NetworkStatisticsActor[Int, Int](100)
+    private val statsActor = new NetworkStatisticsActor[Int, Int](100, SystemClock)
     statsActor.start
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],

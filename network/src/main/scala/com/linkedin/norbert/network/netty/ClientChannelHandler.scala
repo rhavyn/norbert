@@ -28,6 +28,7 @@ import com.google.protobuf.ByteString
 import cluster.Node
 import common.{CanServeRequestStrategy, NetworkStatisticsActor}
 import scala.math._
+import util.{SystemClock, SystemClockComponent}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
@@ -63,8 +64,10 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   val cleanupExecutor = new ScheduledThreadPoolExecutor(1)
   cleanupExecutor.scheduleAtFixedRate(cleanupTask, staleRequestCleanupFrequencyMins, staleRequestCleanupFrequencyMins, TimeUnit.MINUTES)
 
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](100)
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](100, SystemClock)
   statsActor.start
+
+  val strategy = new ClientStatisticsRequestStrategy(statsActor)
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
     import statsActor.Stats._
@@ -120,10 +123,15 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in network layer")
 
-  def shutdown: Unit = jmxHandle.foreach { JMX.unregister(_) }
+  def shutdown: Unit = {
+    jmxHandle.foreach { JMX.unregister(_) }
+  }
 }
 
 class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID]) extends CanServeRequestStrategy {
+  val OUTLIER_MULTIPLIER = 2 // Must be more than 2x the others
+  val OUTLIER_MINIMUM = 5    // Must also be at least 5ms above the others in response time
+
   def canServeRequest(node: Node): Boolean = {
     val processingTime = statsActor !? statsActor.Stats.GetAverageProcessingTime match {
       case statsActor.Stats.AverageProcessingTime(map) => map
@@ -137,16 +145,9 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UU
   }
 
   def canServeRequests(key: Int, map: Map[Int, Int]): Boolean = {
-    val sum = calcSum(map.values)
-    // val variance = calcVariance(map.values, sum)
-    //  val stdDev = calcStandardDeviation(values, variance)
-
-    // If one is more than double the average response time, take it out
-    // map(key) * map.values > 2 * sum
-    (map.getOrElse(key, 0) * map.size) < (2 * sum)
+    // If one is more than OUTLIER_MULTIPLIER * the average response time + OUTLIER_MINIMUM, take it out
+    (map.getOrElse(key, 0) * map.size) < (OUTLIER_MULTIPLIER * (map.values.sum) + OUTLIER_MINIMUM)
   }
-
-  def calcSum(values: Iterable[Int]) = values.reduceLeft(_ + _)
 
   def calcVariance(values: Iterable[Int], sum: Int) = {
     lazy val average = sum.toDouble / values.size
@@ -162,7 +163,7 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UU
   }
 
   def calcStandardDeviation(values: Iterable[Int]): Double = {
-    calcStandardDeviation(values, calcVariance(values, calcSum(values)))
+    calcStandardDeviation(values, calcVariance(values, values.sum))
   }
 }
 

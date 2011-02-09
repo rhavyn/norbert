@@ -1,3 +1,7 @@
+package com.linkedin.norbert.network.common
+
+import com.linkedin.norbert.cluster.Node
+
 /**
  * Copyright 2009-2010 LinkedIn, Inc
  *
@@ -14,25 +18,14 @@
  * the License.
  */
 
-package com.linkedin.norbert.util
-
-trait ClockComponent {
-  val clock: Clock
+trait CanServeRequestStrategy {
+  def canServeRequest(node: Node): Boolean
 }
 
-trait Clock {
-  def getCurrentTime: Long
+case class CompositeCanServeRequestStrategy(s1: CanServeRequestStrategy, s2: CanServeRequestStrategy) extends CanServeRequestStrategy {
+  def canServeRequest(node: Node) = s1.canServeRequest(node) && s2.canServeRequest(node)
 }
 
-object MockClock extends Clock {
-  var currentTime = 0L
-  override def getCurrentTime = currentTime
-}
-
-object SystemClock extends Clock {
-  def getCurrentTime = System.currentTimeMillis
-}
-
-object SystemClockComponent extends ClockComponent {
-  val clock = SystemClock
+case object AlwaysAvailableRequestStrategy extends CanServeRequestStrategy {
+  def canServeRequest(node: Node) = true
 }

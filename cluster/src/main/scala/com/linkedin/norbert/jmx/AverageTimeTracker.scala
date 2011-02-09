@@ -17,25 +17,22 @@ package com.linkedin.norbert
 package jmx
 
 import collection.mutable.{Map, Queue}
-import java.util.UUID
-import util.ClockComponent
+import util.{Clock, ClockComponent}
 
-trait FinishedRequestTimeTracker {
+class FinishedRequestTimeTracker(maxSize: Int) {
   private val q = Queue[Int]()
   private var n = 0
 
-  def size: Int
-
   def addTime(time: Int) {
     q += time
-    val old = if (q.size > size) q.dequeue else 0
+    val old = if (q.size > maxSize) q.dequeue else 0
     n = (n - old + time)
   }
 
   def average: Int = if (q.size > 0) n / q.size else n
 }
 
-trait UnfinishedRequestTimeTracker[KeyT] extends ClockComponent {
+class UnfinishedRequestTimeTracker[KeyT](clock: Clock) {
   private val unfinishedRequests = Map.empty[KeyT, Long]
 
   // We can have about 7 million requests outstanding before overflow.
@@ -46,7 +43,10 @@ trait UnfinishedRequestTimeTracker[KeyT] extends ClockComponent {
   def pendingAverage: Int = {
     val now = clock.getCurrentTime
     val numUnfinishedRequests = unfinishedRequests.size
-    (now - (totalUnfinishedTime / numUnfinishedRequests)).asInstanceOf[Int]
+    if(numUnfinishedRequests == 0)
+      0
+    else
+      (now - (totalUnfinishedTime / numUnfinishedRequests)).asInstanceOf[Int]
   }
 
   def getStartTime(key: KeyT) = unfinishedRequests.get(key)
@@ -63,12 +63,23 @@ trait UnfinishedRequestTimeTracker[KeyT] extends ClockComponent {
   }
 }
 
-class RequestTimeTracker[KeyT](val size: Int) extends FinishedRequestTimeTracker with UnfinishedRequestTimeTracker[KeyT] {
-  override def endRequest(key: KeyT) = {
-    getStartTime(key).foreach { startTime =>
-      addTime((clock.getCurrentTime - startTime).asInstanceOf[Int])
+class RequestTimeTracker[KeyT](queueSize: Int, clock: Clock) {
+  val finishedRequestTimeTracker = new FinishedRequestTimeTracker(queueSize)
+  val unfinishedRequestTimeTracker = new UnfinishedRequestTimeTracker[KeyT](clock)
+
+  def average = finishedRequestTimeTracker.average
+
+  def pendingAverage= unfinishedRequestTimeTracker.pendingAverage
+
+  def beginRequest(key: KeyT) {
+    unfinishedRequestTimeTracker.beginRequest(key)
+  }
+
+  def endRequest(key: KeyT) {
+    unfinishedRequestTimeTracker.getStartTime(key).foreach { startTime =>
+      finishedRequestTimeTracker.addTime((clock.getCurrentTime - startTime).asInstanceOf[Int])
     }
-    super.endRequest(key)
+    unfinishedRequestTimeTracker.endRequest(key)
   }
 }
 

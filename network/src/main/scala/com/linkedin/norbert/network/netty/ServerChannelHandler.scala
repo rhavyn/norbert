@@ -29,6 +29,7 @@ import jmx.{FinishedRequestTimeTracker, JMX}
 import java.lang.String
 import com.google.protobuf.{ByteString}
 import common.NetworkStatisticsActor
+import util.SystemClock
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -63,7 +64,7 @@ class RequestContextEncoder extends OneToOneEncoder with Logging {
 
 @ChannelPipelineCoverage("all")
 class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](100)
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](100, SystemClock)
   statsActor.start
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {

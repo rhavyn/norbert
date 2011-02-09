@@ -27,9 +27,9 @@ import jmx.JMX
 import logging.Logging
 import cluster.{Node, ClusterClient}
 import common.{CanServeRequestStrategy, ClusterIoClientComponent}
-import util.ClockComponent
 import java.util.concurrent.atomic.{AtomicLong, AtomicBoolean, AtomicInteger}
 import scala.math._
+import util.{SystemClock, Clock, ClockComponent}
 
 class ChannelPoolClosedException extends Exception
 
@@ -141,7 +141,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     }
   }
 
-  val errorStrategy = new ChannelPoolErrorStrategy
+  val errorStrategy = new ChannelPoolErrorStrategy(SystemClock)
 
   private def writeRequestToChannel(request: Request[_, _], channel: Channel) {
     log.debug("Writing to %s: %s".format(channel, request))
@@ -159,7 +159,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
 /**
  * A simple exponential backoff strategy
  */
-class ChannelPoolErrorStrategy extends CanServeRequestStrategy with ClockComponent {
+class ChannelPoolErrorStrategy(clock: Clock) extends CanServeRequestStrategy {
   val MIN_BACKOFF_TIME = 100L
   val MAX_BACKOFF_TIME = 3200L
 

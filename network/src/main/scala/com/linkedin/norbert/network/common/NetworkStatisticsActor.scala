@@ -6,8 +6,9 @@ import logging.Logging
 import actors.DaemonActor
 import collection.immutable.SortedMap
 import jmx.{RequestTimeTracker, RequestsPerSecondTracker}
+import util.{Clock, ClockComponent}
 
-class NetworkStatisticsActor[GroupIdType, RequestIdType](averageTimeSize: Int)(implicit ordering: Ordering[GroupIdType]) extends DaemonActor with Logging {
+class NetworkStatisticsActor[GroupIdType, RequestIdType](averageTimeSize: Int, clock: Clock)(implicit ordering: Ordering[GroupIdType]) extends DaemonActor with Logging {
   object Stats {
     case class BeginRequest(groupId: GroupIdType, requestId: RequestIdType)
     case class EndRequest(groupId: GroupIdType, requestId: RequestIdType)
@@ -28,9 +29,8 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](averageTimeSize: Int)(i
     case class RequestsPerSecond(rps: Int)
   }
 
-  private var timeTrackers = SortedMap.empty[GroupIdType, RequestTimeTracker[RequestIdType]]
+  private val timeTrackers = collection.mutable.Map.empty[GroupIdType, RequestTimeTracker[RequestIdType]]
 
-  private val processingTime = new RequestTimeTracker(averageTimeSize)
   private val rps = new RequestsPerSecondTracker
 
   def act() = {
@@ -39,18 +39,25 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](averageTimeSize: Int)(i
     loop {
       react {
         case BeginRequest(groupId, requestId) =>
-          val tracker = timeTrackers.getOrElse(groupId, new RequestTimeTracker(averageTimeSize))
+          val tracker = timeTrackers.getOrElseUpdate(groupId, new RequestTimeTracker(averageTimeSize, clock))
           tracker.beginRequest(requestId)
 
         case EndRequest(groupId, requestId) =>
-          val tracker = timeTrackers.getOrElse(groupId, new RequestTimeTracker(averageTimeSize))
-          tracker.endRequest(requestId)
+          val tracker = timeTrackers.get(groupId).foreach { _.endRequest(requestId) }
           rps++
 
         case GetAverageProcessingTime =>
           reply(AverageProcessingTime(timeTrackers.map { case (groupId, tracker) =>
             (groupId, tracker.average)
-          }))
+          }.toMap))
+
+        case GetAveragePendingTime =>
+          reply(AveragePendingTime(timeTrackers.map { case (groupId, tracker) =>
+            (groupId, tracker.pendingAverage)
+          }.toMap))
+
+        case GetTotalAveragePendingTime =>
+          reply(TotalAveragePendingTime(timeTrackers.values.foldLeft(0){ _ + _.pendingAverage }))
 
         case GetTotalAverageProcessingTime =>
           reply(TotalAverageProcessingTime(timeTrackers.values.foldLeft(0) { _ + _.average }))
