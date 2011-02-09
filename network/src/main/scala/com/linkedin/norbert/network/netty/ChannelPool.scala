@@ -26,10 +26,9 @@ import jmx.JMX.MBean
 import jmx.JMX
 import logging.Logging
 import cluster.{Node, ClusterClient}
-import common.{CanServeRequestStrategy, ClusterIoClientComponent}
 import java.util.concurrent.atomic.{AtomicLong, AtomicBoolean, AtomicInteger}
-import scala.math._
-import util.{SystemClock, Clock, ClockComponent}
+import util.{SystemClock}
+import common.{BackoffStrategy}
 
 class ChannelPoolClosedException extends Exception
 
@@ -141,7 +140,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     }
   }
 
-  val errorStrategy = new ChannelPoolErrorStrategy(SystemClock)
+  val errorStrategy = new BackoffStrategy(SystemClock)
 
   private def writeRequestToChannel(request: Request[_, _], channel: Channel) {
     log.debug("Writing to %s: %s".format(channel, request))
@@ -150,40 +149,9 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
         request.processException(writeFuture.getCause)
         // Take the node out of rotation for a bit
-        errorStrategy.addError
+        errorStrategy.notifyFailure
       }
     })
-  }
-}
-
-/**
- * A simple exponential backoff strategy
- */
-class ChannelPoolErrorStrategy(clock: Clock) extends CanServeRequestStrategy {
-  val MIN_BACKOFF_TIME = 100L
-  val MAX_BACKOFF_TIME = 3200L
-
-  @volatile var lastIOErrorTime = 0L
-  val backoffTime = new AtomicLong(0)
-
-  def addError {
-    lastIOErrorTime = clock.getCurrentTime
-
-    // Increase the backoff
-    val currentBackoffTime = backoffTime.get
-    val newBackoffTime = max(MIN_BACKOFF_TIME, min(2L * currentBackoffTime, MAX_BACKOFF_TIME))
-    backoffTime.compareAndSet(currentBackoffTime, newBackoffTime)
-  }
-
-  def canServeRequest(node: Node): Boolean = {
-    val now = clock.getCurrentTime
-
-    // If it's been a while since the last error, reset the backoff back to 0
-    val currentBackoffTime = backoffTime.get
-    if(currentBackoffTime != 0L && now - lastIOErrorTime > 2 * MAX_BACKOFF_TIME)
-      backoffTime.compareAndSet(currentBackoffTime, 0L)
-
-    now - lastIOErrorTime > backoffTime.get
   }
 }
 
