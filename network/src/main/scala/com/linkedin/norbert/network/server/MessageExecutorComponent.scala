@@ -42,7 +42,7 @@ trait MessageExecutor {
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int) extends MessageExecutor with Logging {
 
-    private val statsActor = new NetworkStatisticsActor[Int, Int](100, SystemClock)
+    private val statsActor = new NetworkStatisticsActor[Int, Int](SystemClock)
     statsActor.start
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],

@@ -64,7 +64,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   val cleanupExecutor = new ScheduledThreadPoolExecutor(1)
   cleanupExecutor.scheduleAtFixedRate(cleanupTask, staleRequestCleanupFrequencyMins, staleRequestCleanupFrequencyMins, TimeUnit.MINUTES)
 
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](100, SystemClock)
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock)
   statsActor.start
 
   val strategy = new ClientStatisticsRequestStrategy(statsActor)
@@ -76,12 +76,12 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
       case RequestsPerSecond(rps) => rps
     }
 
-    def getAverageRequestProcessingTime = statsActor !? GetTotalAverageProcessingTime match {
-      case TotalAverageProcessingTime(time) => time
+    def getAverageRequestProcessingTime = statsActor !? GetProcessingStatistics match {
+      case ProcessingStatistics(map) => average(map){_.completedTime}{_.completedSize}
     }
 
-    def getAveragePendingRequestTime = statsActor !? GetTotalAveragePendingTime match {
-      case TotalAveragePendingTime(time) => time
+    def getAveragePendingRequestTime = statsActor !? GetProcessingStatistics match {
+      case ProcessingStatistics(map) => average(map){_.pendingTime}{_.pendingSize}
     }
   })
 
@@ -116,6 +116,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
           request.processResponseBytes(message.getMessage.toByteArray)
         } else {
           val errorMsg = if (message.hasErrorMessage()) message.getErrorMessage else "<null>"
+
           request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))
         }
     }
@@ -128,25 +129,31 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   }
 }
 
-class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID]) extends CanServeRequestStrategy {
-  val OUTLIER_MULTIPLIER = 2 // Must be more than 2x the others
-  val OUTLIER_MINIMUM = 5    // Must also be at least 5ms above the others in response time
+class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID], outlierMultiplier: Int = 2, outlierConstant: Int = 10) extends CanServeRequestStrategy {
+  // Must be more than 2x + 10ms the others by default
 
   def canServeRequest(node: Node): Boolean = {
-    val processingTime = statsActor !? statsActor.Stats.GetAverageProcessingTime match {
-      case statsActor.Stats.AverageProcessingTime(map) => map
+    val map = statsActor !? statsActor.Stats.GetProcessingStatistics match {
+      case statsActor.Stats.ProcessingStatistics(map) => map
     }
 
-    val pendingTime = statsActor !? statsActor.Stats.GetAveragePendingTime match {
-      case statsActor.Stats.AveragePendingTime(map) => map
-    }
+    // We now have a map from node_id => statistics. Add up the process
+    val processingTotal = map.values.map(_.completedTime).sum
+    val pendingTotal = map.values.map(_.pendingTime).sum
 
-    canServeRequests(node.id, processingTime) && canServeRequests(node.id, pendingTime)
-  }
+    val processingSize = map.values.map(_.completedSize).sum
+    val pendingSize = map.values.map(_.pendingSize).sum
 
-  def canServeRequests(key: Int, map: Map[Int, Int]): Boolean = {
-    // If one is more than OUTLIER_MULTIPLIER * the average response time + OUTLIER_MINIMUM, take it out
-    (map.getOrElse(key, 0) * map.size) < (OUTLIER_MULTIPLIER * (map.values.sum) + OUTLIER_MINIMUM)
+    val nodeProcessingTime = map.get(node.id).map(_.completedTime).getOrElse(0L)
+    val nodeProcessingSize = map.get(node.id).map(_.completedSize).getOrElse(0)
+    val nodePendingTime = map.get(node.id).map(_.pendingTime).getOrElse(0L)
+    val nodePendingSize = map.get(node.id).map(_.pendingSize).getOrElse(0)
+
+
+//    (nodeProcessingTime + nodePendingTime) / (nodeProcessingSize + nodePendingSize)  < (processingTotal + pendingTotal) / (processingSize + pendingSize) * OUTLIER_MULTIPLIER + OUTLIER_CONSTANT
+
+    // Don't use the averages to avoid division by zero
+    (nodeProcessingTime + nodePendingTime) * (processingSize + pendingSize) < ((processingTotal + pendingTotal) * outlierMultiplier + outlierConstant) *  (nodeProcessingSize + nodePendingSize)
   }
 
   def calcVariance(values: Iterable[Int], sum: Int) = {
@@ -169,6 +176,6 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UU
 
 trait NetworkClientStatisticsMBean {
   def getRequestsPerSecond: Int
-  def getAverageRequestProcessingTime: Int
-  def getAveragePendingRequestTime: Int
+  def getAverageRequestProcessingTime: Double
+  def getAveragePendingRequestTime: Double
 }

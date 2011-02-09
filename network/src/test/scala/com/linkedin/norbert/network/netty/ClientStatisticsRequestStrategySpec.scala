@@ -26,7 +26,7 @@ import com.linkedin.norbert.cluster.Node
 class ClientStatisticsRequestStrategySpec extends Specification with Mockito {
   "ClientStatisticsRequestStrategy" should {
     "route away from misbehaving nodes" in {
-      val statsActor = new NetworkStatisticsActor[Int, UUID](10, MockClock)
+      val statsActor = new NetworkStatisticsActor[Int, UUID](MockClock, 1000L)
       statsActor.start
 
       val strategy = new ClientStatisticsRequestStrategy(statsActor)
