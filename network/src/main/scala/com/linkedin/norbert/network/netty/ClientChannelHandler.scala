@@ -29,11 +29,10 @@ import cluster.Node
 import scala.math._
 import util.{SystemClock, SystemClockComponent}
 import client.NetworkClientConfig
-import common.{BackoffStrategy, CanServeRequestStrategy, NetworkStatisticsActor}
+import common._
 
 @ChannelPipelineCoverage("all")
-class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
-        staleRequestCleanupFrequencyMins: Int, errorStrategy: Option[BackoffStrategy] = None) extends SimpleChannelHandler with Logging {
+class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,         
         staleRequestCleanupFrequencyMins: Int, outlierMultiplier: Int, outlierConstant: Int) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
@@ -70,7 +69,10 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock)
   statsActor.start
 
-  val strategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant)
+  val clientStatisticsRequestStrategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant)
+  val serverErrorStratege = new ServerErrorStrategy(SystemClock)
+
+  val stratege = CompositeCanServeRequestStrategy(clientStatisticsRequestStrategy, serverErrorStratege)
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
     import statsActor.Stats._
@@ -132,7 +134,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
           val errorName = message.getMessageName
           if (errorName == "HeavyLoadException")  {
             // mark the node offline a period of time
-            this.errorStrategy.last.notifyFailure(request.node.id)
+            serverErrorStratege.notifyFailure(request.node.id)
           }
 
           request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))

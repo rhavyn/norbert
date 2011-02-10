@@ -67,3 +67,21 @@ class BackoffStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackoffTime:
     now - lastFailureTime > backoffTime.get
   }
 }
+
+
+class ServerErrorStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackoffTime: Long = 3200L) extends CanServeRequestStrategy {
+  import scala.collection.mutable._
+  val backoff = scala.collection.mutable.Map.empty[Int, BackoffStrategy]
+
+  def notifyFailure(id: Int) {
+    val s = backoff.getOrElseUpdate(id, new BackoffStrategy(clock, minBackoffTime, maxBackoffTime))
+    s.notifyFailure
+  }
+
+  def canServeRequest(node: Node): Boolean = {
+    backoff.get(node.id) match {
+      case None => true
+      case Some(s1) => s1.canServeRequest(node)
+    }
+  }
+}
