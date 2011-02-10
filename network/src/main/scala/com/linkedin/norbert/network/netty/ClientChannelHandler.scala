@@ -89,12 +89,6 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
       case ProcessingStatistics(map) => average(map){_.pendingTime}{_.pendingSize}
     }
   })
-  import statsActor.Stats._
-  def getAverageRequestProcessingTime(n: Int) = statsActor !? GetProcessingStatistics match {
-      case ProcessingStatistics(map) => map(n).pendingTime.intValue
-  }
-
-
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request[_, _]]
@@ -111,10 +105,6 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
     super.writeRequested(ctx, new DownstreamMessageEvent(e.getChannel, e.getFuture, message.build, e.getRemoteAddress))
   }
 
-  def updateNodeHealth (node: Node) = {
-    node.setHealth(NetworkClientConfig.calculateScore(getAverageRequestProcessingTime(node.id)))
-  }
-
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val message = e.getMessage.asInstanceOf[NorbertProtos.NorbertMessage]
     log.debug("Received message: %s".format(message))
@@ -126,7 +116,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
         requestMap.remove(requestId)
 
         statsActor ! statsActor.Stats.EndRequest(request.node.id, request.id)
-        updateNodeHealth(request.node)
+
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           request.processResponseBytes(message.getMessage.toByteArray)
         } else if (message.getStatus == NorbertProtos.NorbertMessage.Status.HEAVYLOAD) {

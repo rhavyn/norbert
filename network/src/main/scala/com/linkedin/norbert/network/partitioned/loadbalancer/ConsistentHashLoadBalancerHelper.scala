@@ -22,7 +22,6 @@ import cluster.{InvalidClusterException, Node}
 import common.Endpoint
 import java.util.concurrent.atomic.AtomicInteger
 import annotation.tailrec
-import scala.util.Random
 
 /**
  * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
@@ -69,21 +68,8 @@ trait ConsistentHashLoadBalancerHelper {
 
   @tailrec
   private def nodeForPartition(partitionId: Int, numIterations: Int): Option[Node] = {
-    //choose node according to the node health score. High score node get higher chance to be chosen
-    val endpoint :Option[Endpoint]= partitionToNodeMap.get(partitionId).map { case (endpoints, counter) =>  {
-      var totalScore: Int = 0
-      val scores = endpoints.map( e =>  { val prev = totalScore
-                                          totalScore += e.node.getHealthScore
-                                          (prev, totalScore)}
-       )
-      if (totalScore > 0)  {
-        val r = Random.nextInt(totalScore)
-        endpoints(scores.findIndexOf( t => ((r >= t._1) && (r < t._2))))
-      } else {
-        //make the compiler happy
-        endpoints(0)
-      }
-    }
+    val endpoint = partitionToNodeMap.get(partitionId).map { case (endpoints, counter) =>
+      endpoints(counter.getAndIncrement % endpoints.size)
     }
 
     val maxIterations = 4 * partitionToNodeMap.get(partitionId).map(_._1.size).getOrElse(0)
@@ -91,7 +77,7 @@ trait ConsistentHashLoadBalancerHelper {
     endpoint match {
       case None => None
       case Some(endpoint) =>
-        if((endpoint.canServeRequests)&& (endpoint.node.getHealthScore > 0))
+        if(endpoint.canServeRequests)
           Some(endpoint.node)
         else if(numIterations > maxIterations)
           None

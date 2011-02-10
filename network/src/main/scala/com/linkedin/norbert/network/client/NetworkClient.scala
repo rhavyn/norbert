@@ -39,15 +39,6 @@ class NetworkClientConfig {
   val outlierConstant = NetworkDefaults.OUTLIER_CONSTANT
 
 }
-object NetworkClientConfig {
-  var MAXRESPONETIME: Int = ClusterDefaults.MAXREPSONETIME
-  def calculateScore(t: Int) = {
-      val score: Double = (10 - (t * 9.0 / NetworkClientConfig.MAXRESPONETIME ) )
-      val healthScore = if (score < 0) 0 else score.intValue
-      healthScore
-
-  }
-}
 
 object NetworkClient {
   def apply(config: NetworkClientConfig, loadBalancerFactory: LoadBalancerFactory): NetworkClient = {
