@@ -72,7 +72,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   val clientStatisticsRequestStrategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant)
   val serverErrorStratege = new ServerErrorStrategy(SystemClock)
 
-  val stratege = CompositeCanServeRequestStrategy(clientStatisticsRequestStrategy, serverErrorStratege)
+  val strategy = CompositeCanServeRequestStrategy(clientStatisticsRequestStrategy, serverErrorStratege)
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
     import statsActor.Stats._

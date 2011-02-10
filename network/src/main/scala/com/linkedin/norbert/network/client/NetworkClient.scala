@@ -35,6 +35,9 @@ class NetworkClientConfig {
   var maxConnectionsPerNode = NetworkDefaults.MAX_CONNECTIONS_PER_NODE
   var staleRequestTimeoutMins = NetworkDefaults.STALE_REQUEST_TIMEOUT_MINS
   var staleRequestCleanupFrequenceMins = NetworkDefaults.STALE_REQUEST_CLEANUP_FREQUENCY_MINS
+  val outlierMuliplier = NetworkDefaults.OUTLIER_MULTIPLIER
+  val outlierConstant = NetworkDefaults.OUTLIER_CONSTANT
+
 }
 object NetworkClientConfig {
   var MAXRESPONETIME: Int = ClusterDefaults.MAXREPSONETIME

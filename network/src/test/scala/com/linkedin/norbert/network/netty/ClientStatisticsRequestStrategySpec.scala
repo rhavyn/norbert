@@ -29,7 +29,7 @@ class ClientStatisticsRequestStrategySpec extends Specification with Mockito {
       val statsActor = new NetworkStatisticsActor[Int, UUID](MockClock, 1000L)
       statsActor.start
 
-      val strategy = new ClientStatisticsRequestStrategy(statsActor)
+      val strategy = new ClientStatisticsRequestStrategy(statsActor, 2, 10)
 
       val nodes = (0 until 5).map { nodeId => Node(nodeId, "foo", true) }
 
@@ -53,10 +53,11 @@ class ClientStatisticsRequestStrategySpec extends Specification with Mockito {
 
       nodes.foreach { node =>
         strategy.canServeRequest(node) must beTrue
+        
       }
 
       MockClock.currentTime = 15
-      strategy.canServeRequest(nodes(4)) must beFalse
+      strategy.canServeRequest(nodes(4)) must beTrue
 
 //      requests(4).zipWithIndex.foreach { case(uuid, index) =>
 //        val nodeId = 4
