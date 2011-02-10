@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2010 LinkedIn, Inc
+  * Copyright 2009-2010 LinkedIn, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -39,7 +39,7 @@ object NetworkDefaults {
   /**
    * The default frequency to clean up stale requests in minutes.
    */
-  val STALE_REQUEST_CLEANUP_FREQUENCY_MINS = 10
+  val STALE_REQUEST_CLEANUP_FREQUENCY_MINS = 1
 
   /**
    * The default length of time to wait before considering a request to be stale in minutes.
@@ -60,4 +60,15 @@ object NetworkDefaults {
    * The default request thread timeout in seconds.
    */
   val REQUEST_THREAD_KEEP_ALIVE_TIME_SECS = 300
+
+  /**
+   * Detects nodes that may be offline if their request processing times are greater than this multiplier over the average
+   */
+  val OUTLIER_MULTIPLIER = 2
+
+
+  /**
+   * Detects nodes that may be offline if their request processing times are also greater than this additional constant
+   */
+  val OUTLIER_CONSTANT = 10
 }

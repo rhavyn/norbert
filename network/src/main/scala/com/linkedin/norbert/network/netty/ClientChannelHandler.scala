@@ -32,7 +32,7 @@ import util.{SystemClock, SystemClockComponent}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
-        staleRequestCleanupFrequencyMins: Int) extends SimpleChannelHandler with Logging {
+        staleRequestCleanupFrequencyMins: Int, outlierMultiplier: Int, outlierConstant: Int) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
   val cleanupTask = new Runnable() {
@@ -47,6 +47,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
           val request = requestMap.get(uuid)
           if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) {
             requestMap.remove(uuid)
+            statsActor ! statsActor.Stats.EndRequest(request.node.id, request.id)
             expiredEntryCount += 1
           }
         }
@@ -67,7 +68,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock)
   statsActor.start
 
-  val strategy = new ClientStatisticsRequestStrategy(statsActor)
+  val strategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant)
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
     import statsActor.Stats._
@@ -129,7 +130,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   }
 }
 
-class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID], outlierMultiplier: Int = 2, outlierConstant: Int = 10) extends CanServeRequestStrategy {
+class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID], outlierMultiplier: Int, outlierConstant: Int) extends CanServeRequestStrategy {
   // Must be more than 2x + 10ms the others by default
 
   def canServeRequest(node: Node): Boolean = {
