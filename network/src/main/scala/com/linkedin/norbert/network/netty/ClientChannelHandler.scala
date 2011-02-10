@@ -129,14 +129,10 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
         updateNodeHealth(request.node)
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           request.processResponseBytes(message.getMessage.toByteArray)
+        } else if (message.getStatus == NorbertProtos.NorbertMessage.Status.HEAVYLOAD) {
+          serverErrorStratege.notifyFailure(request.node.id)
         } else {
           val errorMsg = if (message.hasErrorMessage()) message.getErrorMessage else "<null>"
-          val errorName = message.getMessageName
-          if (errorName == "HeavyLoadException")  {
-            // mark the node offline a period of time
-            serverErrorStratege.notifyFailure(request.node.id)
-          }
-
           request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))
         }
     }

@@ -115,8 +115,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     }
     catch {
       case ex: HeavyLoadException =>
-        Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
-        throw  ex
+        Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex, NorbertProtos.NorbertMessage.Status.HEAVYLOAD)))
     }
   }
 
@@ -144,10 +143,10 @@ private[netty] object ResponseHelper {
     NorbertProtos.NorbertMessage.newBuilder.setRequestIdMsb(requestId.getMostSignificantBits).setRequestIdLsb(requestId.getLeastSignificantBits)
   }
 
-  def errorResponse(requestId: UUID, ex: Exception) = {
+  def errorResponse(requestId: UUID, ex: Exception, status :NorbertProtos.NorbertMessage.Status = NorbertProtos.NorbertMessage.Status.ERROR) = {
     responseBuilder(requestId)
             .setMessageName(ex.getClass.getName)
-            .setStatus(NorbertProtos.NorbertMessage.Status.ERROR)
+            .setStatus(status)
             .setErrorMessage(if (ex.getMessage == null) "" else ex.getMessage)
             .build
   }

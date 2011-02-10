@@ -11,6 +11,7 @@ message NorbertMessage {
   enum Status {
     OK = 0;
     ERROR = 1;
+    HEAVYLOAD = 2;
   }
   optional Status status = 10 [default = OK];
 
