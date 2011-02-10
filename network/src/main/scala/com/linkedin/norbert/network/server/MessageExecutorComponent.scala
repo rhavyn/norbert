@@ -25,6 +25,7 @@ import jmx.{FinishedRequestTimeTracker, JMX}
 import actors.DaemonActor
 import java.util.concurrent.atomic.AtomicInteger
 import common.NetworkStatisticsActor
+import actors.threadpool.RejectedExecutionException
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -40,12 +41,12 @@ trait MessageExecutor {
 }
 
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
-    keepAliveTime: Int) extends MessageExecutor with Logging {
+    keepAliveTime: Int, maxWaitingQueueSize: Int = 100) extends MessageExecutor with Logging {
 
     private val statsActor = new NetworkStatisticsActor[Int, Int](100)
     statsActor.start
 
-  private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new LinkedBlockingQueue[Runnable],
+  private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new ArrayBlockingQueue[Runnable](maxWaitingQueueSize),
     new NamedPoolThreadFactory("norbert-message-executor")) {
 
     override def beforeExecute(t: Thread, r: Runnable) = {
@@ -61,7 +62,11 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
   }
 
   def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)(implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
-    threadPool.execute(new RequestRunner(request, responseHandler, serializer = serializer))
+    try {
+      threadPool.execute(new RequestRunner(request, responseHandler, serializer = serializer))
+    } catch {
+      case ex: RejectedExecutionException =>   throw new HeavyLoadException
+    }
   }
 
   def shutdown {
@@ -95,6 +100,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
         case ex: InvalidMessageException =>
           log.error(ex, "Received an invalid message: %s".format(request))
           Some(Left(ex))
+
 
         case ex: Exception =>
           log.error(ex, "Unexpected error while handling message: %s".format(request))

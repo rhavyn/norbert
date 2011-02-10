@@ -126,6 +126,11 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
           request.processResponseBytes(message.getMessage.toByteArray)
         } else {
           val errorMsg = if (message.hasErrorMessage()) message.getErrorMessage else "<null>"
+          val errorName = message.getMessageName
+          if (errorName == "HeavyLoadException")  {
+            // mark the node offline a period of time
+            
+          }
           request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))
         }
     }

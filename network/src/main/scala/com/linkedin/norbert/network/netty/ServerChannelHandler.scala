@@ -108,9 +108,16 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
 
     val request = serializer.requestFromBytes(requestBytes)
 
-    messageExecutor.executeMessage(request, (either: Either[Exception, Any]) => {
-      responseHandler(context, e.getChannel, either)(serializer)
-    })(serializer)
+    try {
+      messageExecutor.executeMessage(request, (either: Either[Exception, Any]) => {
+        responseHandler(context, e.getChannel, either)(serializer)
+      })(serializer)
+    }
+    catch {
+      case ex: HeavyLoadException =>
+        Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
+        throw  ex
+    }
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in channel: %s".format(e.getChannel))
@@ -144,6 +151,8 @@ private[netty] object ResponseHelper {
             .setErrorMessage(if (ex.getMessage == null) "" else ex.getMessage)
             .build
   }
+
+
 }
 
 trait NetworkServerStatisticsMBean {

@@ -59,3 +59,8 @@ class NoNodesAvailableException(errorMsg: String) extends NetworkingException(er
  * Exception that indicates that a method has been called before the network server has been bound.
  */
 class NetworkServerNotBoundException extends NetworkingException
+
+/**
+ * Exception that indicates that the  message was rejected because the waiting queue is full.
+ */
+class HeavyLoadException extends NetworkingException
