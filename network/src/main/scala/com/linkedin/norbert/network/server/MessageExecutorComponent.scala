@@ -17,7 +17,6 @@ package com.linkedin.norbert
 package network
 package server
 
-import java.util.concurrent.{LinkedBlockingQueue, TimeUnit, ThreadPoolExecutor}
 import logging.Logging
 import jmx.JMX.MBean
 import jmx.{FinishedRequestTimeTracker, JMX}
@@ -25,6 +24,7 @@ import actors.DaemonActor
 import java.util.concurrent.atomic.AtomicInteger
 import common.NetworkStatisticsActor
 import util.{SystemClock, NamedPoolThreadFactory}
+import java.util.concurrent._
 
 /**
  * A component which submits incoming messages to their associated message handler.

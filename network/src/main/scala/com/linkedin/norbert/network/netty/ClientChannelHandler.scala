@@ -26,13 +26,14 @@ import jmx.JMX
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit, ConcurrentHashMap}
 import com.google.protobuf.ByteString
 import cluster.Node
-import common.{CanServeRequestStrategy, NetworkStatisticsActor}
 import scala.math._
 import util.{SystemClock, SystemClockComponent}
+import client.NetworkClientConfig
+import common.{BackoffStrategy, CanServeRequestStrategy, NetworkStatisticsActor}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
-        staleRequestCleanupFrequencyMins: Int) extends SimpleChannelHandler with Logging {
+        staleRequestCleanupFrequencyMins: Int, errorStrategy: Option[BackoffStrategy] = None) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
   val cleanupTask = new Runnable() {
@@ -85,13 +86,11 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
     }
   })
   import statsActor.Stats._
-  def getAverageRequestProcessingTime(n: Int) = statsActor !? GetTotalAverageProcessingTime match {
-      case AverageProcessingTime(times) => times.get(n).getOrElse(NetworkClientConfig.MAXRESPONETIME * 2)
+  def getAverageRequestProcessingTime(n: Int) = statsActor !? GetProcessingStatistics match {
+      case ProcessingStatistics(map) => map(n).pendingTime.intValue
   }
 
-   def getAverageRequestProcessingTime() = statsActor !? GetTotalAverageProcessingTime match {
-      case AverageProcessingTime(times) => times
-  }
+
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request[_, _]]
@@ -131,7 +130,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
           val errorName = message.getMessageName
           if (errorName == "HeavyLoadException")  {
             // mark the node offline a period of time
-            
+            this.errorStrategy.last.notifyFailure(request.node.id)
           }
 
           request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))
