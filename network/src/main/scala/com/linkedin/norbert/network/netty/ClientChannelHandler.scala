@@ -25,10 +25,10 @@ import jmx.JMX.MBean
 import jmx.JMX
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit, ConcurrentHashMap}
 import com.google.protobuf.ByteString
-
-import common.NetworkStatisticsActor
 import cluster.Node
-import com.linkedin.norbert.network.client.NetworkClientConfig
+import common.{CanServeRequestStrategy, NetworkStatisticsActor}
+import scala.math._
+import util.{SystemClock, SystemClockComponent}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
@@ -64,8 +64,10 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   val cleanupExecutor = new ScheduledThreadPoolExecutor(1)
   cleanupExecutor.scheduleAtFixedRate(cleanupTask, staleRequestCleanupFrequencyMins, staleRequestCleanupFrequencyMins, TimeUnit.MINUTES)
 
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](100)
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock)
   statsActor.start
+
+  val strategy = new ClientStatisticsRequestStrategy(statsActor)
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
     import statsActor.Stats._
@@ -74,12 +76,12 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
       case RequestsPerSecond(rps) => rps
     }
 
-    def getAverageRequestProcessingTime = statsActor !? GetTotalAverageProcessingTime match {
-      case TotalAverageProcessingTime(time) => time
+    def getAverageRequestProcessingTime = statsActor !? GetProcessingStatistics match {
+      case ProcessingStatistics(map) => average(map){_.completedTime}{_.completedSize}
     }
 
-    def getAveragePendingRequestTime = statsActor !? GetTotalAveragePendingTime match {
-      case TotalAveragePendingTime(time) => time
+    def getAveragePendingRequestTime = statsActor !? GetProcessingStatistics match {
+      case ProcessingStatistics(map) => average(map){_.pendingTime}{_.pendingSize}
     }
   })
   import statsActor.Stats._
@@ -131,6 +133,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
             // mark the node offline a period of time
             
           }
+
           request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))
         }
     }
@@ -138,13 +141,60 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in network layer")
 
-  def shutdown: Unit = jmxHandle.foreach { JMX.unregister(_) }
+  def shutdown: Unit = {
+    jmxHandle.foreach { JMX.unregister(_) }
+  }
+}
+
+class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID], outlierMultiplier: Int = 2, outlierConstant: Int = 10) extends CanServeRequestStrategy {
+  // Must be more than 2x + 10ms the others by default
+
+  def canServeRequest(node: Node): Boolean = {
+    val map = statsActor !? statsActor.Stats.GetProcessingStatistics match {
+      case statsActor.Stats.ProcessingStatistics(map) => map
+    }
+
+    // We now have a map from node_id => statistics. Add up the process
+    val processingTotal = map.values.map(_.completedTime).sum
+    val pendingTotal = map.values.map(_.pendingTime).sum
+
+    val processingSize = map.values.map(_.completedSize).sum
+    val pendingSize = map.values.map(_.pendingSize).sum
+
+    val nodeProcessingTime = map.get(node.id).map(_.completedTime).getOrElse(0L)
+    val nodeProcessingSize = map.get(node.id).map(_.completedSize).getOrElse(0)
+    val nodePendingTime = map.get(node.id).map(_.pendingTime).getOrElse(0L)
+    val nodePendingSize = map.get(node.id).map(_.pendingSize).getOrElse(0)
+
+
+//    (nodeProcessingTime + nodePendingTime) / (nodeProcessingSize + nodePendingSize)  < (processingTotal + pendingTotal) / (processingSize + pendingSize) * OUTLIER_MULTIPLIER + OUTLIER_CONSTANT
+
+    // Don't use the averages to avoid division by zero
+    (nodeProcessingTime + nodePendingTime) * (processingSize + pendingSize) < ((processingTotal + pendingTotal) * outlierMultiplier + outlierConstant) *  (nodeProcessingSize + nodePendingSize)
+  }
+
+  def calcVariance(values: Iterable[Int], sum: Int) = {
+    lazy val average = sum.toDouble / values.size
+    values.foldLeft(0.0) { (sum, value) => sum + ((value - average) * (value - average)) }
+  }
+
+  def calcStandardDeviation(values: Iterable[Int], variance: Double): Double = {
+    if(values.size == 0 || values.size == 1)
+      0
+    else {
+      sqrt(variance / (values.size - 1))
+    }
+  }
+
+  def calcStandardDeviation(values: Iterable[Int]): Double = {
+    calcStandardDeviation(values, calcVariance(values, values.sum))
+  }
 }
 
 
 
 trait NetworkClientStatisticsMBean {
   def getRequestsPerSecond: Int
-  def getAverageRequestProcessingTime: Int
-  def getAveragePendingRequestTime: Int
+  def getAverageRequestProcessingTime: Double
+  def getAveragePendingRequestTime: Double
 }

@@ -6,7 +6,7 @@ class NorbertProject(info: ProjectInfo) extends ParentProject(info) with IdeaPro
   lazy val cluster = project("cluster", "Norbert Cluster", new ClusterProject(_))
   lazy val network = project("network", "Norbert Network", new NetworkProject(_), cluster)
   lazy val javaCluster = project("java-cluster", "Norbert Java Cluster", new DefaultProject(_) with IdeaProject, cluster)
-  lazy val javaNetwork = project("java-network", "Norbert Java Network", new DefaultProject(_) with IdeaProject, javaCluster, network)
+  lazy val javaNetwork = project("java-network", "Norbert Java Network", new DefaultProject(_) with IdeaProject, cluster, javaCluster, network)
   lazy val examples = project("examples", "Norbert Examples", new DefaultProject(_) with IdeaProject, network, javaNetwork)
 
   class ClusterProject(info: ProjectInfo) extends DefaultProject(info) with IdeaProject {

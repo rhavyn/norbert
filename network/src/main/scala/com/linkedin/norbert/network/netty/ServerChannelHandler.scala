@@ -29,6 +29,7 @@ import jmx.{FinishedRequestTimeTracker, JMX}
 import java.lang.String
 import com.google.protobuf.{ByteString}
 import common.NetworkStatisticsActor
+import util.SystemClock
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -54,7 +55,6 @@ class RequestContextEncoder extends OneToOneEncoder with Logging {
   def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Any) = {
     val (context, norbertMessage) = msg.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
 
-//    statsActor ! statsActor.Stats.NewProcessingTime((System.currentTimeMillis - context.receivedAt).toInt)
 
     norbertMessage
   }
@@ -63,7 +63,7 @@ class RequestContextEncoder extends OneToOneEncoder with Logging {
 
 @ChannelPipelineCoverage("all")
 class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](100)
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock)
   statsActor.start
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
@@ -73,8 +73,8 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
       case RequestsPerSecond(rps) => rps
     }
 
-    def getAverageRequestProcessingTime = statsActor !? GetTotalAverageProcessingTime match {
-      case TotalAverageProcessingTime(time) => time
+    def getAverageRequestProcessingTime = statsActor !? GetProcessingStatistics match {
+      case ProcessingStatistics(map) => average(map){_.completedTime}{_.completedSize}
     }
   })
 
@@ -157,5 +157,5 @@ private[netty] object ResponseHelper {
 
 trait NetworkServerStatisticsMBean {
   def getRequestsPerSecond: Int
-  def getAverageRequestProcessingTime: Int
+  def getAverageRequestProcessingTime: Double
 }

@@ -17,9 +17,22 @@
 package com.linkedin.norbert.util
 
 trait ClockComponent {
-  val clock: Clock = new Clock {}
+  val clock: Clock
 }
 
 trait Clock {
-  def getCurrentTime: Long = System.currentTimeMillis
+  def getCurrentTime: Long
+}
+
+object MockClock extends Clock {
+  var currentTime = 0L
+  override def getCurrentTime = currentTime
+}
+
+object SystemClock extends Clock {
+  def getCurrentTime = System.currentTimeMillis
+}
+
+object SystemClockComponent extends ClockComponent {
+  val clock = SystemClock
 }

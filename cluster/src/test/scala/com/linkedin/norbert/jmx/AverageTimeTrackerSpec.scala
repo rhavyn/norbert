@@ -17,36 +17,31 @@ package com.linkedin.norbert
 package jmx
 
 import org.specs.Specification
-import util.{Clock, ClockComponent}
+import util.{SystemClock, MockClock, Clock, ClockComponent}
 
 class AverageTimeTrackerSpec extends Specification {
   "RequestTimeTracker" should {
     "correctly average the times provided" in {
-      val a = new RequestTimeTracker(100)
-      (1 to 100).foreach(a.addTime(_))
-      a.average must be_==(50)
+      val a = new FinishedRequestTimeTracker(MockClock, 100)
+      (1 to 100).foreach{ t =>
+        a.addTime(t)
+        MockClock.currentTime = t
+      }
+      a.total must be_==(5050)
+
       a.addTime(101)
-      a.average must be_==(51)
+      MockClock.currentTime = 101
+
+      a.total must be_==(5150) // first one gets knocked out
     }
 
     "Correctly calculate unfinished times" in {
-       val myClock = new Clock {
-         var currentTime = 0L
-         override def getCurrentTime = currentTime
-       }
-
-       val myCC = new ClockComponent {
-         override val clock = myClock
-       }
-
-       val tracker = new UnfinishedRequestTimeTracker[Int] {
-         override val clock = myClock
-       }
+       val tracker = new PendingRequestTimeTracker[Int](MockClock)
 
        (0 until 10).foreach { i =>
-         myClock.currentTime = 1000L * i
+         MockClock.currentTime = 1000L * i
          tracker.beginRequest(i)
-         tracker.pendingAverage must be_==(1000L * i / 2)
+         (tracker.total / (i + 1)) must be_==(1000L * i / 2)
        }
     }
 

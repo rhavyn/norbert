@@ -6,31 +6,33 @@ import logging.Logging
 import actors.DaemonActor
 import collection.immutable.SortedMap
 import jmx.{RequestTimeTracker, RequestsPerSecondTracker}
+import util.{Clock, ClockComponent}
 
-class NetworkStatisticsActor[GroupIdType, RequestIdType](averageTimeSize: Int)(implicit ordering: Ordering[GroupIdType]) extends DaemonActor with Logging {
+class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long = 1000L)(implicit ordering: Ordering[GroupIdType]) extends DaemonActor with Logging {
   object Stats {
     case class BeginRequest(groupId: GroupIdType, requestId: RequestIdType)
     case class EndRequest(groupId: GroupIdType, requestId: RequestIdType)
 
-    case object GetAverageProcessingTime
-    case class AverageProcessingTime(map: Map[GroupIdType, Int]) // group_id -> time
+    case object GetProcessingStatistics
 
-    case object GetTotalAverageProcessingTime
-    case class TotalAverageProcessingTime(time: Int)
-
-    case object GetAveragePendingTime
-    case class AveragePendingTime(map: Map[GroupIdType, Int])
-
-    case object GetTotalAveragePendingTime
-    case class TotalAveragePendingTime(time: Int)
+    case class ProcessingEntry(pendingTime: Long, pendingSize: Int, completedTime: Long, completedSize: Int)
+    case class ProcessingStatistics(map: Map[GroupIdType, ProcessingEntry])
 
     case object GetRequestsPerSecond
     case class RequestsPerSecond(rps: Int)
+
+    def average(total: Long, size: Int) = if(size == 0) 0.0 else total.toDouble / size
+
+    def average(map: Map[GroupIdType, ProcessingEntry])( timeFn: (ProcessingEntry => Long))( sizeFn: (ProcessingEntry => Int)): Double = {
+      val (total, size) = map.values.foldLeft((0L, 0)) { case ((t, s), stats) =>
+          (t + timeFn(stats), s + sizeFn(stats))
+        }
+      average(total, size)
+    }
   }
 
-  private var timeTrackers = SortedMap.empty[GroupIdType, RequestTimeTracker[RequestIdType]]
+  private val timeTrackers = collection.mutable.Map.empty[GroupIdType, RequestTimeTracker[RequestIdType]]
 
-  private val processingTime = new RequestTimeTracker(averageTimeSize)
   private val rps = new RequestsPerSecondTracker
 
   def act() = {
@@ -39,21 +41,17 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](averageTimeSize: Int)(i
     loop {
       react {
         case BeginRequest(groupId, requestId) =>
-          val tracker = timeTrackers.getOrElse(groupId, new RequestTimeTracker(averageTimeSize))
+          val tracker = timeTrackers.getOrElseUpdate(groupId, new RequestTimeTracker(clock, timeWindow))
           tracker.beginRequest(requestId)
 
         case EndRequest(groupId, requestId) =>
-          val tracker = timeTrackers.getOrElse(groupId, new RequestTimeTracker(averageTimeSize))
-          tracker.endRequest(requestId)
+          val tracker = timeTrackers.get(groupId).foreach { _.endRequest(requestId) }
           rps++
 
-        case GetAverageProcessingTime =>
-          reply(AverageProcessingTime(timeTrackers.map { case (groupId, tracker) =>
-            (groupId, tracker.average)
-          }))
-
-        case GetTotalAverageProcessingTime =>
-          reply(TotalAverageProcessingTime(timeTrackers.values.foldLeft(0) { _ + _.average }))
+        case GetProcessingStatistics =>
+          reply(ProcessingStatistics(timeTrackers.map { case (groupId, tracker) =>
+            (groupId, ProcessingEntry(tracker.pendingRequestTimeTracker.total, tracker.pendingRequestTimeTracker.size, tracker.finishedRequestTimeTracker.total, tracker.finishedRequestTimeTracker.size))
+          }.toMap))
 
         case GetRequestsPerSecond => reply(RequestsPerSecond(rps.rps))
 

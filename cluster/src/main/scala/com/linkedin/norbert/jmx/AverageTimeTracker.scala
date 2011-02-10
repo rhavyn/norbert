@@ -17,58 +17,83 @@ package com.linkedin.norbert
 package jmx
 
 import collection.mutable.{Map, Queue}
-import java.util.UUID
-import util.ClockComponent
+import util.{Clock, ClockComponent}
+import annotation.tailrec
 
-trait FinishedRequestTimeTracker {
-  private val q = Queue[Int]()
-  private var n = 0
+class FinishedRequestTimeTracker(clock: Clock, interval: Long = 1000L) {
+  private val q = Queue[(Long, Int)]() // (When the request completed, request processing time)
+  private var t = 0L
 
-  def size: Int
-
-  def addTime(time: Int) {
-    q += time
-    val old = if (q.size > size) q.dequeue else 0
-    n = (n - old + time)
+  private def clean {
+    while(!q.isEmpty) {
+      val (completion, processingTime) = q.head
+      if(clock.getCurrentTime - completion > interval) {
+        t -= processingTime
+        q.dequeue
+      } else {
+        return
+      }
+    }
   }
 
-  def average: Int = if (q.size > 0) n / q.size else n
+  def addTime(processingTime: Int) {
+    q.enqueue( (clock.getCurrentTime, processingTime) )
+    t += processingTime
+  }
+
+  def total: Long = {
+    clean
+    t
+  }
+
+  def size: Int = {
+    q.size
+  }
 }
 
-trait UnfinishedRequestTimeTracker[KeyT] extends ClockComponent {
+class PendingRequestTimeTracker[KeyT](clock: Clock) {
   private val unfinishedRequests = Map.empty[KeyT, Long]
 
   // We can have about 7 million requests outstanding before overflow.
   // Long.MAX_LONG / System.currentTimeMillis
   // TODO: Make sure dead requests get properly expired from this value
-  private var totalUnfinishedTime = 0L
+  private var t = 0L
 
-  def pendingAverage: Int = {
+  def total: Long = {
     val now = clock.getCurrentTime
-    val numUnfinishedRequests = unfinishedRequests.size
-    (now - (totalUnfinishedTime / numUnfinishedRequests)).asInstanceOf[Int]
+    val s = size
+    (now * s) - t
   }
+
+  def size: Int = unfinishedRequests.size
 
   def getStartTime(key: KeyT) = unfinishedRequests.get(key)
 
   def beginRequest(key: KeyT) = {
     val now = clock.getCurrentTime
     unfinishedRequests += key -> now
-    totalUnfinishedTime += now
+    t += now
   }
 
   def endRequest(key: KeyT) = {
-    getStartTime(key).foreach { time => totalUnfinishedTime -= time }
+    getStartTime(key).foreach { time => t -= time }
     unfinishedRequests -= key
   }
 }
 
-class RequestTimeTracker[KeyT](val size: Int) extends FinishedRequestTimeTracker with UnfinishedRequestTimeTracker[KeyT] {
-  override def endRequest(key: KeyT) = {
-    getStartTime(key).foreach { startTime =>
-      addTime((clock.getCurrentTime - startTime).asInstanceOf[Int])
+class RequestTimeTracker[KeyT](clock: Clock, interval: Long) {
+  val finishedRequestTimeTracker = new FinishedRequestTimeTracker(clock, interval)
+  val pendingRequestTimeTracker = new PendingRequestTimeTracker[KeyT](clock)
+
+  def beginRequest(key: KeyT) {
+    pendingRequestTimeTracker.beginRequest(key)
+  }
+
+  def endRequest(key: KeyT) {
+    pendingRequestTimeTracker.getStartTime(key).foreach { startTime =>
+      finishedRequestTimeTracker.addTime((clock.getCurrentTime - startTime).asInstanceOf[Int])
     }
-    super.endRequest(key)
+    pendingRequestTimeTracker.endRequest(key)
   }
 }
 

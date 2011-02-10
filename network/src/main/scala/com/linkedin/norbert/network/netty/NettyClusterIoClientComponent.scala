@@ -22,14 +22,14 @@ import java.util.concurrent.{ConcurrentHashMap}
 import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
 import cluster.Node
 import logging.Logging
-import common.{Endpoint, ClusterIoClientComponent}
+import common._
 
 /**
  * A <code>ClusterIoClientComponent</code> implementation that uses Netty for network communication.
  */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
 
-  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory) extends ClusterIoClient with UrlParser with Logging {
+  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory, otherStrategies: CanServeRequestStrategy = AlwaysAvailableRequestStrategy) extends ClusterIoClient with UrlParser with Logging {
     private val channelPools = new ConcurrentHashMap[Node, ChannelPool]
 
     def sendMessage[RequestMsg, ResponseMsg](node: Node, request: Request[RequestMsg, ResponseMsg]) {
@@ -65,10 +65,12 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
 
       nodes.map { n =>
         val channelPool = getChannelPool(n)
+        val channelPoolStrategy = channelPool.errorStrategy
+        val requestStrategy = CompositeCanServeRequestStrategy(channelPoolStrategy, otherStrategies)
 
         new Endpoint {
           def node = n
-          def canServeRequests = channelPool.canServeRequests(node)
+          def canServeRequests = requestStrategy.canServeRequest(node)
         }
       }
     }
