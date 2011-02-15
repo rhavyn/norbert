@@ -95,23 +95,24 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
 
     statsActor ! statsActor.Stats.BeginRequest(0, context.requestId)
 
-    val (handler, serializer) = try {
+    val (handler, is, os) = try {
       val handler: Any => Any = messageHandlerRegistry.handlerFor(messageName)
-      val serializer: Serializer[Any, Any] = messageHandlerRegistry.serializerFor(messageName)
+      val is: InputSerializer[Any, Any] = messageHandlerRegistry.inputSerializerFor(messageName)
+      val os: OutputSerializer[Any, Any] = messageHandlerRegistry.outputSerializerFor(messageName)
 
-      (handler, serializer)
+      (handler, is, os)
     } catch {
       case ex: InvalidMessageException =>
         Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
         throw ex
     }
 
-    val request = serializer.requestFromBytes(requestBytes)
+    val request = is.requestFromBytes(requestBytes)
 
     try {
       messageExecutor.executeMessage(request, (either: Either[Exception, Any]) => {
-        responseHandler(context, e.getChannel, either)(serializer)
-      })(serializer)
+        responseHandler(context, e.getChannel, either)(is, os)
+      })(is)
     }
     catch {
       case ex: HeavyLoadException =>
@@ -122,13 +123,13 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in channel: %s".format(e.getChannel))
 
   def responseHandler[RequestMsg, ResponseMsg](context: RequestContext, channel: Channel, either: Either[Exception, ResponseMsg])
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]) {
     val response = either match {
       case Left(ex) => ResponseHelper.errorResponse(context.requestId, ex)
       case Right(responseMsg) =>
         ResponseHelper.responseBuilder(context.requestId)
-        .setMessageName(serializer.nameOfRequestMessage)
-        .setMessage(ByteString.copyFrom(serializer.responseToBytes(responseMsg)))
+        .setMessageName(is.nameOfRequestMessage)
+        .setMessage(ByteString.copyFrom(os.responseToBytes(responseMsg)))
         .build
     }
 

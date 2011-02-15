@@ -22,29 +22,37 @@ trait MessageHandlerRegistryComponent {
 }
 
 private case class MessageHandlerEntry[RequestMsg, ResponseMsg]
-(serializer: Serializer[RequestMsg, ResponseMsg], handler: RequestMsg => ResponseMsg)
+(is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg], handler: RequestMsg => ResponseMsg)
 
 class MessageHandlerRegistry {
   @volatile private var handlerMap =
     Map.empty[String, MessageHandlerEntry[_ <: Any, _ <: Any]]
 
   def registerHandler[RequestMsg, ResponseMsg](handler: RequestMsg => ResponseMsg)
-                                              (implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
+                                              (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]) {
     if(handler == null) throw new NullPointerException
-    handlerMap += (serializer.nameOfRequestMessage -> MessageHandlerEntry(serializer, handler))
+
+    handlerMap += (is.nameOfRequestMessage -> MessageHandlerEntry(is, os, handler))
   }
 
   @throws(classOf[InvalidMessageException])
-  def serializerFor[RequestMsg, ResponseMsg](messageName: String): Serializer[RequestMsg, ResponseMsg] = {
-    handlerMap.get(messageName).map(_.serializer)
+  def inputSerializerFor[RequestMsg, ResponseMsg](messageName: String): InputSerializer[RequestMsg, ResponseMsg] = {
+    handlerMap.get(messageName).map(_.is)
       .getOrElse(throw new InvalidMessageException("%s is not a registered method".format(messageName)))
-      .asInstanceOf[Serializer[RequestMsg, ResponseMsg]]
+      .asInstanceOf[InputSerializer[RequestMsg, ResponseMsg]]
+  }
+
+  @throws(classOf[InvalidMessageException])
+  def outputSerializerFor[RequestMsg, ResponseMsg](messageName: String): OutputSerializer[RequestMsg, ResponseMsg] = {
+    handlerMap.get(messageName).map(_.os)
+      .getOrElse(throw new InvalidMessageException("%s is not a registered method".format(messageName)))
+      .asInstanceOf[OutputSerializer[RequestMsg, ResponseMsg]]
   }
 
   @throws(classOf[InvalidMessageException])
   def handlerFor[RequestMsg, ResponseMsg](request: RequestMsg)
-                                         (implicit serializer: Serializer[RequestMsg, ResponseMsg]): RequestMsg => ResponseMsg = {
-    handlerFor[RequestMsg, ResponseMsg](serializer.nameOfRequestMessage)
+                                         (implicit is: InputSerializer[RequestMsg, ResponseMsg]): RequestMsg => ResponseMsg = {
+    handlerFor[RequestMsg, ResponseMsg](is.nameOfRequestMessage)
   }
 
   @throws(classOf[InvalidMessageException])

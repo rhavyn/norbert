@@ -18,14 +18,24 @@ import java.io.{OutputStream, InputStream}
  * the License.
  */
 
-trait Serializer[RequestMsg, ResponseMsg] {
+/**
+ * When you don't care about variance. IE Java users
+ */
+trait Serializer[RequestMsg, ResponseMsg] extends InputSerializer[RequestMsg, ResponseMsg] with OutputSerializer[RequestMsg, ResponseMsg]
+
+
+// Split up for correct variance
+trait OutputSerializer[-RequestMsg, -ResponseMsg] {
+  def requestToBytes(request: RequestMsg): Array[Byte]
+  def responseToBytes(response: ResponseMsg): Array[Byte]
+}
+
+trait InputSerializer[+RequestMsg, +ResponseMsg] {
   def nameOfRequestMessage: String
-//  def writeSerializedRequestMessage(message: RequestMsg, output: OutputStream): Unit
-//  def readSerializedResponseMessage(input: InputStream): ResponseMsg
 
-  def requestToBytes(message: RequestMsg): Array[Byte]
   def requestFromBytes(bytes: Array[Byte]): RequestMsg
-
-  def responseToBytes(message: ResponseMsg): Array[Byte]
   def responseFromBytes(bytes: Array[Byte]): ResponseMsg
 }
+
+//  def writeSerializedRequestMessage(message: RequestMsg, output: OutputStream): Unit
+//  def readSerializedResponseMessage(input: InputStream): ResponseMsg

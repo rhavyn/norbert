@@ -79,7 +79,7 @@ trait NetworkClient extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def sendRequest[RequestMsg, ResponseMsg](request: RequestMsg, callback: Either[Throwable, ResponseMsg] => Unit)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
     if (request == null) throw new NullPointerException
 
     val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
@@ -101,7 +101,7 @@ trait NetworkClient extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def sendRequest[RequestMsg, ResponseMsg](request: RequestMsg)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
     val future = new FutureAdapter[ResponseMsg]
     sendRequest(request, future)
     future

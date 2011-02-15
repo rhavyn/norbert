@@ -25,7 +25,7 @@ object JavaSerializer {
 }
 
 class JavaSerializer[RequestMsg, ResponseMsg](requestClass: Class[RequestMsg], responseClass: Class[ResponseMsg])
-  extends Serializer[RequestMsg, ResponseMsg] {
+  extends InputSerializer[RequestMsg, ResponseMsg] with OutputSerializer[RequestMsg, ResponseMsg] {
   def nameOfRequestMessage = requestClass.getName + " -> " + responseClass.getName
 
   private def toBytes[T](message: T): Array[Byte] = {

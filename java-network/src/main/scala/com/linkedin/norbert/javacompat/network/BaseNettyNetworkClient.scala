@@ -30,10 +30,10 @@ abstract class BaseNettyNetworkClient extends BaseNetworkClient {
 
   def shutdown = underlying.shutdown
 
-  def broadcastMessage[RequestMsg, ResponseMsg](message: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) = underlying.broadcastMessage(message)(serializer)
+  def broadcastMessage[RequestMsg, ResponseMsg](message: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) = underlying.broadcastMessage(message)(serializer, serializer)
 
   def sendRequestToNode[RequestMsg, ResponseMsg](request: RequestMsg, node: Node, serializer: Serializer[RequestMsg, ResponseMsg]) =
-    underlying.sendRequestToNode(request, node)(serializer)
+    underlying.sendRequestToNode(request, node)(serializer, serializer)
 
 //  def registerRequest(requestMessage: Message, responseMessage: Message) = underlying.registerRequest(requestMessage, responseMessage)
 
@@ -73,7 +73,7 @@ class NettyNetworkClient(config: NetworkClientConfig, loadBalancerFactory: LoadB
   underlying.start
 
   def sendRequest[RequestMsg, ResponseMsg](requestMsg: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
-    underlying.sendRequest(requestMsg)(serializer)
+    underlying.sendRequest(requestMsg)(serializer, serializer)
 
 }
 
@@ -99,11 +99,11 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
 
 
   def sendRequest[RequestMsg, ResponseMsg](id: PartitionedId, request: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
-    underlying.sendRequest(id, request)(serializer)
+    underlying.sendRequest(id, request)(serializer, serializer)
 
 
   def sendRequest[RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId], request: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
-    underlying.sendRequest(ids, request)(serializer)
+    underlying.sendRequest(ids, request)(serializer, serializer)
 
 
   def sendRequest[T, RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId], request: RequestMsg,

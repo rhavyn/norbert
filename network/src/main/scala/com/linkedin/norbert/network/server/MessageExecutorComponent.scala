@@ -35,14 +35,14 @@ trait MessageExecutorComponent {
 
 trait MessageExecutor {
   def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg]): Unit
   def shutdown: Unit
 }
 
 class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
-    keepAliveTime: Int, maxWaitingQueueSize: Int = 100) extends MessageExecutor with Logging {
+    keepAliveTime: Int, maxWaitingQueueSize: Int, requestStatisticsWindow: Long) extends MessageExecutor with Logging {
 
-    private val statsActor = new NetworkStatisticsActor[Int, Int](SystemClock)
+    private val statsActor = new NetworkStatisticsActor[Int, Int](SystemClock, requestStatisticsWindow)
     statsActor.start
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new ArrayBlockingQueue[Runnable](maxWaitingQueueSize),
@@ -60,9 +60,10 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
     }
   }
 
-  def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)(implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
+  def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)
+                                             (implicit is: InputSerializer[RequestMsg, ResponseMsg]) {
     try {
-      threadPool.execute(new RequestRunner(request, responseHandler, serializer = serializer))
+      threadPool.execute(new RequestRunner(request, responseHandler, is = is))
     } catch {
       case ex: RejectedExecutionException =>   throw new HeavyLoadException
     }
@@ -79,7 +80,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
                                                        callback: (Either[Exception, ResponseMsg]) => Unit,
                                                        val queuedAt: Long = System.currentTimeMillis,
                                                        val id: Int = idGenerator.getAndIncrement,
-                                                       implicit val serializer: Serializer[RequestMsg, ResponseMsg]) extends Runnable {
+                                                       implicit val is: InputSerializer[RequestMsg, ResponseMsg]) extends Runnable {
     def run = {
       log.debug("Executing message: %s".format(request))
 

@@ -53,7 +53,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
   @volatile private var loadBalancer: Option[Either[InvalidClusterException, PartitionedLoadBalancer[PartitionedId]]] = None
 
   def sendRequest[RequestMsg, ResponseMsg](id: PartitionedId, request: RequestMsg, callback: Either[Throwable, ResponseMsg] => Unit)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
     if (id == null || request == null) throw new NullPointerException
 
     val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
@@ -78,7 +78,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    */
   def sendRequest[RequestMsg, ResponseMsg](id: PartitionedId, request: RequestMsg)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
     val future = new FutureAdapter[ResponseMsg]
     sendRequest(id, request, future)
     future
@@ -100,7 +100,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
   */
   def sendRequest[RequestMsg, ResponseMsg](ids: Set[PartitionedId], request: RequestMsg)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
     if (ids == null || request == null) throw new NullPointerException
 
     val nodes = calculateNodesFromIds(ids)
@@ -165,7 +165,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
   def sendRequest[RequestMsg, ResponseMsg, Result](ids: Set[PartitionedId], request: RequestMsg, responseAggregator: (RequestMsg, ResponseIterator[ResponseMsg]) => Result)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Result = doIfConnected{
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Result = doIfConnected{
     if (responseAggregator == null) throw new NullPointerException
     responseAggregator(request, sendRequest(ids, request))
   }

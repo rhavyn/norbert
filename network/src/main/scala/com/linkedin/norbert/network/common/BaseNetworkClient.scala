@@ -82,7 +82,7 @@ trait BaseNetworkClient extends Logging {
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def sendRequestToNode[RequestMsg, ResponseMsg](request: RequestMsg, node: Node, callback: Either[Throwable, ResponseMsg] => Unit)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
+   (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Unit = doIfConnected {
     if (request == null || node == null) throw new NullPointerException
 
     val candidate = currentNodes.filter(_ == node)
@@ -103,7 +103,7 @@ trait BaseNetworkClient extends Logging {
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def sendRequestToNode[RequestMsg, ResponseMsg](request: RequestMsg, node: Node)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
+   (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Future[ResponseMsg] = {
     val future = new FutureAdapter[ResponseMsg]
     sendRequestToNode(request, node, future)
     future
@@ -119,7 +119,7 @@ trait BaseNetworkClient extends Logging {
    * @throws ClusterDisconnectedException thrown if the cluster is not connected when the method is called
    */
   def broadcastMessage[RequestMsg, ResponseMsg](request: RequestMsg)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
+   (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
     if (request == null) throw new NullPointerException
 
     val nodes = currentNodes
@@ -138,8 +138,8 @@ trait BaseNetworkClient extends Logging {
   protected def updateLoadBalancer(nodes: Set[Endpoint]): Unit
 
   protected def doSendRequest[RequestMsg, ResponseMsg](node: Node, request: RequestMsg, callback: Either[Throwable, ResponseMsg] => Unit)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Unit = {
-    clusterIoClient.sendMessage(node, Request(request, node, serializer, callback))
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Unit = {
+    clusterIoClient.sendMessage(node, Request(request, node, is, os, callback))
   }
 
   protected def doIfConnected[T](block: => T): T = {

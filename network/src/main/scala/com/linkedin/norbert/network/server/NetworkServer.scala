@@ -45,7 +45,7 @@ trait NetworkServer extends Logging {
    */
 
   def registerHandler[RequestMsg, ResponseMsg](handler: RequestMsg => ResponseMsg)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]) {
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]) {
     messageHandlerRegistry.registerHandler(handler)
   }
 
