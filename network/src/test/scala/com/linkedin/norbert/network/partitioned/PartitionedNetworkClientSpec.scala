@@ -174,7 +174,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
 //      doNothing.when(clusterIoClient).sendRequest(node, message, null)
 
         networkClient.start
-        networkClient.sendRequest(Set(1, 2, 3), request, messageCustomizer _)
+        networkClient.sendRequest(Set(1, 2, 3), messageCustomizer _)
 
         List(1, 2, 3).foreach(there was one(networkClient.lb).nextNode(_))
 //      clusterIoClient.sendRequest(node, message, null) wasnt called
@@ -184,10 +184,10 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         var callCount = 0
         var nodeMap = Map[Node, Set[Int]]()
 
-        def mc(message: Ping, node: Node, ids: Set[Int]) = {
+        def mc(node: Node, ids: Set[Int]): Ping = {
           callCount += 1
           nodeMap = nodeMap + (node -> ids)
-          message
+          new Ping
         }
 
         clusterClient.nodes returns nodeSet
@@ -198,7 +198,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         List(3, 4).foreach(networkClient.lb.nextNode(_) returns Some(nodes(1)))
 
         networkClient.start
-        networkClient.sendRequest(Set(1, 2, 3, 4), request, mc _)
+        networkClient.sendRequest(Set(1, 2, 3, 4), mc _)
 
         callCount must be_==(2)
         nodeMap.size must be_==(2)
@@ -207,7 +207,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
       }
 
       "treats an exception from the message customizer as a failed response" in {
-        def mc(message: Ping, node: Node, ids: Set[Int]) = {
+        def mc(node: Node, ids: Set[Int]): Ping = {
           throw new Exception
         }
 
@@ -218,7 +218,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         List(1, 2).foreach(networkClient.lb.nextNode(_) returns Some(nodes(0)))
 
         networkClient.start
-        val ri = networkClient.sendRequest(Set(1, 2), request, mc _)
+        val ri = networkClient.sendRequest(Set(1, 2), mc _)
         ri.hasNext must beTrue
         ri.next must throwA[ExecutionException]
       }
@@ -231,7 +231,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
 //      doNothing.when(clusterIoClient).sendRequest(node, message, null)
 
         networkClient.start
-        networkClient.sendRequest(Set(1, 2, 3), request, messageCustomizer _)  must throwA[InvalidClusterException]
+        networkClient.sendRequest(Set(1, 2, 3), messageCustomizer _)  must throwA[InvalidClusterException]
 
 //      clusterIoClient.sendRequest(node, message, null) wasnt called
       }
@@ -245,7 +245,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
 //      doNothing.when(clusterIoClient).sendRequest(node, message, null)
 
         networkClient.start
-        networkClient.sendRequest(Set(1, 2, 3), request, messageCustomizer _) must throwA[NoNodesAvailableException]
+        networkClient.sendRequest(Set(1, 2, 3), messageCustomizer _) must throwA[NoNodesAvailableException]
 
         there was one(networkClient.lb).nextNode(1)
 //      clusterIoClient.sendRequest(node, message, null) wasnt called
@@ -289,5 +289,5 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
     }
   }
 
-  def messageCustomizer(request: Ping, node: Node, ids: Set[Int]) = request
+  def messageCustomizer(node: Node, ids: Set[Int]): Ping = new Ping
 }

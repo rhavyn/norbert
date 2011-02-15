@@ -24,7 +24,7 @@ import common.SampleMessage
 
 class MessageExecutorSpec extends Specification with Mockito with WaitFor with SampleMessage {
   val messageHandlerRegistry = mock[MessageHandlerRegistry]
-  val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 1, 1, 1)
+  val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 1, 1, 1, 100, 1000L)
 
   var handlerCalled = false
   var either: Either[Exception, Ping] = null

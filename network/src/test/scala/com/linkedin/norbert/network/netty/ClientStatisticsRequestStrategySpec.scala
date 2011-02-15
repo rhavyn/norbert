@@ -29,7 +29,7 @@ class ClientStatisticsRequestStrategySpec extends Specification with Mockito {
       val statsActor = new NetworkStatisticsActor[Int, UUID](MockClock, 1000L)
       statsActor.start
 
-      val strategy = new ClientStatisticsRequestStrategy(statsActor, 2, 10)
+      val strategy = new ClientStatisticsRequestStrategy(statsActor, 2, 10, MockClock, 1000L)
 
       val nodes = (0 until 5).map { nodeId => Node(nodeId, "foo", true) }
 

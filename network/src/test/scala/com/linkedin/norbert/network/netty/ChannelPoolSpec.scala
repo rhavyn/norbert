@@ -130,7 +130,7 @@ class ChannelPoolSpec extends Specification with Mockito {
     "properly handle a failed write" in {
       val channel = mock[Channel]
       var either: Either[Throwable, Any] = null
-      val request = spy(Request(null, null, null, (e: Either[Throwable, Any]) => either = e))
+      val request = spy(Request(null, null, null, null, (e: Either[Throwable, Any]) => either = e))
       request.timestamp returns System.currentTimeMillis + 10000
       channel.isConnected returns true
       val openFuture = new TestChannelFuture(channel, true)
@@ -149,10 +149,10 @@ class ChannelPoolSpec extends Specification with Mockito {
 
     "not write queued requests if the request timed out" in {
       val channel = mock[Channel]
-      val goodRequest = spy(new Request(null, null, null, (e: Either[Throwable, Any]) => null))
+      val goodRequest = spy(new Request(null, null, null, null, (e: Either[Throwable, Any]) => null))
 
       var either: Either[Throwable, Any] = null
-      val badRequest = spy(new Request(null, null, null, (e: Either[Throwable, Any]) => either = e))
+      val badRequest = spy(new Request(null, null, null, null, (e: Either[Throwable, Any]) => either = e))
 
       goodRequest.timestamp returns System.currentTimeMillis + 10000
       badRequest.timestamp returns System.currentTimeMillis - 10000

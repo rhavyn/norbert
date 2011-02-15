@@ -34,7 +34,7 @@ class LocalMessageExecutionSpec extends Specification with Mockito with SampleMe
 
     def shutdown = {}
 
-    def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)(implicit serializer: Serializer[RequestMsg, ResponseMsg]) = {
+    def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)(implicit is: InputSerializer[RequestMsg, ResponseMsg]) = {
       called = true
       this.request = request
 
