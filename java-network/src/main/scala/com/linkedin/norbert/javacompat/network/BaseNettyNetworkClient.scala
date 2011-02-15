@@ -106,14 +106,14 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
     underlying.sendRequest(ids, request)(serializer, serializer)
 
 
-  def sendRequest[T, RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId], request: RequestMsg,
+  def sendRequest[T, RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId],
                                               scatterGather: ScatterGatherHandler[RequestMsg, ResponseMsg, T, PartitionedId],
                                               serializer: Serializer[RequestMsg, ResponseMsg]) = {
-    underlying.sendRequest(ids, request, (request: RequestMsg, node: com.linkedin.norbert.cluster.Node, ids: Set[PartitionedId]) => {
+    underlying.sendRequest(ids, (node: com.linkedin.norbert.cluster.Node, ids: Set[PartitionedId]) => {
       val i = new java.util.HashSet[PartitionedId]
       ids.foreach { id => i.add(id) }
-      scatterGather.customizeRequest(request, node, i)
-    }, (request: RequestMsg, responseIterator: ResponseIterator[ResponseMsg]) => scatterGather.gatherResponses(request, responseIterator))(serializer)
+      scatterGather.buildMessage(node, i)
+    }, (responseIterator: ResponseIterator[ResponseMsg]) => scatterGather.gatherResponses(responseIterator))(serializer, serializer)
   }
 
 

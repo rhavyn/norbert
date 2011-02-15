@@ -129,15 +129,15 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * to send the request to
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    */
-  def sendRequest[RequestMsg, ResponseMsg](ids: Set[PartitionedId], initialRequest: RequestMsg, requestCustomizer: (RequestMsg, Node, Set[PartitionedId]) => RequestMsg)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
-    if (ids == null || initialRequest == null || requestCustomizer == null) throw new NullPointerException
+  def sendRequest[RequestMsg, ResponseMsg](ids: Set[PartitionedId], requestBuilder: (Node, Set[PartitionedId]) => RequestMsg)
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
+    if (ids == null || requestBuilder == null) throw new NullPointerException
 
     val nodes = calculateNodesFromIds(ids)
     val queue = new ResponseQueue[ResponseMsg]
     nodes.foreach { case (node, idsForNode) =>
       try {
-        doSendRequest(node, requestCustomizer(initialRequest, node, idsForNode), queue.+=)
+        doSendRequest(node, requestBuilder(node, idsForNode), queue.+=)
       } catch {
         case ex: Exception => queue += Left(ex)
       }
@@ -192,17 +192,17 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
-  def sendRequest[RequestMsg, ResponseMsg, Result](ids: Set[PartitionedId], request: RequestMsg, requestCustomizer: (RequestMsg, Node, Set[PartitionedId]) => RequestMsg,
-              responseAggregator: (RequestMsg, ResponseIterator[ResponseMsg]) => Result)
-  (implicit serializer: Serializer[RequestMsg, ResponseMsg]): Result = doIfConnected {
+  def sendRequest[RequestMsg, ResponseMsg, Result](ids: Set[PartitionedId], requestBuilder: (Node, Set[PartitionedId]) => RequestMsg,
+              responseAggregator: (ResponseIterator[ResponseMsg]) => Result)
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Result = doIfConnected {
     if (responseAggregator == null) throw new NullPointerException
-    responseAggregator(request, sendRequest(ids, request, requestCustomizer))
+    responseAggregator(sendRequest(ids, requestBuilder))
   }
 
-  protected def updateLoadBalancer(nodes: Set[Endpoint]) {
-    loadBalancer = if (nodes != null && nodes.size > 0) {
+  protected def updateLoadBalancer(endpoints: Set[Endpoint]) {
+    loadBalancer = if (endpoints != null && endpoints.size > 0) {
       try {
-        Some(Right(loadBalancerFactory.newLoadBalancer(nodes)))
+        Some(Right(loadBalancerFactory.newLoadBalancer(endpoints)))
       } catch {
         case ex: InvalidClusterException =>
           log.info(ex, "Unable to create new router instance")

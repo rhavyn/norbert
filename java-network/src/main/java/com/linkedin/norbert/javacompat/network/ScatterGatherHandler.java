@@ -30,23 +30,21 @@ public interface ScatterGatherHandler<RequestMsg, ResponseMsg, T, PartitionedId>
    * customize it for the particular <code>Node</code> and ids the message is being sent to.  The
    * returned <code>Message</code> is the one that will actually be sent.
    *
-   * @param originalRequest the <code>Message</code> to be customized
    * @param node the <code>Node</code> the request is being sent to
    * @param ids the ids that are on the node the request is being sent to
    *
    * @return the customized message
    * @throws Exception any exception thrown will be passed on to the client
    */
-  RequestMsg customizeRequest(RequestMsg originalRequest, Node node, Set<PartitionedId> ids) throws Exception;
+  RequestMsg buildMessage(Node node, Set<PartitionedId> ids) throws Exception;
 
   /**
    * This method is called after all messages are sent and allows the user to aggregate the responses.
    *
-   * @param originalRequest the original (uncustomized) request that was sent
    * @param responseIterator the <code>ResponseIterator</code> to retrieve responses
    *
    * @return A user defined value.  This value is passed on to the client.
    * @throws Exception any exception thrown will be passed on to the client
    */
-  T gatherResponses(RequestMsg originalRequest, ResponseIterator<ResponseMsg> responseIterator) throws Exception;
+  T gatherResponses(ResponseIterator<ResponseMsg> responseIterator) throws Exception;
 }

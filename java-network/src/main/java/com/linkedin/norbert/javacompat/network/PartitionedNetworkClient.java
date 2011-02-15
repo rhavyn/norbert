@@ -65,7 +65,6 @@ public interface PartitionedNetworkClient<PartitionedId> extends BaseNetworkClie
    * has returned a value.
    *
    * @param ids the <code>PartitionedId</code>s to which the message is addressed
-   * @param message the message to send
    * @param scatterGather the <code>ScatterGatherHandler</code> that should be used to process the request
    * and responses.
    *
@@ -76,5 +75,5 @@ public interface PartitionedNetworkClient<PartitionedId> extends BaseNetworkClie
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>ScatterGatherHandler</code> will be passed through to the client
    */
-  <T, RequestMsg, ResponseMsg> T sendRequest(Set<PartitionedId> ids, RequestMsg message, ScatterGatherHandler<RequestMsg, ResponseMsg, T, PartitionedId> scatterGather, Serializer<RequestMsg, ResponseMsg> serializer) throws Exception;
+  <T, RequestMsg, ResponseMsg> T sendRequest(Set<PartitionedId> ids, ScatterGatherHandler<RequestMsg, ResponseMsg, T, PartitionedId> scatterGather, Serializer<RequestMsg, ResponseMsg> serializer) throws Exception;
 }
