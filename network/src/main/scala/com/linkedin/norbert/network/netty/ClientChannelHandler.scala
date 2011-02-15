@@ -27,13 +27,13 @@ import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit, ConcurrentHa
 import com.google.protobuf.ByteString
 import cluster.Node
 import scala.math._
-import util.{SystemClock, SystemClockComponent}
 import client.NetworkClientConfig
 import common._
+import util.{Clock, SystemClock, SystemClockComponent}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,         
-        staleRequestCleanupFrequencyMins: Int, outlierMultiplier: Int, outlierConstant: Int) extends SimpleChannelHandler with Logging {
+        staleRequestCleanupFrequencyMins: Int, requestStatisticsWindow: Long, outlierMultiplier: Int, outlierConstant: Int) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
   val cleanupTask = new Runnable() {
@@ -63,16 +63,18 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
     }
   }
 
+  val clock = SystemClock
+
   val cleanupExecutor = new ScheduledThreadPoolExecutor(1)
   cleanupExecutor.scheduleAtFixedRate(cleanupTask, staleRequestCleanupFrequencyMins, staleRequestCleanupFrequencyMins, TimeUnit.MINUTES)
 
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock)
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](clock, requestStatisticsWindow)
   statsActor.start
 
-  val clientStatisticsRequestStrategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant)
-  val serverErrorStratege = new ServerErrorStrategy(SystemClock)
+  val clientStatisticsRequestStrategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant, clock)
+  val serverErrorStrategy = new ServerErrorStrategy(clock)
 
-  val strategy = CompositeCanServeRequestStrategy(clientStatisticsRequestStrategy, serverErrorStratege)
+  val strategy = CompositeCanServeRequestStrategy(clientStatisticsRequestStrategy, serverErrorStrategy)
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
     import statsActor.Stats._
@@ -94,6 +96,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
     val request = e.getMessage.asInstanceOf[Request[_, _]]
     log.debug("Writing request: %s".format(request))
 
+    requestMap.put(request.id, request)
     statsActor ! statsActor.Stats.BeginRequest(request.node.id, request.id)
 
     val message = NorbertProtos.NorbertMessage.newBuilder
@@ -120,7 +123,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           request.processResponseBytes(message.getMessage.toByteArray)
         } else if (message.getStatus == NorbertProtos.NorbertMessage.Status.HEAVYLOAD) {
-          serverErrorStratege.notifyFailure(request.node.id)
+          serverErrorStrategy.notifyFailure(request.node.id)
         } else {
           val errorMsg = if (message.hasErrorMessage()) message.getErrorMessage else "<null>"
           request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))
@@ -135,31 +138,33 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   }
 }
 
-class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID], outlierMultiplier: Int, outlierConstant: Int) extends CanServeRequestStrategy {
+class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID], outlierMultiplier: Int, outlierConstant: Int, clock: Clock, refreshInterval: Long = 3000L) extends CanServeRequestStrategy {
   // Must be more than 2x + 10ms the others by default
 
+  var canServeRequests = Map.empty[Int, Boolean]
+  @volatile var lastUpdateTime = 0L
+
   def canServeRequest(node: Node): Boolean = {
-    val map = statsActor !? statsActor.Stats.GetProcessingStatistics match {
-      case statsActor.Stats.ProcessingStatistics(map) => map
+    if(clock.getCurrentTime - lastUpdateTime > refreshInterval) {
+      lastUpdateTime = clock.getCurrentTime
+
+      statsActor !! (statsActor.Stats.GetProcessingStatistics, {
+        case statsActor.Stats.ProcessingStatistics(map) =>
+          // We now have a map from node_id => statistics. Add up the process
+          val totalTime = map.values.map(_.completedTime).sum + map.values.map(_.pendingTime).sum
+          val totalSize = map.values.map(_.completedSize).sum + map.values.map(_.pendingSize).sum
+
+          canServeRequests = map.map { case (nodeId, entry) =>
+            val nodeTime = entry.completedTime + entry.pendingTime
+            val nodeSize = entry.completedSize + entry.pendingSize
+
+            //    (nodeTime) / (nodeSize)  < (totalTime) / (totalSize) * OUTLIER_MULTIPLIER + OUTLIER_CONSTANT
+            (nodeId, nodeTime * totalSize <= (totalTime * outlierMultiplier + outlierConstant) * nodeSize)
+          }
+      })
     }
 
-    // We now have a map from node_id => statistics. Add up the process
-    val processingTotal = map.values.map(_.completedTime).sum
-    val pendingTotal = map.values.map(_.pendingTime).sum
-
-    val processingSize = map.values.map(_.completedSize).sum
-    val pendingSize = map.values.map(_.pendingSize).sum
-
-    val nodeProcessingTime = map.get(node.id).map(_.completedTime).getOrElse(0L)
-    val nodeProcessingSize = map.get(node.id).map(_.completedSize).getOrElse(0)
-    val nodePendingTime = map.get(node.id).map(_.pendingTime).getOrElse(0L)
-    val nodePendingSize = map.get(node.id).map(_.pendingSize).getOrElse(0)
-
-
-//    (nodeProcessingTime + nodePendingTime) / (nodeProcessingSize + nodePendingSize)  < (processingTotal + pendingTotal) / (processingSize + pendingSize) * OUTLIER_MULTIPLIER + OUTLIER_CONSTANT
-
-    // Don't use the averages to avoid division by zero
-    (nodeProcessingTime + nodePendingTime) * (processingSize + pendingSize) < ((processingTotal + pendingTotal) * outlierMultiplier + outlierConstant) *  (nodeProcessingSize + nodePendingSize)
+    canServeRequests.getOrElse(node.id, true)
   }
 
   def calcVariance(values: Iterable[Int], sum: Int) = {

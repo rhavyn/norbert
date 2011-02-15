@@ -39,6 +39,10 @@ class NetworkServerConfig {
   var requestThreadCorePoolSize = NetworkDefaults.REQUEST_THREAD_CORE_POOL_SIZE
   var requestThreadMaxPoolSize = NetworkDefaults.REQUEST_THREAD_MAX_POOL_SIZE
   var requestThreadKeepAliveTimeSecs = NetworkDefaults.REQUEST_THREAD_KEEP_ALIVE_TIME_SECS
+
+  var threadPoolQueueSize = NetworkDefaults.THREAD_POOL_QUEUE_SIZE
+
+  var requestStatisticsWindow = NetworkDefaults.REQUEST_STATISTICS_WINDOW
 }
 
 class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent
@@ -48,7 +52,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   val messageHandlerRegistry = new MessageHandlerRegistry
   val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, serverConfig.requestThreadCorePoolSize, serverConfig.requestThreadMaxPoolSize,
-    serverConfig.requestThreadKeepAliveTimeSecs)
+    serverConfig.requestThreadKeepAliveTimeSecs, serverConfig.threadPoolQueueSize, serverConfig.requestStatisticsWindow)
 
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
@@ -60,7 +64,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   bootstrap.setOption("child.tcpNoDelay", true)
   bootstrap.setOption("child.reuseAddress", true)
 
-  val serverChannelHandler = new ServerChannelHandler(clusterClient.serviceName, channelGroup, messageHandlerRegistry, messageExecutor)
+  val serverChannelHandler = new ServerChannelHandler(clusterClient.serviceName, channelGroup, messageHandlerRegistry, messageExecutor, serverConfig.requestStatisticsWindow)
 
   bootstrap.setPipelineFactory(new ChannelPipelineFactory {
     val loggingHandler = new LoggingHandler

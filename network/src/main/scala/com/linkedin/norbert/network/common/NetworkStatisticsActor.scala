@@ -8,7 +8,7 @@ import collection.immutable.SortedMap
 import jmx.{RequestTimeTracker, RequestsPerSecondTracker}
 import util.{Clock, ClockComponent}
 
-class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long = 1000L)(implicit ordering: Ordering[GroupIdType]) extends DaemonActor with Logging {
+class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long)(implicit ordering: Ordering[GroupIdType]) extends DaemonActor with Logging {
   object Stats {
     case class BeginRequest(groupId: GroupIdType, requestId: RequestIdType)
     case class EndRequest(groupId: GroupIdType, requestId: RequestIdType)

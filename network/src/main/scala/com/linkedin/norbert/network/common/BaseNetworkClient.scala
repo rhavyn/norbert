@@ -21,11 +21,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.Future
 import cluster._
 import logging.Logging
+import jmx.JMX
+import jmx.JMX.MBean
 
 trait BaseNetworkClient extends Logging {
   this: ClusterClientComponent with ClusterIoClientComponent =>
 
   @volatile protected var currentNodes: Set[Node] = Set()
+  @volatile protected var endpoints: Set[Endpoint] = Set()
+
   @volatile protected var connected = false
   protected val startedSwitch = new AtomicBoolean
   protected val shutdownSwitch = new AtomicBoolean
@@ -149,9 +153,19 @@ trait BaseNetworkClient extends Logging {
     else block
   }
 
+  trait EndpointStatusMBean {
+    def getEndpoints: Array[String]
+  }
+
+  private val jmxHandle = JMX.register(new MBean(classOf[EndpointStatusMBean], "endpoints=%s".format("bogomips")) with EndpointStatusMBean {
+    def getEndpoints = endpoints.toArray
+                                .sortWith { (e1, e2) => e1.node.id < e2.node.id }
+                                .map(_.toString)
+  })
+
   private def updateCurrentState(nodes: Set[Node]) {
     currentNodes = nodes
-    val endpoints = clusterIoClient.nodesChanged(nodes)
+    endpoints = clusterIoClient.nodesChanged(nodes)
     updateLoadBalancer(endpoints)
   }
 

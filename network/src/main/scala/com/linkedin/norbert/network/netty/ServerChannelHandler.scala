@@ -62,8 +62,8 @@ class RequestContextEncoder extends OneToOneEncoder with Logging {
 }
 
 @ChannelPipelineCoverage("all")
-class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock)
+class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor, requestStatisticsWindow: Long) extends SimpleChannelHandler with Logging {
+  private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock, requestStatisticsWindow)
   statsActor.start
 
   private val jmxHandle = JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {

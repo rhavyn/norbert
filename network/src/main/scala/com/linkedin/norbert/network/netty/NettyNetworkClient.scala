@@ -41,7 +41,7 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
   private val handler = new ClientChannelHandler(clusterClient.serviceName, clientConfig.maxConnectionsPerNode,
-    clientConfig.staleRequestCleanupFrequenceMins, clientConfig.outlierMuliplier, clientConfig.outlierConstant)
+    clientConfig.staleRequestCleanupFrequenceMins, clientConfig.requestStatisticsWindow, clientConfig.outlierMuliplier, clientConfig.outlierConstant)
 
   // TODO why isn't clientConfig visible here?
   bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)

@@ -62,10 +62,19 @@ object NetworkDefaults {
   val REQUEST_THREAD_KEEP_ALIVE_TIME_SECS = 300
 
   /**
-   * Detects nodes that may be offline if their request processing times are greater than this multiplier over the average
+   * The default window size/time (in milliseconds) for averaging processing statistics
+   */
+  val REQUEST_STATISTICS_WINDOW = 2000L
+
+  /**
+   * The default thread pool queue size for processing requests
+   */
+  val THREAD_POOL_QUEUE_SIZE = 100
+
+  /**
+   *   Detects nodes that may be offline if their request processing times are greater than this multiplier over the average
    */
   val OUTLIER_MULTIPLIER = 2
-
 
   /**
    * Detects nodes that may be offline if their request processing times are also greater than this additional constant

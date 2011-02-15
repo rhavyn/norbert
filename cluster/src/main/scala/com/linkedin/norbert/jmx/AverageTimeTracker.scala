@@ -20,7 +20,7 @@ import collection.mutable.{Map, Queue}
 import util.{Clock, ClockComponent}
 import annotation.tailrec
 
-class FinishedRequestTimeTracker(clock: Clock, interval: Long = 1000L) {
+class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
   private val q = Queue[(Long, Int)]() // (When the request completed, request processing time)
   private var t = 0L
 
