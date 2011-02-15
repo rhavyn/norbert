@@ -73,6 +73,28 @@ class NorbertResponseIterator[ResponseMsg](numResponses: Int, queue: ResponseQue
   def hasNext = remaining.get > 0
 }
 
+/**
+ * An iterator that will timeout after a set amount of time spent waiting on remote data
+ */
+case class TimeoutIterator[ResponseMsg](inner: ResponseIterator[ResponseMsg], timeout: Long = 5000L) extends ResponseIterator[ResponseMsg] {
+  @volatile private var timeLeft = timeout
+
+  def hasNext = inner.hasNext
+
+  def nextAvailable = inner.nextAvailable
+
+  def next = {
+    val before = System.currentTimeMillis
+    val res = next(timeLeft, TimeUnit.MILLISECONDS)
+    val time = System.currentTimeMillis -before
+
+    timeLeft -= time
+    res
+  }
+
+  def next(t: Long, unit: TimeUnit) = inner.next(t, unit)
+}
+
 private[common] trait ResponseHelper {
   protected def translateResponse[T](response: Either[Throwable, T]) = response.fold(ex => throw new ExecutionException(ex), msg => msg)
 }
