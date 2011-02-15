@@ -23,25 +23,21 @@ import cluster.Node
 import java.util.concurrent.atomic.AtomicInteger
 import annotation.tailrec
 
-class RoundRobinLoadBalancerFactory extends LoadBalancerFactory {
-  def newLoadBalancer(endpoints: Set[Endpoint]): LoadBalancer = new LoadBalancer {
-    val MAX_ITERATIONS = endpoints.size * 4
+class RoundRobinLoadBalancerFactory extends LoadBalancerFactory with LoadBalancerHelpers {
+  def newLoadBalancer(endpointSet: Set[Endpoint]): LoadBalancer = new LoadBalancer {
 
     val counter = new AtomicInteger(0)
-    val indexedNodes = endpoints.toArray
+    val endpoints = endpointSet.toArray
 
-    def nextNode = nextNode(0)
+    def nextNode = {
+      val activeEndpoints = endpoints.filter(_.canServeRequests)
 
-    @tailrec
-    private final def nextNode(numIterations: Int): Option[Node] = {
-      val index = counter.getAndIncrement % indexedNodes.length
-      val endpoint = indexedNodes(index)
-
-      if(endpoint.canServeRequests)
-        Some(endpoint.node)
-      else if(numIterations > MAX_ITERATIONS)
+      if(activeEndpoints.isEmpty)
+        Some(chooseNext(endpoints, counter).node)
+      else if(endpoints.isEmpty)
         None
-      else nextNode(numIterations + 1)
+      else
+        Some(chooseNext(activeEndpoints, counter).node)
     }
   }
 }

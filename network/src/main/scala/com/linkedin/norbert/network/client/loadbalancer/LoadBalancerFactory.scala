@@ -58,3 +58,12 @@ trait LoadBalancerFactoryComponent {
   val loadBalancerFactory: LoadBalancerFactory
 
 }
+
+trait LoadBalancerHelpers {
+  import java.util.concurrent.atomic.AtomicInteger
+  import math._
+
+  def chooseNext[T](items: Seq[T], counter: AtomicInteger): T =
+    items(abs(counter.getAndIncrement) % items.size)
+
+}

@@ -22,11 +22,12 @@ import cluster.{InvalidClusterException, Node}
 import common.Endpoint
 import java.util.concurrent.atomic.AtomicInteger
 import annotation.tailrec
+import client.loadbalancer.LoadBalancerHelpers
 
 /**
  * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
  */
-trait ConsistentHashLoadBalancerHelper {
+trait ConsistentHashLoadBalancerHelper extends LoadBalancerHelpers {
 
   /**
    * A mapping from partition id to the <code>Node</code>s which can service that partition.
@@ -64,25 +65,15 @@ trait ConsistentHashLoadBalancerHelper {
    * @return <code>Some</code> with the <code>Node</code> which can service the partition id, <code>None</code>
    * if there are no available <code>Node</code>s for the partition requested
    */
-  protected def nodeForPartition(partitionId: Int): Option[Node] = nodeForPartition(partitionId, 0)
-
-  @tailrec
-  private def nodeForPartition(partitionId: Int, numIterations: Int): Option[Node] = {
-    val endpoint = partitionToNodeMap.get(partitionId).map { case (endpoints, counter) =>
-      endpoints(counter.getAndIncrement % endpoints.size)
-    }
-
-    val maxIterations = 4 * partitionToNodeMap.get(partitionId).map(_._1.size).getOrElse(0)
-
-    endpoint match {
-      case None => None
-      case Some(endpoint) =>
-        if(endpoint.canServeRequests)
-          Some(endpoint.node)
-        else if(numIterations > maxIterations)
-          None
-        else
-          nodeForPartition(partitionId, numIterations + 1)
+  protected def nodeForPartition(partitionId: Int): Option[Node] = {
+    partitionToNodeMap.get(partitionId).map { case (endpoints, counter) =>
+      val activeEndpoints = endpoints.filter(_.canServeRequests)
+      if(activeEndpoints.isEmpty) {
+        chooseNext(endpoints, counter).node
+      } else {
+        chooseNext(activeEndpoints, counter).node
+      }
     }
   }
+
 }

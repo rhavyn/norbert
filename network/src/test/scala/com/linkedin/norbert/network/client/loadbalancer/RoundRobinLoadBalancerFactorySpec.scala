@@ -58,7 +58,7 @@ class RoundRobinLoadBalancerFactorySpec extends Specification {
         def canServeRequests = availabilityMap(n)
       }).toSet
 
-      val lb = lbf.newLoadBalancer(endpoints)
+      var lb = lbf.newLoadBalancer(endpoints)
 
       for(i <- 0 until 9) {
         val node = lb.nextNode.get
@@ -68,13 +68,12 @@ class RoundRobinLoadBalancerFactorySpec extends Specification {
 
       availabilityMap += Node(0, "localhost:31310", true) -> false
 
+      lb = lbf.newLoadBalancer(endpoints)
       for(i <- 0 until 9) {
         val node = lb.nextNode.get
         val nodeId = i % 2 + 1
         node must be_==(Node(nodeId, "localhost:3131" + nodeId, true))
       }
-
-
     }
   }
 }
