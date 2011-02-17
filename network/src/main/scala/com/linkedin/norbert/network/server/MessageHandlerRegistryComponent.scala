@@ -57,8 +57,6 @@ class MessageHandlerRegistry {
 
   @throws(classOf[InvalidMessageException])
   def handlerFor[RequestMsg, ResponseMsg](messageName: String): RequestMsg => ResponseMsg = {
-    println("The handler iss.... " + handlerMap.get(messageName))
-
     handlerMap.get(messageName).map(_.handler)
       .getOrElse(throw new InvalidMessageException("%s is not a registered method".format(messageName)))
       .asInstanceOf[RequestMsg => ResponseMsg]
