@@ -17,9 +17,9 @@ package com.linkedin.norbert
 package network
 package common
 
-import com.google.protobuf.Message
 import java.util.concurrent._
 import atomic.AtomicInteger
+import logging.Logging
 
 class ResponseQueue[ResponseMsg] extends java.util.concurrent.LinkedBlockingQueue[Either[Throwable, ResponseMsg]] {
   def += (res: Either[Throwable, ResponseMsg]): ResponseQueue[ResponseMsg] = {
@@ -57,7 +57,7 @@ class NorbertResponseIterator[ResponseMsg](numResponses: Int, queue: ResponseQue
 
   def next = {
     remaining.decrementAndGet
-    translateResponse(queue.poll)
+    translateResponse(queue.take)
   }
 
   def next(timeout: Long, unit: TimeUnit) = queue.poll(timeout, unit) match {
@@ -83,18 +83,23 @@ case class TimeoutIterator[ResponseMsg](inner: ResponseIterator[ResponseMsg], ti
 
   def nextAvailable = inner.nextAvailable
 
-  def next = {
+  def next: ResponseMsg = {
     val before = System.currentTimeMillis
     val res = next(timeLeft, TimeUnit.MILLISECONDS)
-    val time = System.currentTimeMillis -before
+    val time = System.currentTimeMillis - before
 
     timeLeft -= time
     res
   }
 
-  def next(t: Long, unit: TimeUnit) = inner.next(t, unit)
+  def next(t: Long, unit: TimeUnit): ResponseMsg = inner.next(t, unit)
 }
 
-private[common] trait ResponseHelper {
-  protected def translateResponse[T](response: Either[Throwable, T]) = response.fold(ex => throw new ExecutionException(ex), msg => msg)
+private[common] trait ResponseHelper extends Logging {
+  protected def translateResponse[T](response: Either[Throwable, T]) = {
+    val r = if(response == null) Left(new NullPointerException("Null response found"))
+            else response
+
+    r.fold(ex => throw ex , msg => msg)
+ }
 }
