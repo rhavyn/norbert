@@ -131,7 +131,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
     }
   }
 
-  override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in network layer")
+  override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.warn(e.getCause, "Caught exception in network layer")
 
   def shutdown: Unit = {
     jmxHandle.foreach { JMX.unregister(_) }
