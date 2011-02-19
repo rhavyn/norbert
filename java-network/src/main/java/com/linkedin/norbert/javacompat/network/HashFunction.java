@@ -23,7 +23,7 @@ public interface HashFunction<V>{
               throw new RuntimeException(e.getMessage(),e);
           }
 
-          byte[] kbytes = key.getBytes(Utf8);
+          byte[] kbytes = md.digest(key.getBytes(Utf8));
           long hc = ((long)(kbytes[3]&0xFF) << 24)
             | ((long)(kbytes[2]&0xFF) << 16)
             | ((long)(kbytes[1]&0xFF) << 8)
