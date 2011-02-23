@@ -16,6 +16,7 @@
 package com.linkedin.norbert.network
 
 import java.io._
+import com.google.protobuf.Message
 
 object JavaSerializer {
   def build[RequestMsg, ResponseMsg]
@@ -48,4 +49,21 @@ class JavaSerializer[RequestMsg, ResponseMsg](requestClass: Class[RequestMsg], r
   def responseToBytes(message: ResponseMsg) = toBytes(message)
 
   def responseFromBytes(bytes: Array[Byte]) = fromBytes(bytes)
+}
+
+object ProtobufSerializer {
+  def build[RequestMsg <: Message, ResponseMsg <: Message](requestPrototype: RequestMsg, responsePrototype: ResponseMsg): ProtobufSerializer[RequestMsg, ResponseMsg] =
+    new ProtobufSerializer(requestPrototype, responsePrototype)
+}
+
+class ProtobufSerializer[RequestMsg <: Message, ResponseMsg <: Message](requestPrototype: RequestMsg, responsePrototype: ResponseMsg) extends Serializer[RequestMsg, ResponseMsg] {
+  def nameOfRequestMessage = requestPrototype.getDescriptorForType.getFullName
+
+  def requestToBytes(request: RequestMsg) = request.toByteArray
+
+  def responseToBytes(response: ResponseMsg) = response.toByteArray
+
+  def requestFromBytes(bytes: Array[Byte]) = (requestPrototype.newBuilderForType.mergeFrom(bytes).build).asInstanceOf[RequestMsg]
+
+  def responseFromBytes(bytes: Array[Byte]) = (responsePrototype.newBuilderForType.mergeFrom(bytes).build).asInstanceOf[ResponseMsg]
 }
