@@ -30,11 +30,11 @@ case class Request[RequestMsg, ResponseMsg](message: RequestMsg, node: Node,
 
   def requestBytes: Array[Byte] = outputSerializer.requestToBytes(message)
 
-  def processException(exception: Throwable) {
+  def onFailure(exception: Throwable) {
     callback(Left(exception))
   }
 
-  def processResponseBytes(bytes: Array[Byte]) {
+  def onSuccess(bytes: Array[Byte]) {
     callback(try {
       Right(inputSerializer.responseFromBytes(bytes))
     } catch {

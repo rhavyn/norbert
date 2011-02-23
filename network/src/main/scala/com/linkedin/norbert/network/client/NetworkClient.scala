@@ -41,6 +41,10 @@ class NetworkClientConfig {
   var outlierMuliplier = NetworkDefaults.OUTLIER_MULTIPLIER
   var outlierConstant = NetworkDefaults.OUTLIER_CONSTANT
 
+  var responseHandlerCorePoolSize = NetworkDefaults.RESPONSE_THREAD_CORE_POOL_SIZE
+  var responseHandlerMaxPoolSize = NetworkDefaults.RESPONSE_THREAD_MAX_POOL_SIZE
+  var responseHandlerKeepAliveTime = NetworkDefaults.RESPONSE_THREAD_KEEP_ALIVE_TIME_SECS
+  var responseHandlerMaxWaitingQueueSize = NetworkDefaults.RESPONSE_THREAD_POOL_QUEUE_SIZE
 }
 
 object NetworkClient {

@@ -29,11 +29,13 @@ import cluster.Node
 import scala.math._
 import client.NetworkClientConfig
 import common._
+import network.client.ResponseHandler
 import util.{Clock, SystemClock, SystemClockComponent}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,         
-        staleRequestCleanupFrequencyMins: Int, requestStatisticsWindow: Long, outlierMultiplier: Int, outlierConstant: Int) extends SimpleChannelHandler with Logging {
+        staleRequestCleanupFrequencyMins: Int, requestStatisticsWindow: Long, outlierMultiplier: Int, outlierConstant: Int,
+        responseHandler: ResponseHandler) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
   val cleanupTask = new Runnable() {
@@ -121,13 +123,17 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
         statsActor ! statsActor.Stats.EndRequest(request.node.id, request.id)
 
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
-          request.processResponseBytes(message.getMessage.toByteArray)
+          request.onSuccess(message.getMessage.toByteArray)
         } else if (message.getStatus == NorbertProtos.NorbertMessage.Status.HEAVYLOAD) {
           serverErrorStrategy.notifyFailure(request.node.id)
+          processException(request, "Heavy load")
         } else {
-          val errorMsg = if (message.hasErrorMessage()) message.getErrorMessage else "<null>"
-          request.processException(new RemoteException(message.getMessageName, message.getErrorMessage))
+          processException(request, Option(message.getErrorMessage).getOrElse("<null>"))
         }
+    }
+
+    def processException[RequestMsg, ResponseMsg](request: Request[RequestMsg, ResponseMsg], errorMessage: String) {
+      request.onFailure(new RemoteException(request.name, errorMessage))
     }
   }
 

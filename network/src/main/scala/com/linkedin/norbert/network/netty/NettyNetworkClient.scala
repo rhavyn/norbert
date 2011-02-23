@@ -26,22 +26,27 @@ import java.util.concurrent.Executors
 import partitioned.loadbalancer.{PartitionedLoadBalancerFactoryComponent, PartitionedLoadBalancerFactory}
 import partitioned.PartitionedNetworkClient
 import client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancerFactory}
-import client.{NetworkClient, NetworkClientConfig}
 import common.{BaseNetworkClient}
 import cluster.{ClusterClient, ClusterClientComponent}
 import protos.NorbertProtos
 import util.NamedPoolThreadFactory
 import org.jboss.netty.channel.{ChannelPipelineFactory, Channels}
+import client.{ThreadPoolResponseHandler, ResponseHandlerComponent, NetworkClient, NetworkClientConfig}
 
-abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent {
+abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with ResponseHandlerComponent {
   val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
     clientConfig.zooKeeperSessionTimeoutMillis)
 
   private val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
   private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
+
+  val responseHandler = new ThreadPoolResponseHandler(clientConfig.responseHandlerCorePoolSize,
+    clientConfig.responseHandlerMaxPoolSize, clientConfig.responseHandlerKeepAliveTime, clientConfig.responseHandlerMaxWaitingQueueSize)
+
   private val handler = new ClientChannelHandler(clusterClient.serviceName, clientConfig.maxConnectionsPerNode,
-    clientConfig.staleRequestCleanupFrequenceMins, clientConfig.requestStatisticsWindow, clientConfig.outlierMuliplier, clientConfig.outlierConstant)
+    clientConfig.staleRequestCleanupFrequenceMins, clientConfig.requestStatisticsWindow, clientConfig.outlierMuliplier, clientConfig.outlierConstant,
+    responseHandler)
 
   // TODO why isn't clientConfig visible here?
   bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)

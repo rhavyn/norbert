@@ -40,7 +40,7 @@ class NetworkServerConfig {
   var requestThreadMaxPoolSize = NetworkDefaults.REQUEST_THREAD_MAX_POOL_SIZE
   var requestThreadKeepAliveTimeSecs = NetworkDefaults.REQUEST_THREAD_KEEP_ALIVE_TIME_SECS
 
-  var threadPoolQueueSize = NetworkDefaults.THREAD_POOL_QUEUE_SIZE
+  var threadPoolQueueSize = NetworkDefaults.REQUEST_THREAD_POOL_QUEUE_SIZE
 
   var requestStatisticsWindow = NetworkDefaults.REQUEST_STATISTICS_WINDOW
 }

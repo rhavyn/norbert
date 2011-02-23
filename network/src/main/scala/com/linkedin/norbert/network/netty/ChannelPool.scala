@@ -90,7 +90,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
 
         case request =>
           if((System.currentTimeMillis - request.timestamp) < writeTimeoutMillis) writeRequestToChannel(request, channel)
-          else request.processException(new TimeoutException("Timed out while waiting to write"))
+          else request.onFailure(new TimeoutException("Timed out while waiting to write"))
       }
     }
 
@@ -147,7 +147,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     requestsSent.incrementAndGet
     channel.write(request).addListener(new ChannelFutureListener {
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
-        request.processException(writeFuture.getCause)
+        request.onFailure(writeFuture.getCause)
         // Take the node out of rotation for a bit
         errorStrategy.notifyFailure
       }
