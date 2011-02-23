@@ -100,6 +100,6 @@ private[common] trait ResponseHelper extends Logging {
     val r = if(response == null) Left(new NullPointerException("Null response found"))
             else response
 
-    r.fold(ex => throw ex , msg => msg)
+    r.fold(ex => throw new ExecutionException(ex) , msg => msg)
  }
 }

@@ -123,7 +123,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
         statsActor ! statsActor.Stats.EndRequest(request.node.id, request.id)
 
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
-          request.onSuccess(message.getMessage.toByteArray)
+          responseHandler.onSuccess(request, message)
         } else if (message.getStatus == NorbertProtos.NorbertMessage.Status.HEAVYLOAD) {
           serverErrorStrategy.notifyFailure(request.node.id)
           processException(request, "Heavy load")
@@ -133,7 +133,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
     }
 
     def processException[RequestMsg, ResponseMsg](request: Request[RequestMsg, ResponseMsg], errorMessage: String) {
-      request.onFailure(new RemoteException(request.name, errorMessage))
+      responseHandler.onFailure(request, new RemoteException(request.name, errorMessage))
     }
   }
 
