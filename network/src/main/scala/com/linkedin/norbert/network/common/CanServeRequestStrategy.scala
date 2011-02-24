@@ -48,21 +48,29 @@ class BackoffStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackoffTime:
   val backoffTime = new AtomicLong(0)
 
   def notifyFailure {
-    lastFailureTime = clock.getCurrentTime
-
-    // Increase the backoff
+    val now = clock.getCurrentTime
     val currentBackoffTime = backoffTime.get
-    val newBackoffTime = max(minBackoffTime, min(2L * currentBackoffTime, maxBackoffTime))
-    backoffTime.compareAndSet(currentBackoffTime, newBackoffTime)
+
+    if(now - lastFailureTime >= minBackoffTime) {
+      lastFailureTime = now
+      val newBackoffTime = max(minBackoffTime, min(2L * currentBackoffTime, maxBackoffTime))
+      backoffTime.compareAndSet(currentBackoffTime, newBackoffTime)
+    }
+  }
+
+  private def tryResetBackoff {
+   val now = clock.getCurrentTime
+
+   // If it's been a while since the last error, reset the backoff back to 0
+    val currentBackoffTime = backoffTime.get
+    if(currentBackoffTime != 0L && now - lastFailureTime > 3 * maxBackoffTime)
+      backoffTime.compareAndSet(currentBackoffTime, 0L)
   }
 
   def canServeRequest(node: Node): Boolean = {
     val now = clock.getCurrentTime
 
-    // If it's been a while since the last error, reset the backoff back to 0
-    val currentBackoffTime = backoffTime.get
-    if(currentBackoffTime != 0L && now - lastFailureTime > 2 * maxBackoffTime)
-      backoffTime.compareAndSet(currentBackoffTime, 0L)
+    tryResetBackoff
 
     now - lastFailureTime > backoffTime.get
   }
