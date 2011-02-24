@@ -46,6 +46,18 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
     t
   }
 
+  // TODO: We just sort the data in the queue (Hey, Swee did it). Consider tracking this stuff in a sorted map.
+  def percentile(perc: Double): Int = {
+    clean
+    val sorted = q.map(_._2).sorted
+    if(sorted.isEmpty)
+      0
+    else {
+      val idx = perc * (sorted.size - 1)
+      sorted(min(max(0, idx), sorted.size - 1))
+    }
+  }
+
   def size: Int = {
     q.size
   }
