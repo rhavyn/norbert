@@ -29,6 +29,7 @@ import cluster.{Node, ClusterClient}
 import java.util.concurrent.atomic.{AtomicLong, AtomicBoolean, AtomicInteger}
 import util.{SystemClock}
 import common.{BackoffStrategy}
+import java.io.IOException
 
 class ChannelPoolClosedException extends Exception
 
@@ -71,7 +72,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
         checkinChannel(channel)
 
       case None =>
-        openChannel
+        openChannel(request)
         waitingWrites.offer(request)
     }
   }
@@ -118,7 +119,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     if (channel == null) None else Some(channel)
   }
 
-  private def openChannel {
+  private def openChannel(request: Request[_, _]) {
     if (poolSize.incrementAndGet > maxConnections) {
       poolSize.decrementAndGet
       log.debug("Unable to open channel, pool is full")
@@ -132,8 +133,11 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
             channelGroup.add(channel)
             checkinChannel(channel)
           } else {
-            log.error(openFuture.getCause, "Error when opening channel to: %s".format(address))
+            log.error(openFuture.getCause, "Error when opening channel to: %s, marking offline".format(address))
+            errorStrategy.notifyFailure
             poolSize.decrementAndGet
+
+            request.onFailure(openFuture.getCause)
           }
         }
       })
@@ -147,9 +151,12 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     requestsSent.incrementAndGet
     channel.write(request).addListener(new ChannelFutureListener {
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
-        request.onFailure(writeFuture.getCause)
         // Take the node out of rotation for a bit
+        log.error("IO exception for " + request.node + ", marking node offline")
         errorStrategy.notifyFailure
+        channel.close
+
+        request.onFailure(writeFuture.getCause)
       }
     })
   }
