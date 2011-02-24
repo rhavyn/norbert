@@ -24,6 +24,8 @@ import logging.Logging
 import jmx.JMX
 import jmx.JMX.MBean
 
+import java.util.{Map => JMap}
+
 trait BaseNetworkClient extends Logging {
   this: ClusterClientComponent with ClusterIoClientComponent =>
 
@@ -157,7 +159,7 @@ trait BaseNetworkClient extends Logging {
     def getEndpoints: Array[String]
   }
 
-  private val jmxHandle = JMX.register(new MBean(classOf[EndpointStatusMBean], "endpoints=%s".format("bogomips")) with EndpointStatusMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[EndpointStatusMBean], "endpoints=%s".format("status")) with EndpointStatusMBean {
     def getEndpoints = endpoints.toArray
                                 .sortWith { (e1, e2) => e1.node.id < e2.node.id }
                                 .map(_.toString)
@@ -172,6 +174,9 @@ trait BaseNetworkClient extends Logging {
   private def doShutdown(fromCluster: Boolean) {
     if (shutdownSwitch.compareAndSet(false, true) && startedSwitch.get) {
       log.info("Shutting down NetworkClient")
+
+      log.info("Shutting down endpoint jmx")
+      jmxHandle.foreach(JMX.unregister(_))
 
       if (!fromCluster) {
         log.debug("Unregistering from ClusterClient")
