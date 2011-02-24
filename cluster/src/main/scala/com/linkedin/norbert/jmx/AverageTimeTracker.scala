@@ -19,6 +19,7 @@ package jmx
 import collection.mutable.{Map, Queue}
 import util.{Clock, ClockComponent}
 import annotation.tailrec
+import math._
 
 class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
   private val q = Queue[(Long, Int)]() // (When the request completed, request processing time)
@@ -53,7 +54,7 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
     if(sorted.isEmpty)
       0
     else {
-      val idx = perc * (sorted.size - 1)
+      val idx = (perc * (sorted.size - 1)).round.toInt
       sorted(min(max(0, idx), sorted.size - 1))
     }
   }
