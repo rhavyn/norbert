@@ -5,10 +5,10 @@ package common
 import logging.Logging
 import actors.DaemonActor
 import collection.immutable.SortedMap
-import jmx.{RequestTimeTracker, RequestsPerSecondTracker}
+import jmx.{RequestTimeTracker}
 import norbertutils.{Clock, ClockComponent}
 
-class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long)(implicit ordering: Ordering[GroupIdType]) extends DaemonActor with Logging {
+class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long) extends DaemonActor with Logging {
   object Stats {
     case class BeginRequest(groupId: GroupIdType, requestId: RequestIdType)
     case class EndRequest(groupId: GroupIdType, requestId: RequestIdType)
@@ -31,9 +31,17 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
     }
   }
 
-  private val timeTrackers = collection.mutable.Map.empty[GroupIdType, RequestTimeTracker[RequestIdType]]
+  private var timeTrackers = Map.empty[GroupIdType, RequestTimeTracker[RequestIdType]]
 
-  private val rps = new RequestsPerSecondTracker
+  def getOrUpdateTrackers(groupId: GroupIdType, fn: => RequestTimeTracker[RequestIdType]) = {
+    timeTrackers.get(groupId) match {
+      case Some(value) => value
+      case None =>
+        val value = fn
+        timeTrackers += (groupId -> value)
+        value
+    }
+  }
 
   def act() = {
     import Stats._
@@ -46,14 +54,14 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
 
         case EndRequest(groupId, requestId) =>
           val tracker = timeTrackers.get(groupId).foreach { _.endRequest(requestId) }
-          rps++
 
         case GetProcessingStatistics =>
           reply(ProcessingStatistics(timeTrackers.map { case (groupId, tracker) =>
             (groupId, ProcessingEntry(tracker.pendingRequestTimeTracker.total, tracker.pendingRequestTimeTracker.size, tracker.finishedRequestTimeTracker.total, tracker.finishedRequestTimeTracker.size))
           }.toMap))
 
-        case GetRequestsPerSecond => reply(RequestsPerSecond(rps.rps))
+        case GetRequestsPerSecond =>
+          reply(timeTrackers.mapValues(_.finishedRequestTimeTracker.rps))
 
         case msg => log.error("NetworkStatistics actor got invalid message: %s".format(msg))
       }

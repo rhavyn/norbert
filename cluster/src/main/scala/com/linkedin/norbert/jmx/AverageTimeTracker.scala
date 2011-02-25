@@ -55,12 +55,23 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
       0
     else {
       val idx = (perc * (sorted.size - 1)).round.toInt
-      sorted(min(max(0, idx), sorted.size - 1))
+      getOrElse(sorted, min(max(0, idx), sorted.size - 1), 0)
     }
   }
 
   def size: Int = {
     q.size
+  }
+
+  def rps = {
+    val now = clock.getCurrentTime
+    implicit val timeOrdering: Ordering[(Long, Int)] = new Ordering[(Long, Int)] {
+      def compare(x: (Long, Int), y: (Long, Int)) = (x._1 - y._1).asInstanceOf[Int]
+    }
+
+    val bs = binarySearch(q, (now - 1000L, 0))
+    val idx = if(bs < 0) -bs - 1 else bs
+    getOrElse(q, idx, 0)
   }
 }
 
@@ -108,23 +119,4 @@ class RequestTimeTracker[KeyT](clock: Clock, interval: Long) {
     }
     pendingRequestTimeTracker.endRequest(key)
   }
-}
-
-class RequestsPerSecondTracker {
-  private var second = 0
-  private var counter = 0
-  private var r = 0
-
-  def ++ {
-    val currentSecond = (System.currentTimeMillis / 1000).toInt
-    if (second == currentSecond) {
-      counter += 1
-    } else {
-      second = currentSecond
-      r = counter
-      counter = 1
-    }
-  }
-
-  def rps: Int = r
 }
