@@ -39,8 +39,8 @@ class ClientChannelHandler(serviceName: String,
                            staleRequestTimeoutMins: Int,
                            staleRequestCleanupFrequencyMins: Int,
                            requestStatisticsWindow: Long,
-                           outlierMultiplier: Int,
-                           outlierConstant: Int,
+                           outlierMultiplier: Double,
+                           outlierConstant: Double,
                            responseHandler: ResponseHandler) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
@@ -79,13 +79,13 @@ class ClientChannelHandler(serviceName: String,
   private val statsActor = new NetworkStatisticsActor[Node, UUID](clock, requestStatisticsWindow)
   statsActor.start
 
-  val clientStatsStrategy = Some(new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant, clock))
-  val serverErrorStrategy = Some(new SimpleBackoffStrategy(clock))
+  val clientStatsStrategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant, clock)
+  val serverErrorStrategy = new SimpleBackoffStrategy(clock)
 
-  val clientStatsStrategyJMX = JMX.register(clientStatsStrategy.map(new ClientStatisticsRequestStrategyMBeanImpl(serviceName, _)))
-  val serverErrorStrategyJMX = JMX.register(serverErrorStrategy.map(new ServerErrorStrategyMBeanImpl(serviceName, _)))
+  val clientStatsStrategyJMX = JMX.register(new ClientStatisticsRequestStrategyMBeanImpl(serviceName, clientStatsStrategy))
+  val serverErrorStrategyJMX = JMX.register(new ServerErrorStrategyMBeanImpl(serviceName, serverErrorStrategy))
 
-  val strategy = CompositeCanServeRequestStrategy.build(clientStatsStrategy, serverErrorStrategy)
+  val strategy = CompositeCanServeRequestStrategy(clientStatsStrategy, serverErrorStrategy)
 
   private val statsJMX = JMX.register(new NetworkClientStatisticsMBeanImpl(serviceName, statsActor))
 
@@ -120,7 +120,7 @@ class ClientChannelHandler(serviceName: String,
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           responseHandler.onSuccess(request, message)
         } else if (message.getStatus == NorbertProtos.NorbertMessage.Status.HEAVYLOAD) {
-          serverErrorStrategy.foreach(_.notifyFailure(request.node))
+          serverErrorStrategy.notifyFailure(request.node)
           processException(request, "Heavy load")
         } else {
           processException(request, Option(message.getErrorMessage).getOrElse("<null>"))

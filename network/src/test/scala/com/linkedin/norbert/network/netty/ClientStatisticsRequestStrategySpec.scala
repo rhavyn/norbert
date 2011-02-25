@@ -26,26 +26,26 @@ import com.linkedin.norbert.cluster.Node
 class ClientStatisticsRequestStrategySpec extends Specification with Mockito {
   "ClientStatisticsRequestStrategy" should {
     "route away from misbehaving nodes" in {
-      val statsActor = new NetworkStatisticsActor[Int, UUID](MockClock, 1000L)
+      val statsActor = new NetworkStatisticsActor[Node, UUID](MockClock, 1000L)
       statsActor.start
 
-      val strategy = new ClientStatisticsRequestStrategy(statsActor, 2, 10, MockClock, 1000L)
+      val strategy = new ClientStatisticsRequestStrategy(statsActor, 2.0, 10.0, MockClock, 1000L)
 
       val nodes = (0 until 5).map { nodeId => Node(nodeId, "foo", true) }
 
       // Give everybody 10 requests
-      val requests = (0 until 5).map { nodeId =>
+      val requests = nodes.map { node =>
         val uuids = (0 until 10).map(i => UUID.randomUUID)
-        uuids.foreach{ uuid => statsActor ! statsActor.Stats.BeginRequest(nodeId, uuid) }
-        (nodeId, uuids)
+        uuids.foreach{ uuid => statsActor ! statsActor.Stats.BeginRequest(node, uuid) }
+        (node, uuids)
       }.toMap
 
-      (0 until 4).foreach{ nodeId =>
-        MockClock.currentTime = (nodeId + 1)
+      nodes.dropRight(1).foreach{ node =>
+        MockClock.currentTime = (node.id + 1)
 
-        val uuids = requests(nodeId)
+        val uuids = requests(node)
         uuids.zipWithIndex.foreach { case (uuid, index) =>
-          statsActor ! statsActor.Stats.EndRequest(nodeId, uuid)
+          statsActor ! statsActor.Stats.EndRequest(node, uuid)
         }
       }
 

@@ -30,7 +30,7 @@ import norbertutils.SystemClock
  */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
 
-  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory, otherStrategies: Option[CanServeRequestStrategy] = None) extends ClusterIoClient with UrlParser with Logging {
+  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory, strategy: CanServeRequestStrategy) extends ClusterIoClient with UrlParser with Logging {
     private val channelPools = new ConcurrentHashMap[Node, ChannelPool]
 
     def sendMessage[RequestMsg, ResponseMsg](node: Node, request: Request[RequestMsg, ResponseMsg]) {
@@ -46,14 +46,12 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
       }
     }
 
-    val channelPoolErrorStrategy = Some(new SimpleBackoffStrategy(SystemClock))
-
     def getChannelPool(node: Node): ChannelPool = {
       // TODO: Theoretically, we might be able to get a null reference instead of a channel pool here
       import norbertutils._
       atomicCreateIfAbsent(channelPools, node) { n: Node =>
         val (address, port) = parseUrl(n.url)
-        channelPoolFactory.newChannelPool(new InetSocketAddress(address, port), channelPoolErrorStrategy)
+        channelPoolFactory.newChannelPool(new InetSocketAddress(address, port))
       }
     }
 
@@ -68,7 +66,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
       }
 
       nodes.map { n =>
-        val requestStrategy = CompositeCanServeRequestStrategy.build(channelPoolErrorStrategy, otherStrategies)
+        val requestStrategy = strategy
 
         new Endpoint {
           def node = n

@@ -26,12 +26,12 @@ import java.util.concurrent.Executors
 import partitioned.loadbalancer.{PartitionedLoadBalancerFactoryComponent, PartitionedLoadBalancerFactory}
 import partitioned.PartitionedNetworkClient
 import client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancerFactory}
-import common.{BaseNetworkClient}
 import cluster.{ClusterClient, ClusterClientComponent}
 import protos.NorbertProtos
-import norbertutils.NamedPoolThreadFactory
 import org.jboss.netty.channel.{ChannelPipelineFactory, Channels}
 import client.{ThreadPoolResponseHandler, ResponseHandlerComponent, NetworkClient, NetworkClientConfig}
+import norbertutils.{SystemClock, NamedPoolThreadFactory}
+import common.{CompositeCanServeRequestStrategy, SimpleBackoffStrategy, BaseNetworkClient}
 
 abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with ResponseHandlerComponent {
   val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
@@ -75,9 +75,13 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     }
   })
 
-  val clusterIoClient = new NettyClusterIoClient(
-    new ChannelPoolFactory(clientConfig.maxConnectionsPerNode, clientConfig.writeTimeoutMillis, bootstrap),
-    Some(handler.strategy))
+  val channelPoolStrategy = new SimpleBackoffStrategy(SystemClock)
+  val clientChannelStrategy = handler.strategy // TODO: Carefully consider making this strategy a constructor for the ClientChannelHandler
+
+  val strategy = CompositeCanServeRequestStrategy(channelPoolStrategy, clientChannelStrategy)
+
+  val channelPoolFactory = new ChannelPoolFactory(clientConfig.maxConnectionsPerNode, clientConfig.writeTimeoutMillis, bootstrap, Some(channelPoolStrategy))
+  val clusterIoClient = new NettyClusterIoClient(channelPoolFactory, strategy)
 
   override def shutdown = {
     if (clientConfig.clusterClient == null) clusterClient.shutdown else super.shutdown

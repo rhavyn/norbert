@@ -22,6 +22,7 @@ import java.net.InetSocketAddress
 import org.specs.util.WaitFor
 import org.specs.mock.Mockito
 import cluster.{InvalidNodeException, Node}
+import common.AlwaysAvailableRequestStrategy
 
 class NettyClusterIoClientComponentSpec extends Specification with Mockito with WaitFor with NettyClusterIoClientComponent {
   val messageRegistry = null
@@ -29,7 +30,7 @@ class NettyClusterIoClientComponentSpec extends Specification with Mockito with 
   val channelPoolFactory = mock[ChannelPoolFactory]
   val channelPool = mock[ChannelPool]
 
-  val clusterIoClient = new NettyClusterIoClient(channelPoolFactory)
+  val clusterIoClient = new NettyClusterIoClient(channelPoolFactory, AlwaysAvailableRequestStrategy)
 
   val node = Node(1, "localhost:31313", true)
   val address = new InetSocketAddress("localhost", 31313)

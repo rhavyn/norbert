@@ -33,8 +33,9 @@ import common.{BackoffStrategy, SimpleBackoffStrategy}
 
 class ChannelPoolClosedException extends Exception
 
-class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap) {
-  def newChannelPool(address: InetSocketAddress, errorStrategy: Option[BackoffStrategy]): ChannelPool = {
+class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap, errorStrategy: Option[BackoffStrategy]) {
+
+  def newChannelPool(address: InetSocketAddress): ChannelPool = {
     val group = new DefaultChannelGroup("norbert-client [%s]".format(address))
     new ChannelPool(address, maxConnections, writeTimeoutMillis, bootstrap, group, errorStrategy)
   }
