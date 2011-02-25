@@ -156,13 +156,15 @@ trait BaseNetworkClient extends Logging {
   }
 
   trait EndpointStatusMBean {
-    def getEndpoints: Array[String]
+    def getEndpoints: JMap[Int, Boolean]
   }
 
   private val jmxHandle = JMX.register(new MBean(classOf[EndpointStatusMBean], "endpoints=%s".format("status")) with EndpointStatusMBean {
-    def getEndpoints = endpoints.toArray
-                                .sortWith { (e1, e2) => e1.node.id < e2.node.id }
-                                .map(_.toString)
+    def getEndpoints = {
+      val sMap = endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap
+      import collection.JavaConversions._
+      sMap
+    }
   })
 
   private def updateCurrentState(nodes: Set[Node]) {
@@ -175,7 +177,7 @@ trait BaseNetworkClient extends Logging {
     if (shutdownSwitch.compareAndSet(false, true) && startedSwitch.get) {
       log.info("Shutting down NetworkClient")
 
-      log.info("Shutting down endpoint jmx")
+      log.info("Stopping jmx")
       jmxHandle.foreach(JMX.unregister(_))
 
       if (!fromCluster) {
