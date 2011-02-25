@@ -58,4 +58,11 @@ package object norbertutils {
     else num / den
   }
 
+  // Apparently the map in JavaConversions isn't serializable...
+  def toJMap[K, V](map: Map[K, V]): java.util.Map[K, V] = {
+    val m = new java.util.HashMap[K, V](map.size)
+    map.foreach { case (k, v) => m.put(k, v) }
+    m
+  }
+
 }

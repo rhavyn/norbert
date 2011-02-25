@@ -24,7 +24,7 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
     case class ProcessingStatistics(map: Map[GroupIdType, ProcessingEntry])
 
     case object GetRequestsPerSecond
-    case class RequestsPerSecond(rps: Int)
+    case class RequestsPerSecond(rps: Map[GroupIdType, Int])
 
     case object Reset
 
@@ -72,7 +72,7 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
           }))
 
         case GetRequestsPerSecond =>
-          reply(timeTrackers.mapValues(_.finishedRequestTimeTracker.rps))
+          reply(RequestsPerSecond(timeTrackers.mapValues(_.finishedRequestTimeTracker.rps)))
 
         case Reset =>
           timeTrackers = timeTrackers.empty

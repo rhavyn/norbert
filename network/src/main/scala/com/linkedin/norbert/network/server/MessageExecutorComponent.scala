@@ -79,7 +79,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
   private class RequestRunner[RequestMsg, ResponseMsg](request: RequestMsg,
                                                        callback: (Either[Exception, ResponseMsg]) => Unit,
                                                        val queuedAt: Long = System.currentTimeMillis,
-                                                       val id: Int = idGenerator.getAndIncrement,
+                                                       val id: Int = idGenerator.getAndIncrement.abs,
                                                        implicit val is: InputSerializer[RequestMsg, ResponseMsg]) extends Runnable {
     def run = {
       log.debug("Executing message: %s".format(request))

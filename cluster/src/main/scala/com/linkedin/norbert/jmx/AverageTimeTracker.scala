@@ -63,7 +63,7 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
     q.size
   }
 
-  def rps = {
+  def rps: Int = {
     val now = clock.getCurrentTime
     implicit val timeOrdering: Ordering[(Long, Int)] = new Ordering[(Long, Int)] {
       def compare(x: (Long, Int), y: (Long, Int)) = (x._1 - y._1).asInstanceOf[Int]
@@ -71,7 +71,7 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
 
     val bs = binarySearch(q, (now - 1000L, 0))
     val idx = if(bs < 0) -bs - 1 else bs
-    getOrElse(q, idx, 0)
+    q.size - idx
   }
 }
 

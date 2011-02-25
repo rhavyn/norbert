@@ -23,6 +23,7 @@ import cluster._
 import logging.Logging
 import jmx.JMX
 import jmx.JMX.MBean
+import norbertutils._
 
 import java.util.{Map => JMap}
 
@@ -161,9 +162,7 @@ trait BaseNetworkClient extends Logging {
 
   private val jmxHandle = JMX.register(new MBean(classOf[EndpointStatusMBean], "endpoints=%s".format("status")) with EndpointStatusMBean {
     def getEndpoints = {
-      val sMap = endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap
-      import collection.JavaConversions._
-      sMap
+      toJMap(endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap)
     }
   })
 

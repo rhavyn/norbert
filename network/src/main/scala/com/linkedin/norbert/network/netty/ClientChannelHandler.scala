@@ -33,6 +33,7 @@ import norbertutils._
 import network.client.ResponseHandler
 import norbertutils.{Clock, SystemClock, SystemClockComponent}
 import java.util.concurrent.atomic.AtomicLong
+import java.util.{Map => JMap}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String,
@@ -156,7 +157,7 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, U
     val lut = lastUpdateTime.get
     if(clock.getCurrentTime - lut > refreshInterval) {
       if(lastUpdateTime.compareAndSet(lut, clock.getCurrentTime))
-        statsActor !! (statsActor.Stats.GetProcessingStatistics, {
+        statsActor !! (statsActor.Stats.GetProcessingStatistics(None), {
           case statsActor.Stats.ProcessingStatistics(map) =>
             // We now have a map from node_id => statistics. Add up the process
             val totalTime = map.values.map(_.completedTime).sum + map.values.map(_.pendingTime).sum
@@ -196,7 +197,7 @@ class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: Cl
   extends MBean(classOf[ClientStatisticsRequestStrategyMBean], "service=%s".format(serviceName))
   with ClientStatisticsRequestStrategyMBean {
 
-  def canServeRequests = strategy.canServeRequests.map { case (n, a) => (n.id -> a) }
+  def getCanServeRequests = toJMap(strategy.canServeRequests.map { case (n, a) => (n.id -> a) })
 
   def getOutlierMultiplier = strategy.outlierMultiplier
 
@@ -208,13 +209,15 @@ class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: Cl
 }
 
 trait NetworkClientStatisticsMBean {
-  def getNumPendingRequests: Map[Int, Int]
+  def getNumPendingRequests: JMap[Int, Int]
 
-  def getMedianTimes: Map[Int, Int]
-  def get75thTimes: Map[Int, Int]
-  def get90thTimes: Map[Int, Int]
-  def get95thTimes: Map[Int, Int]
-  def get99thTimes: Map[Int, Int]
+  def getMedianTimes: JMap[Int, Int]
+  def get75thTimes: JMap[Int, Int]
+  def get90thTimes: JMap[Int, Int]
+  def get95thTimes: JMap[Int, Int]
+  def get99thTimes: JMap[Int, Int]
+
+  def getRequestsPerSecond: JMap[Int, Int]
 
   def getClusterRequestsPerSecond: Int
   def getClusterAverageTime: Double
@@ -239,28 +242,34 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
       case ProcessingStatistics(map) => map.map { case (n, s) => (n.id -> s) }
     }
 
-  def getClusterRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
+  private def getRps = statsActor !? GetRequestsPerSecond match {
     case RequestsPerSecond(rps) => rps
   }
 
-  def getNumPendingRequests = getProcessingStatistics().mapValues(_.pendingSize)
+  def getNumPendingRequests = toJMap(getProcessingStatistics().mapValues(_.pendingSize))
 
   def getMedianTimes =
-    getProcessingStatistics(Some(0.5)).mapValues(_.percentile.getOrElse(0))
+    toJMap(getProcessingStatistics(Some(0.5)).mapValues(_.percentile.getOrElse(0)))
 
   def get75thTimes =
-    getProcessingStatistics(Some(0.75)).mapValues(_.percentile.getOrElse(0))
+    toJMap(getProcessingStatistics(Some(0.75)).mapValues(_.percentile.getOrElse(0)))
 
   def get90thTimes =
-    getProcessingStatistics(Some(0.90)).mapValues(_.percentile.getOrElse(0))
+    toJMap(getProcessingStatistics(Some(0.90)).mapValues(_.percentile.getOrElse(0)))
 
   def get95thTimes =
-    getProcessingStatistics(Some(0.95)).mapValues(_.percentile.getOrElse(0))
+    toJMap(getProcessingStatistics(Some(0.95)).mapValues(_.percentile.getOrElse(0)))
 
   def get99thTimes =
-    getProcessingStatistics(Some(0.99)).mapValues(_.percentile.getOrElse(0))
+    toJMap(getProcessingStatistics(Some(0.99)).mapValues(_.percentile.getOrElse(0)))
 
-  def ave[K, V : Numeric](map: Map[K, V]) = average(map.values.sum, map.size)
+
+  def getRequestsPerSecond = toJMap(getRps.map { case (n, r) => (n.id -> r) })
+
+  def ave[K, V : Numeric](map: JMap[K, V]) = {
+    import scala.collection.JavaConversions._
+    average(map.values.sum, map.size)
+  }
 
   def getClusterAverageTime = average(getProcessingStatistics()){_.completedTime}{_.completedSize}
 
@@ -275,6 +284,10 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
   def getCluster95th = ave(get95thTimes)
 
   def getCluster99th = ave(get99thTimes)
+
+  def getClusterRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
+    case RequestsPerSecond(rps) => rps.values.sum
+  }
 
   def reset = statsActor ! Reset
 }

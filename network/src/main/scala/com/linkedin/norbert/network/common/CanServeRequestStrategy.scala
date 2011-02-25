@@ -8,6 +8,8 @@ import com.linkedin.norbert.norbertutils.Clock
 import scala.math._
 import com.linkedin.norbert.jmx.JMX.MBean
 import collection.mutable.ConcurrentMap
+import java.util.{Map => JMap}
+import collection.JavaConversions._
 
 /**
  * Copyright 2009-2010 LinkedIn, Inc
@@ -30,7 +32,7 @@ trait CanServeRequestStrategy {
 }
 
 trait CanServeRequestStrategyMBean {
-  def canServeRequests: Map[Int, Boolean]
+  def getCanServeRequests: JMap[Int, Boolean]
 }
 
 object CompositeCanServeRequestStrategy {
@@ -110,8 +112,13 @@ class SimpleBackoffStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackof
   }
 }
 
+trait ServerErrorRequestStrategyMBean extends CanServeRequestStrategyMBean
+
 class ServerErrorStrategyMBeanImpl(serviceName: String, ses: SimpleBackoffStrategy)
-  extends MBean(classOf[CanServeRequestStrategyMBean], "service=%s".format(serviceName))
-  with CanServeRequestStrategyMBean {
-  def canServeRequests = ses.backoff.keys.map(node => (node.id, ses.canServeRequest(node))).toMap
+  extends MBean(classOf[ServerErrorRequestStrategyMBean], "service=%s".format(serviceName))
+  with ServerErrorRequestStrategyMBean {
+  def getCanServeRequests = {
+    val smap = ses.backoff.keys.map(node => (node.id, ses.canServeRequest(node))).toMap
+    smap
+  }
 }

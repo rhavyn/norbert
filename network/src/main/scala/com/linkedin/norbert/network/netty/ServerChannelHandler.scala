@@ -70,10 +70,10 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     import statsActor.Stats._
 
     def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
-      case RequestsPerSecond(rps) => rps
+      case RequestsPerSecond(rps) => rps.values.sum
     }
 
-    def getAverageRequestProcessingTime = statsActor !? GetProcessingStatistics match {
+    def getAverageRequestProcessingTime = statsActor !? GetProcessingStatistics(None) match {
       case ProcessingStatistics(map) => average(map){_.completedTime}{_.completedSize}
     }
   })
