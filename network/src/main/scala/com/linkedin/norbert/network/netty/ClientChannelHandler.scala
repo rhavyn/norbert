@@ -141,7 +141,11 @@ class ClientChannelHandler(serviceName: String,
   }
 }
 
-class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, UUID], outlierMultiplier: Int, outlierConstant: Int, clock: Clock, refreshInterval: Long = 200L)
+class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, UUID],
+                                      @volatile var outlierMultiplier: Double,
+                                      @volatile var outlierConstant: Double,
+                                      clock: Clock,
+                                      refreshInterval: Long = 200L)
   extends CanServeRequestStrategy with Logging {
   // Must be more than outlierMultiplier * average + outlierConstant ms the others by default
 
@@ -180,11 +184,27 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, U
   }
 }
 
+trait ClientStatisticsRequestStrategyMBean extends CanServeRequestStrategyMBean {
+  def getOutlierMultiplier: Double
+  def getOutlierConstant: Double
+
+  def setOutlierMultiplier(m: Double)
+  def setOutlierConstant(c: Double)
+}
+
 class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: ClientStatisticsRequestStrategy)
   extends MBean(classOf[ClientStatisticsRequestStrategyMBean], "service=%s".format(serviceName))
   with ClientStatisticsRequestStrategyMBean {
 
   def canServeRequests = strategy.canServeRequests.map { case (n, a) => (n.id -> a) }
+
+  def getOutlierMultiplier = strategy.outlierMultiplier
+
+  def getOutlierConstant = strategy.outlierConstant
+
+  def setOutlierMultiplier(m: Double) { strategy.outlierMultiplier = m}
+
+  def setOutlierConstant(c: Double) = { strategy.outlierConstant = c}
 }
 
 trait NetworkClientStatisticsMBean {
