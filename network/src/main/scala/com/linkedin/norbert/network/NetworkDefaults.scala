@@ -69,7 +69,7 @@ object NetworkDefaults {
   /**
    * The default number of core response processing threads.
    */
-  val RESPONSE_THREAD_CORE_POOL_SIZE = Runtime.getRuntime.availableProcessors * 2
+  val RESPONSE_THREAD_CORE_POOL_SIZE = Runtime.getRuntime.availableProcessors * 1
 
   /**
    * The default max number of core response threads.
@@ -79,7 +79,7 @@ object NetworkDefaults {
   /**
    * The default response processing thread timeout in seconds.
    */
-  val RESPONSE_THREAD_KEEP_ALIVE_TIME_SECS = 300
+  val RESPONSE_THREAD_KEEP_ALIVE_TIME_SECS = 100
 
   /**
    * The default thread pool queue size for processing requests
@@ -94,10 +94,10 @@ object NetworkDefaults {
   /**
    *   Detects nodes that may be offline if their request processing times are greater than this multiplier over the average
    */
-  val OUTLIER_MULTIPLIER = 2
+  val OUTLIER_MULTIPLIER = 2.0
 
   /**
    * Detects nodes that may be offline if their request processing times are also greater than this additional constant
    */
-  val OUTLIER_CONSTANT = 10
+  val OUTLIER_CONSTANT = 10.0
 }
