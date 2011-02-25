@@ -23,6 +23,7 @@ import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
 import cluster.Node
 import logging.Logging
 import common._
+import norbertutils.SystemClock
 
 /**
  * A <code>ClusterIoClientComponent</code> implementation that uses Netty for network communication.

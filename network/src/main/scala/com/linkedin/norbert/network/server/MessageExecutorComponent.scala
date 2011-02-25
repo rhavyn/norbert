@@ -23,7 +23,7 @@ import jmx.{FinishedRequestTimeTracker, JMX}
 import actors.DaemonActor
 import java.util.concurrent.atomic.AtomicInteger
 import common.NetworkStatisticsActor
-import util.{SystemClock, NamedPoolThreadFactory}
+import norbertutils.{SystemClock, NamedPoolThreadFactory}
 import java.util.concurrent._
 
 /**
@@ -109,17 +109,6 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
       response.foreach(callback)
     }
   }
-
-//  private object Stats {
-//    case class NewRequest(waitTime: Int)
-//    case object GetAverageWaitTime
-//    case class AverageWaitTime(time: Int)
-//    case class NewProcessingTime(time: Int)
-//    case object GetAverageProcessingTime
-//    case class AverageProcessingTime(time: Int)
-//    case object GetRequestCount
-//    case class RequestCount(count: Long)
-//  }
 }
 
 trait RequestProcessorMBean {

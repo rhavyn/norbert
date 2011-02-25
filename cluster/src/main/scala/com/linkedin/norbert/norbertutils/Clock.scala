@@ -14,7 +14,7 @@
  * the License.
  */
 
-package com.linkedin.norbert.util
+package com.linkedin.norbert.norbertutils
 
 trait ClockComponent {
   val clock: Clock

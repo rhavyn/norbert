@@ -20,7 +20,7 @@ import org.specs.Specification
 import org.specs.mock.Mockito
 import com.linkedin.norbert.network.common.NetworkStatisticsActor
 import java.util.UUID
-import com.linkedin.norbert.util.MockClock
+import com.linkedin.norbert.norbertutils.MockClock
 import com.linkedin.norbert.cluster.Node
 
 class ClientStatisticsRequestStrategySpec extends Specification with Mockito {

@@ -29,7 +29,7 @@ import jmx.{FinishedRequestTimeTracker, JMX}
 import java.lang.String
 import com.google.protobuf.{ByteString}
 import common.NetworkStatisticsActor
-import util.SystemClock
+import norbertutils.SystemClock
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 

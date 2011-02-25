@@ -29,7 +29,7 @@ import client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancerFactory}
 import common.{BaseNetworkClient}
 import cluster.{ClusterClient, ClusterClientComponent}
 import protos.NorbertProtos
-import util.NamedPoolThreadFactory
+import norbertutils.NamedPoolThreadFactory
 import org.jboss.netty.channel.{ChannelPipelineFactory, Channels}
 import client.{ThreadPoolResponseHandler, ResponseHandlerComponent, NetworkClient, NetworkClientConfig}
 

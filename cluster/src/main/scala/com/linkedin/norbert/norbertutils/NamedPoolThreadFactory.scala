@@ -14,7 +14,7 @@
  * the License.
  */
 package com.linkedin.norbert
-package util
+package norbertutils
 
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger

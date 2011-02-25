@@ -6,7 +6,7 @@ import logging.Logging
 import actors.DaemonActor
 import collection.immutable.SortedMap
 import jmx.{RequestTimeTracker, RequestsPerSecondTracker}
-import util.{Clock, ClockComponent}
+import norbertutils.{Clock, ClockComponent}
 
 class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long)(implicit ordering: Ordering[GroupIdType]) extends DaemonActor with Logging {
   object Stats {

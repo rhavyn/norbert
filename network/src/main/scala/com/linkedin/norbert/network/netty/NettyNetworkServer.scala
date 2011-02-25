@@ -27,7 +27,7 @@ import org.jboss.netty.channel.group.DefaultChannelGroup
 import server._
 import cluster.{ClusterClient, ClusterClientComponent}
 import protos.NorbertProtos
-import util.NamedPoolThreadFactory
+import norbertutils.NamedPoolThreadFactory
 import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
 
 class NetworkServerConfig {

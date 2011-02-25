@@ -17,7 +17,7 @@ package com.linkedin.norbert
 package jmx
 
 import collection.mutable.{Map, Queue}
-import util.{Clock, ClockComponent}
+import norbertutils._
 import annotation.tailrec
 import math._
 

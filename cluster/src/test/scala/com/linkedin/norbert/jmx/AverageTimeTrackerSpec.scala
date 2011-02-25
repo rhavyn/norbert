@@ -17,7 +17,7 @@ package com.linkedin.norbert
 package jmx
 
 import org.specs.Specification
-import util.{SystemClock, MockClock, Clock, ClockComponent}
+import norbertutils.{SystemClock, MockClock, Clock, ClockComponent}
 
 class AverageTimeTrackerSpec extends Specification {
   "RequestTimeTracker" should {

@@ -21,7 +21,7 @@ import protos.NorbertProtos
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit, ThreadPoolExecutor, Executors}
 import protos.NorbertProtos.NorbertMessage
 import logging.Logging
-import util.NamedPoolThreadFactory
+import norbertutils.NamedPoolThreadFactory
 
 trait ResponseHandlerComponent {
   val responseHandler: ResponseHandler

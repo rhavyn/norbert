@@ -29,8 +29,9 @@ import cluster.Node
 import scala.math._
 import client.NetworkClientConfig
 import common._
+import norbertutils._
 import network.client.ResponseHandler
-import util.{Clock, SystemClock, SystemClockComponent}
+import norbertutils.{Clock, SystemClock, SystemClockComponent}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,         
