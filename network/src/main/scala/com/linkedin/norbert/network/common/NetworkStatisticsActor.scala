@@ -26,6 +26,8 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
     case object GetRequestsPerSecond
     case class RequestsPerSecond(rps: Int)
 
+    case object Reset
+
     def average[T : Numeric](total: T, size: Int) = if(size == 0) 0.0 else implicitly[Numeric[T]].toDouble(total) / size
 
     def average[T, V](map: Map[T, V])(timeFn: (V => Long))( sizeFn: (V => Int)): Double = {
@@ -71,6 +73,9 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
 
         case GetRequestsPerSecond =>
           reply(timeTrackers.mapValues(_.finishedRequestTimeTracker.rps))
+
+        case Reset =>
+          timeTrackers = timeTrackers.empty
 
         case msg => log.error("NetworkStatistics actor got invalid message: %s".format(msg))
       }

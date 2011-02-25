@@ -205,6 +205,8 @@ trait NetworkClientStatisticsMBean {
   def getCluster90th: Double
   def getCluster95th: Double
   def getCluster99th: Double
+
+  def reset
 }
 
 class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkStatisticsActor[Node, UUID])
@@ -253,5 +255,7 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
   def getCluster95th = ave(get95thTimes)
 
   def getCluster99th = ave(get99thTimes)
+
+  def reset = statsActor ! Reset
 }
 
