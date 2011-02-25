@@ -32,11 +32,16 @@ import common._
 import norbertutils._
 import network.client.ResponseHandler
 import norbertutils.{Clock, SystemClock, SystemClockComponent}
+import java.util.concurrent.atomic.AtomicLong
 
 @ChannelPipelineCoverage("all")
-class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,         
-        staleRequestCleanupFrequencyMins: Int, requestStatisticsWindow: Long, outlierMultiplier: Int, outlierConstant: Int,
-        responseHandler: ResponseHandler) extends SimpleChannelHandler with Logging {
+class ClientChannelHandler(serviceName: String,
+                           staleRequestTimeoutMins: Int,
+                           staleRequestCleanupFrequencyMins: Int,
+                           requestStatisticsWindow: Long,
+                           outlierMultiplier: Int,
+                           outlierConstant: Int,
+                           responseHandler: ResponseHandler) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
   val cleanupTask = new Runnable() {
@@ -51,7 +56,7 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
           val request = requestMap.get(uuid)
           if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) {
             requestMap.remove(uuid)
-            statsActor ! statsActor.Stats.EndRequest(request.node.id, request.id)
+            statsActor ! statsActor.Stats.EndRequest(request.node, request.id)
             expiredEntryCount += 1
           }
         }
@@ -71,36 +76,25 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   val cleanupExecutor = new ScheduledThreadPoolExecutor(1)
   cleanupExecutor.scheduleAtFixedRate(cleanupTask, staleRequestCleanupFrequencyMins, staleRequestCleanupFrequencyMins, TimeUnit.MINUTES)
 
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](clock, requestStatisticsWindow)
+  private val statsActor = new NetworkStatisticsActor[Node, UUID](clock, requestStatisticsWindow)
   statsActor.start
 
-  val clientStatisticsRequestStrategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant, clock)
-  val serverErrorStrategy = new ServerErrorStrategy(clock)
+  val clientStatsStrategy = Some(new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant, clock))
+  val serverErrorStrategy = Some(new SimpleBackoffStrategy(clock))
 
-  val strategy = CompositeCanServeRequestStrategy(clientStatisticsRequestStrategy, serverErrorStrategy)
+  val clientStatsStrategyJMX = JMX.register(clientStatsStrategy.map(new ClientStatisticsRequestStrategyMBeanImpl(serviceName, _)))
+  val serverErrorStrategyJMX = JMX.register(serverErrorStrategy.map(new ServerErrorStrategyMBeanImpl(serviceName, _)))
 
-  private val jmxHandle = JMX.register(new MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with NetworkClientStatisticsMBean {
-    import statsActor.Stats._
+  val strategy = CompositeCanServeRequestStrategy.build(clientStatsStrategy, serverErrorStrategy)
 
-    def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
-      case RequestsPerSecond(rps) => rps
-    }
-
-    def getAverageRequestProcessingTime = statsActor !? GetProcessingStatistics match {
-      case ProcessingStatistics(map) => average(map){_.completedTime}{_.completedSize}
-    }
-
-    def getAveragePendingRequestTime = statsActor !? GetProcessingStatistics match {
-      case ProcessingStatistics(map) => average(map){_.pendingTime}{_.pendingSize}
-    }
-  })
+  private val statsJMX = JMX.register(new NetworkClientStatisticsMBeanImpl(serviceName, statsActor))
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request[_, _]]
     log.debug("Writing request: %s".format(request))
 
     requestMap.put(request.id, request)
-    statsActor ! statsActor.Stats.BeginRequest(request.node.id, request.id)
+    statsActor ! statsActor.Stats.BeginRequest(request.node, request.id)
 
     val message = NorbertProtos.NorbertMessage.newBuilder
     message.setRequestIdMsb(request.id.getMostSignificantBits)
@@ -121,12 +115,12 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
       case request =>
         requestMap.remove(requestId)
 
-        statsActor ! statsActor.Stats.EndRequest(request.node.id, request.id)
+        statsActor ! statsActor.Stats.EndRequest(request.node, request.id)
 
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           responseHandler.onSuccess(request, message)
         } else if (message.getStatus == NorbertProtos.NorbertMessage.Status.HEAVYLOAD) {
-          serverErrorStrategy.notifyFailure(request.node.id)
+          serverErrorStrategy.foreach(_.notifyFailure(request.node))
           processException(request, "Heavy load")
         } else {
           processException(request, Option(message.getErrorMessage).getOrElse("<null>"))
@@ -141,61 +135,123 @@ class ClientChannelHandler(serviceName: String, staleRequestTimeoutMins: Int,
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.warn(e.getCause, "Caught exception in network layer")
 
   def shutdown: Unit = {
-    jmxHandle.foreach { JMX.unregister(_) }
+    statsJMX.foreach { JMX.unregister(_) }
+    serverErrorStrategyJMX.foreach { JMX.unregister(_) }
+    clientStatsStrategyJMX.foreach { JMX.unregister(_) }
   }
 }
 
-class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Int, UUID], outlierMultiplier: Int, outlierConstant: Int, clock: Clock, refreshInterval: Long = 3000L) extends CanServeRequestStrategy {
-  // Must be more than 2x + 10ms the others by default
+class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, UUID], outlierMultiplier: Int, outlierConstant: Int, clock: Clock, refreshInterval: Long = 200L)
+  extends CanServeRequestStrategy with Logging {
+  // Must be more than outlierMultiplier * average + outlierConstant ms the others by default
 
-  var canServeRequests = Map.empty[Int, Boolean]
-  @volatile var lastUpdateTime = 0L
+  @volatile var canServeRequests = Map.empty[Node, Boolean]
+  val lastUpdateTime = new AtomicLong(0)
 
   def canServeRequest(node: Node): Boolean = {
-    if(clock.getCurrentTime - lastUpdateTime > refreshInterval) {
-      lastUpdateTime = clock.getCurrentTime
+    val lut = lastUpdateTime.get
+    if(clock.getCurrentTime - lut > refreshInterval) {
+      if(lastUpdateTime.compareAndSet(lut, clock.getCurrentTime))
+        statsActor !! (statsActor.Stats.GetProcessingStatistics, {
+          case statsActor.Stats.ProcessingStatistics(map) =>
+            // We now have a map from node_id => statistics. Add up the process
+            val totalTime = map.values.map(_.completedTime).sum + map.values.map(_.pendingTime).sum
+            val totalSize = map.values.map(_.completedSize).sum + map.values.map(_.pendingSize).sum
 
-      statsActor !! (statsActor.Stats.GetProcessingStatistics, {
-        case statsActor.Stats.ProcessingStatistics(map) =>
-          // We now have a map from node_id => statistics. Add up the process
-          val totalTime = map.values.map(_.completedTime).sum + map.values.map(_.pendingTime).sum
-          val totalSize = map.values.map(_.completedSize).sum + map.values.map(_.pendingSize).sum
+            canServeRequests = map.map { case (n, entry) =>
+              val nodeTime = entry.completedTime + entry.pendingTime
+              val nodeSize = entry.completedSize + entry.pendingSize
 
-          canServeRequests = map.map { case (nodeId, entry) =>
-            val nodeTime = entry.completedTime + entry.pendingTime
-            val nodeSize = entry.completedSize + entry.pendingSize
+              //    (nodeTime) / (nodeSize)  < (totalTime) / (totalSize) * OUTLIER_MULTIPLIER + OUTLIER_CONSTANT
+              val available = nodeTime * totalSize <= (totalTime * outlierMultiplier + outlierConstant) * nodeSize
 
-            //    (nodeTime) / (nodeSize)  < (totalTime) / (totalSize) * OUTLIER_MULTIPLIER + OUTLIER_CONSTANT
-            (nodeId, nodeTime * totalSize <= (totalTime * outlierMultiplier + outlierConstant) * nodeSize)
-          }
-      })
+              if(!available) {
+                val nodeAverage = safeDivide(nodeTime, nodeSize)(0)
+                val clusterAverage = safeDivide(totalTime, totalSize)(0)
+
+                log.warn("Node %s has an average response time of %f. The cluster response time is %f. Routing requests away temporarily.".format(n, nodeAverage, clusterAverage))
+              }
+              (n, available)
+            }
+        })
     }
 
-    canServeRequests.getOrElse(node.id, true)
-  }
-
-  def calcVariance(values: Iterable[Int], sum: Int) = {
-    lazy val average = sum.toDouble / values.size
-    values.foldLeft(0.0) { (sum, value) => sum + ((value - average) * (value - average)) }
-  }
-
-  def calcStandardDeviation(values: Iterable[Int], variance: Double): Double = {
-    if(values.size == 0 || values.size == 1)
-      0
-    else {
-      sqrt(variance / (values.size - 1))
-    }
-  }
-
-  def calcStandardDeviation(values: Iterable[Int]): Double = {
-    calcStandardDeviation(values, calcVariance(values, values.sum))
+    canServeRequests.getOrElse(node, true)
   }
 }
 
+class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: ClientStatisticsRequestStrategy)
+  extends MBean(classOf[ClientStatisticsRequestStrategyMBeanImpl], "service=%s".format(serviceName))
+  with CanServeRequestStrategyMBean {
 
+  def canServeRequests = strategy.canServeRequests.map { case (n, a) => (n.id -> a) }
+}
 
 trait NetworkClientStatisticsMBean {
-  def getRequestsPerSecond: Int
-  def getAverageRequestProcessingTime: Double
-  def getAveragePendingRequestTime: Double
+  def getNumPendingRequests: Map[Int, Int]
+
+  def getMedianTimes: Map[Int, Int]
+  def get75thTimes: Map[Int, Int]
+  def get90thTimes: Map[Int, Int]
+  def get95thTimes: Map[Int, Int]
+  def get99thTimes: Map[Int, Int]
+
+  def getClusterRequestsPerSecond: Int
+  def getClusterAverageTime: Double
+  def getClusterPendingTime: Double
+
+  def getClusterMedianTimes: Double
+  def getCluster75thTimes: Double
+  def getCluster90th: Double
+  def getCluster95th: Double
+  def getCluster99th: Double
 }
+
+class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkStatisticsActor[Node, UUID])
+  extends MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName))
+  with NetworkClientStatisticsMBean {
+  import statsActor.Stats._
+
+  private def getProcessingStatistics(percentile: Option[Double] = None) =
+    statsActor !? GetProcessingStatistics(percentile) match {
+      case ProcessingStatistics(map) => map.map { case (n, s) => (n.id -> s) }
+    }
+
+  def getClusterRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
+    case RequestsPerSecond(rps) => rps
+  }
+
+  def getNumPendingRequests = getProcessingStatistics().mapValues(_.pendingSize)
+
+  def getMedianTimes =
+    getProcessingStatistics(Some(0.5)).mapValues(_.percentile.getOrElse(0))
+
+  def get75thTimes =
+    getProcessingStatistics(Some(0.75)).mapValues(_.percentile.getOrElse(0))
+
+  def get90thTimes =
+    getProcessingStatistics(Some(0.90)).mapValues(_.percentile.getOrElse(0))
+
+  def get95thTimes =
+    getProcessingStatistics(Some(0.95)).mapValues(_.percentile.getOrElse(0))
+
+  def get99thTimes =
+    getProcessingStatistics(Some(0.99)).mapValues(_.percentile.getOrElse(0))
+
+  def ave[K, V : Numeric](map: Map[K, V]) = average(map.values.sum, map.size)
+
+  def getClusterAverageTime = average(getProcessingStatistics()){_.completedTime}{_.completedSize}
+
+  def getClusterPendingTime = average(getProcessingStatistics()){_.pendingTime}{_.pendingSize}
+
+  def getClusterMedianTimes = ave(getMedianTimes)
+
+  def getCluster75thTimes = ave(get75thTimes)
+
+  def getCluster90th = ave(get90thTimes)
+
+  def getCluster95th = ave(get95thTimes)
+
+  def getCluster99th = ave(get99thTimes)
+}
+

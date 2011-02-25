@@ -29,6 +29,15 @@ trait CanServeRequestStrategy {
   def canServeRequest(node: Node): Boolean
 }
 
+trait CanServeRequestStrategyMBean {
+  def canServeRequests: Map[Int, Boolean]
+}
+
+object CompositeCanServeRequestStrategy {
+  def build(strategies: Option[CanServeRequestStrategy]*): CompositeCanServeRequestStrategy =
+    new CompositeCanServeRequestStrategy(strategies.flatten :_*)
+}
+
 case class CompositeCanServeRequestStrategy(strategies: CanServeRequestStrategy*) extends CanServeRequestStrategy {
   def canServeRequest(node: Node): Boolean = {
     strategies.foreach{ strategy =>

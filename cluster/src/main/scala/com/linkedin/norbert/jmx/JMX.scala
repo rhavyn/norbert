@@ -35,6 +35,8 @@ object JMX extends Logging {
 
   def register(mbean: MBean): Option[ObjectInstance] = register(mbean, mbean.name)
 
+  def register(mbean: Option[MBean]): Option[ObjectInstance] = mbean.flatMap(m => register(m, m.name))
+
   def unregister(mbean: ObjectInstance) = try {
     mbeanServer.unregisterMBean(mbean.getObjectName)
   } catch {

@@ -13,19 +13,24 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
     case class BeginRequest(groupId: GroupIdType, requestId: RequestIdType)
     case class EndRequest(groupId: GroupIdType, requestId: RequestIdType)
 
-    case object GetProcessingStatistics
+    case class GetProcessingStatistics(percentile: Option[Double] = None)
 
-    case class ProcessingEntry(pendingTime: Long, pendingSize: Int, completedTime: Long, completedSize: Int)
+    case class ProcessingEntry(pendingTime: Long,
+                               pendingSize: Int,
+                               completedTime: Long,
+                               completedSize: Int,
+                               percentile: Option[Int] = None)
+
     case class ProcessingStatistics(map: Map[GroupIdType, ProcessingEntry])
 
     case object GetRequestsPerSecond
     case class RequestsPerSecond(rps: Int)
 
-    def average(total: Long, size: Int) = if(size == 0) 0.0 else total.toDouble / size
+    def average[T : Numeric](total: T, size: Int) = if(size == 0) 0.0 else implicitly[Numeric[T]].toDouble(total) / size
 
-    def average(map: Map[GroupIdType, ProcessingEntry])( timeFn: (ProcessingEntry => Long))( sizeFn: (ProcessingEntry => Int)): Double = {
-      val (total, size) = map.values.foldLeft((0L, 0)) { case ((t, s), stats) =>
-          (t + timeFn(stats), s + sizeFn(stats))
+    def average[T, V](map: Map[T, V])(timeFn: (V => Long))( sizeFn: (V => Int)): Double = {
+      val (total, size) = map.values.foldLeft((0L, 0)) { case ((t, s), value) =>
+          (t + timeFn(value), s + sizeFn(value))
         }
       average(total, size)
     }
@@ -49,16 +54,20 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
     loop {
       react {
         case BeginRequest(groupId, requestId) =>
-          val tracker = timeTrackers.getOrElseUpdate(groupId, new RequestTimeTracker(clock, timeWindow))
+          val tracker = getOrUpdateTrackers(groupId, new RequestTimeTracker(clock, timeWindow))
           tracker.beginRequest(requestId)
 
         case EndRequest(groupId, requestId) =>
           val tracker = timeTrackers.get(groupId).foreach { _.endRequest(requestId) }
 
-        case GetProcessingStatistics =>
-          reply(ProcessingStatistics(timeTrackers.map { case (groupId, tracker) =>
-            (groupId, ProcessingEntry(tracker.pendingRequestTimeTracker.total, tracker.pendingRequestTimeTracker.size, tracker.finishedRequestTimeTracker.total, tracker.finishedRequestTimeTracker.size))
-          }.toMap))
+        case GetProcessingStatistics(percentile) =>
+          reply(ProcessingStatistics(timeTrackers.mapValues { tracker =>
+              ProcessingEntry(tracker.pendingRequestTimeTracker.total,
+                tracker.pendingRequestTimeTracker.size,
+                tracker.finishedRequestTimeTracker.total,
+                tracker.finishedRequestTimeTracker.size,
+                percentile.map(tracker.finishedRequestTimeTracker.percentile(_)))
+          }))
 
         case GetRequestsPerSecond =>
           reply(timeTrackers.mapValues(_.finishedRequestTimeTracker.rps))
