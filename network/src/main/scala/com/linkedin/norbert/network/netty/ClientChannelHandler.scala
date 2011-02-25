@@ -181,8 +181,8 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, U
 }
 
 class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: ClientStatisticsRequestStrategy)
-  extends MBean(classOf[ClientStatisticsRequestStrategyMBeanImpl], "service=%s".format(serviceName))
-  with CanServeRequestStrategyMBean {
+  extends MBean(classOf[ClientStatisticsRequestStrategyMBean], "service=%s".format(serviceName))
+  with ClientStatisticsRequestStrategyMBean {
 
   def canServeRequests = strategy.canServeRequests.map { case (n, a) => (n.id -> a) }
 }

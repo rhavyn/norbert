@@ -111,7 +111,7 @@ class SimpleBackoffStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackof
 }
 
 class ServerErrorStrategyMBeanImpl(serviceName: String, ses: SimpleBackoffStrategy)
-  extends MBean(classOf[ServerErrorStrategyMBeanImpl], "service=%s".format(serviceName))
+  extends MBean(classOf[CanServeRequestStrategyMBean], "service=%s".format(serviceName))
   with CanServeRequestStrategyMBean {
   def canServeRequests = ses.backoff.keys.map(node => (node.id, ses.canServeRequest(node))).toMap
 }
