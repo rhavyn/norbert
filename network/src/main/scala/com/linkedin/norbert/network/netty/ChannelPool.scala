@@ -29,14 +29,14 @@ import cluster.{Node, ClusterClient}
 import java.util.concurrent.atomic.{AtomicLong, AtomicBoolean, AtomicInteger}
 import norbertutils.{SystemClock}
 import java.io.IOException
+import common.{BackoffStrategy, SimpleBackoffStrategy}
 
 class ChannelPoolClosedException extends Exception
 
 class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap) {
-
-  def newChannelPool(address: InetSocketAddress): ChannelPool = {
+  def newChannelPool(address: InetSocketAddress, errorStrategy: Option[BackoffStrategy]): ChannelPool = {
     val group = new DefaultChannelGroup("norbert-client [%s]".format(address))
-    new ChannelPool(address, maxConnections, writeTimeoutMillis, bootstrap, group)
+    new ChannelPool(address, maxConnections, writeTimeoutMillis, bootstrap, group, errorStrategy)
   }
 
   def shutdown: Unit = {
@@ -45,7 +45,7 @@ class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap
 }
 
 class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap,
-    channelGroup: ChannelGroup) extends Logging {
+    channelGroup: ChannelGroup, val errorStrategy: Option[BackoffStrategy]) extends Logging {
   private val pool = new ArrayBlockingQueue[Channel](maxConnections)
   private val waitingWrites = new LinkedBlockingQueue[Request[_, _]]
   private val poolSize = new AtomicInteger(0)
@@ -133,7 +133,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
             checkinChannel(channel)
           } else {
             log.error(openFuture.getCause, "Error when opening channel to: %s, marking offline".format(address))
-            errorStrategy.notifyFailure
+            errorStrategy.foreach(_.notifyFailure(request.node))
             poolSize.decrementAndGet
 
             request.onFailure(openFuture.getCause)
@@ -143,8 +143,6 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     }
   }
 
-  val errorStrategy = new BackoffStrategy(SystemClock)
-
   private def writeRequestToChannel(request: Request[_, _], channel: Channel) {
     log.debug("Writing to %s: %s".format(channel, request))
     requestsSent.incrementAndGet
@@ -152,7 +150,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
         // Take the node out of rotation for a bit
         log.error("IO exception for " + request.node + ", marking node offline")
-        errorStrategy.notifyFailure
+        errorStrategy.foreach(_.notifyFailure(request.node))
         channel.close
 
         request.onFailure(writeFuture.getCause)

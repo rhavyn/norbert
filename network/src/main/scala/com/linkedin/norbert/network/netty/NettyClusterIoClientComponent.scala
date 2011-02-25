@@ -30,7 +30,7 @@ import norbertutils.SystemClock
  */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
 
-  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory, otherStrategies: CanServeRequestStrategy = AlwaysAvailableRequestStrategy) extends ClusterIoClient with UrlParser with Logging {
+  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory, otherStrategies: Option[CanServeRequestStrategy] = None) extends ClusterIoClient with UrlParser with Logging {
     private val channelPools = new ConcurrentHashMap[Node, ChannelPool]
 
     def sendMessage[RequestMsg, ResponseMsg](node: Node, request: Request[RequestMsg, ResponseMsg]) {
@@ -46,11 +46,14 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
       }
     }
 
+    val channelPoolErrorStrategy = Some(new SimpleBackoffStrategy(SystemClock))
+
     def getChannelPool(node: Node): ChannelPool = {
       // TODO: Theoretically, we might be able to get a null reference instead of a channel pool here
-      addIfAbsent(channelPools, node) { n: Node =>
+      import norbertutils._
+      atomicCreateIfAbsent(channelPools, node) { n: Node =>
         val (address, port) = parseUrl(n.url)
-        channelPoolFactory.newChannelPool(new InetSocketAddress(address, port))
+        channelPoolFactory.newChannelPool(new InetSocketAddress(address, port), channelPoolErrorStrategy)
       }
     }
 
@@ -65,9 +68,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
       }
 
       nodes.map { n =>
-        val channelPool = getChannelPool(n)
-        val channelPoolStrategy = channelPool.errorStrategy
-        val requestStrategy = CompositeCanServeRequestStrategy(channelPoolStrategy, otherStrategies)
+        val requestStrategy = CompositeCanServeRequestStrategy.build(channelPoolErrorStrategy, otherStrategies)
 
         new Endpoint {
           def node = n
@@ -91,19 +92,6 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
       channelPoolFactory.shutdown
 
       log.debug("NettyClusterIoClient shut down")
-    }
-
-
-    // TODO: Put this into a utility somewhere? Scala's concurrent getOrElseUpdate is not atomic, unlike this guy
-    private def addIfAbsent[K, V](map: ConcurrentHashMap[K, V], key: K)(fn: K => V): V = {
-      val oldValue = map.get(key)
-      if(oldValue == null) {
-        val newValue = fn(key)
-        map.putIfAbsent(key, newValue)
-        map.get(key)
-      } else {
-        oldValue
-      }
     }
   }
 

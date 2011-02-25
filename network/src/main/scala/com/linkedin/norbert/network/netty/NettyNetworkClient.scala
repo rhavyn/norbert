@@ -77,7 +77,7 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
 
   val clusterIoClient = new NettyClusterIoClient(
     new ChannelPoolFactory(clientConfig.maxConnectionsPerNode, clientConfig.writeTimeoutMillis, bootstrap),
-    handler.strategy)
+    Some(handler.strategy))
 
   override def shutdown = {
     if (clientConfig.clusterClient == null) clusterClient.shutdown else super.shutdown

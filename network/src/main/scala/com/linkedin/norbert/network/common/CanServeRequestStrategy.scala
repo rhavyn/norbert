@@ -43,57 +43,66 @@ case object AlwaysAvailableRequestStrategy extends CanServeRequestStrategy {
   def canServeRequest(node: Node) = true
 }
 
-
 /**
  * A simple exponential backoff strategy
  */
-class BackoffStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackoffTime: Long = 3200L) extends CanServeRequestStrategy {
-  @volatile var lastFailureTime = 0L
-  val backoffTime = new AtomicLong(0)
+private[common] class SimpleBackoff(clock: Clock, minBackoffTime: Long = 100L, maxBackoffTime: Long = 3200L) {
+  @volatile var lastError = 0L
+  val currBackoff = new AtomicLong(0)
 
   def notifyFailure {
-    val now = clock.getCurrentTime
-    val currentBackoffTime = backoffTime.get
-
-    if(now - lastFailureTime >= minBackoffTime) {
-      lastFailureTime = now
-      val newBackoffTime = max(minBackoffTime, min(2L * currentBackoffTime, maxBackoffTime))
-      backoffTime.compareAndSet(currentBackoffTime, newBackoffTime)
-    }
+    if(clock.getCurrentTime - lastError >= minBackoffTime)
+      incrementBackoff
   }
 
-  private def tryResetBackoff {
+  private def incrementBackoff {
+    lastError = clock.getCurrentTime
+    val currentBackoffTime = currBackoff.get
+    val newBackoffTime = max(minBackoffTime, min(2L * currentBackoffTime, maxBackoffTime))
+    currBackoff.compareAndSet(currentBackoffTime, newBackoffTime)
+  }
+
+  private def tryDecrementBackoff {
    val now = clock.getCurrentTime
 
    // If it's been a while since the last error, reset the backoff back to 0
-    val currentBackoffTime = backoffTime.get
-    if(currentBackoffTime != 0L && now - lastFailureTime > 3 * maxBackoffTime)
-      backoffTime.compareAndSet(currentBackoffTime, 0L)
+    val currentBackoffTime = currBackoff.get
+    if(currentBackoffTime != 0L && now - lastError > 3 * maxBackoffTime)
+      currBackoff.compareAndSet(currentBackoffTime, 0L)
   }
 
-  def canServeRequest(node: Node): Boolean = {
+  def available: Boolean = {
     val now = clock.getCurrentTime
-
-    tryResetBackoff
-
-    now - lastFailureTime > backoffTime.get
+    tryDecrementBackoff
+    now - lastError > currBackoff.get
   }
 }
 
+trait BackoffStrategy extends CanServeRequestStrategy {
+  def notifyFailure(node: Node)
+}
 
-class ServerErrorStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackoffTime: Long = 3200L) extends CanServeRequestStrategy {
-  import scala.collection.mutable._
-  val backoff = scala.collection.mutable.Map.empty[Int, BackoffStrategy]
+class SimpleBackoffStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackoffTime: Long = 3200L) extends BackoffStrategy {
+  import norbertutils._
+  import collection.JavaConversions._
 
-  def notifyFailure(id: Int) {
-    val s = backoff.getOrElseUpdate(id, new BackoffStrategy(clock, minBackoffTime, maxBackoffTime))
-    s.notifyFailure
+  private[common] val jBackoff = new java.util.concurrent.ConcurrentHashMap[Node, SimpleBackoff]
+  private[common] val backoff: ConcurrentMap[Node, SimpleBackoff] = jBackoff
+
+  def notifyFailure(node: Node) {
+    atomicCreateIfAbsent(jBackoff, node) { n =>
+      new SimpleBackoff(clock, minBackoffTime, maxBackoffTime)
+    }.notifyFailure
   }
 
   def canServeRequest(node: Node): Boolean = {
-    backoff.get(node.id) match {
-      case None => true
-      case Some(s1) => s1.canServeRequest(node)
-    }
+    val b = jBackoff.get(node)
+    b == null || b.available
   }
+}
+
+class ServerErrorStrategyMBeanImpl(serviceName: String, ses: SimpleBackoffStrategy)
+  extends MBean(classOf[ServerErrorStrategyMBeanImpl], "service=%s".format(serviceName))
+  with CanServeRequestStrategyMBean {
+  def canServeRequests = ses.backoff.keys.map(node => (node.id, ses.canServeRequest(node))).toMap
 }
