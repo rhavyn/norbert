@@ -217,9 +217,9 @@ trait NetworkClientStatisticsMBean {
   def get95thTimes: JMap[Int, Int]
   def get99thTimes: JMap[Int, Int]
 
-  def getRequestsPerSecond: JMap[Int, Int]
+  def getRPS: JMap[Int, Int]
 
-  def getClusterRequestsPerSecond: Int
+  def getClusterRPS: Int
   def getClusterAverageTime: Double
   def getClusterPendingTime: Double
 
@@ -230,6 +230,10 @@ trait NetworkClientStatisticsMBean {
   def getCluster99th: Double
 
   def reset
+
+  // Jill will be very upset if I break her graphs
+  def getRequestsPerSecond = getClusterRPS
+  def getAverageRequestProcessingTime = getClusterAverageTime
 }
 
 class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkStatisticsActor[Node, UUID])
@@ -264,7 +268,7 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
     toJMap(getProcessingStatistics(Some(0.99)).mapValues(_.percentile.getOrElse(0)))
 
 
-  def getRequestsPerSecond = toJMap(getRps.map { case (n, r) => (n.id -> r) })
+  def getRPS = toJMap(getRps.map { case (n, r) => (n.id -> r) })
 
   def ave[K, V : Numeric](map: JMap[K, V]) = {
     import scala.collection.JavaConversions._
@@ -285,7 +289,7 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
 
   def getCluster99th = ave(get99thTimes)
 
-  def getClusterRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
+  def getClusterRPS = statsActor !? GetRequestsPerSecond match {
     case RequestsPerSecond(rps) => rps.values.sum
   }
 
