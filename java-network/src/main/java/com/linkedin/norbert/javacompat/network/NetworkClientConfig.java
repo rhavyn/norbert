@@ -30,6 +30,16 @@ public class NetworkClientConfig {
   private int staleRequestTimeoutMins = NetworkDefaults.STALE_REQUEST_TIMEOUT_MINS();
   private int staleRequestCleanupFrequencyMins = NetworkDefaults.STALE_REQUEST_CLEANUP_FREQUENCY_MINS();
 
+  private long requestStatisticsWindow = NetworkDefaults.REQUEST_STATISTICS_WINDOW();
+
+  private double outlierMuliplier = NetworkDefaults.OUTLIER_MULTIPLIER();
+  private double outlierConstant = NetworkDefaults.OUTLIER_CONSTANT();
+
+  private int responseHandlerCorePoolSize = NetworkDefaults.RESPONSE_THREAD_CORE_POOL_SIZE();
+  private int responseHandlerMaxPoolSize = NetworkDefaults.RESPONSE_THREAD_MAX_POOL_SIZE();
+  private int responseHandlerKeepAliveTime = NetworkDefaults.RESPONSE_THREAD_KEEP_ALIVE_TIME_SECS();
+  private int responseHandlerMaxWaitingQueueSize = NetworkDefaults.RESPONSE_THREAD_POOL_QUEUE_SIZE();
+
   public ClusterClient getClusterClient() {
     return clusterClient;
   }
@@ -100,5 +110,61 @@ public class NetworkClientConfig {
 
   public void setStaleRequestCleanupFrequencyMins(int staleRequestCleanupFrequencyMins) {
     this.staleRequestCleanupFrequencyMins = staleRequestCleanupFrequencyMins;
+  }
+
+  public long getRequestStatisticsWindow() {
+    return requestStatisticsWindow;
+  }
+
+  public void setRequestStatisticsWindow(long requestStatisticsWindow) {
+    this.requestStatisticsWindow = requestStatisticsWindow;
+  }
+
+  public double getOutlierMuliplier() {
+    return outlierMuliplier;
+  }
+
+  public void setOutlierMuliplier(double outlierMuliplier) {
+    this.outlierMuliplier = outlierMuliplier;
+  }
+
+  public double getOutlierConstant() {
+    return outlierConstant;
+  }
+
+  public void setOutlierConstant(double outlierConstant) {
+    this.outlierConstant = outlierConstant;
+  }
+
+  public int getResponseHandlerCorePoolSize() {
+    return responseHandlerCorePoolSize;
+  }
+
+  public void setResponseHandlerCorePoolSize(int responseHandlerCorePoolSize) {
+    this.responseHandlerCorePoolSize = responseHandlerCorePoolSize;
+  }
+
+  public int getResponseHandlerMaxPoolSize() {
+    return responseHandlerMaxPoolSize;
+  }
+
+  public void setResponseHandlerMaxPoolSize(int responseHandlerMaxPoolSize) {
+    this.responseHandlerMaxPoolSize = responseHandlerMaxPoolSize;
+  }
+
+  public int getResponseHandlerKeepAliveTime() {
+    return responseHandlerKeepAliveTime;
+  }
+
+  public void setResponseHandlerKeepAliveTime(int responseHandlerKeepAliveTime) {
+    this.responseHandlerKeepAliveTime = responseHandlerKeepAliveTime;
+  }
+
+  public int getResponseHandlerMaxWaitingQueueSize() {
+    return responseHandlerMaxWaitingQueueSize;
+  }
+
+  public void setResponseHandlerMaxWaitingQueueSize(int responseHandlerMaxWaitingQueueSize) {
+    this.responseHandlerMaxWaitingQueueSize = responseHandlerMaxWaitingQueueSize;
   }
 }
