@@ -23,19 +23,15 @@ import java.io.{OutputStream, InputStream}
  */
 trait Serializer[RequestMsg, ResponseMsg] extends InputSerializer[RequestMsg, ResponseMsg] with OutputSerializer[RequestMsg, ResponseMsg]
 
-
 // Split up for correct variance
 trait OutputSerializer[-RequestMsg, -ResponseMsg] {
+  def responseName: String
   def requestToBytes(request: RequestMsg): Array[Byte]
   def responseToBytes(response: ResponseMsg): Array[Byte]
 }
 
 trait InputSerializer[+RequestMsg, +ResponseMsg] {
-  def nameOfRequestMessage: String
-
+  def requestName: String
   def requestFromBytes(bytes: Array[Byte]): RequestMsg
   def responseFromBytes(bytes: Array[Byte]): ResponseMsg
 }
-
-//  def writeSerializedRequestMessage(message: RequestMsg, output: OutputStream): Unit
-//  def readSerializedResponseMessage(input: InputStream): ResponseMsg

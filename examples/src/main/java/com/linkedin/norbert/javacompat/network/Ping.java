@@ -28,8 +28,12 @@ class Ping {
 }
 
 class PingSerializer implements Serializer<Ping, Ping> {
-    public String nameOfRequestMessage() {
+    public String requestName() {
       return "ping";
+    }
+
+    public String responseName() {
+      return "pong";
     }
 
     public byte[] requestToBytes(Ping message) {

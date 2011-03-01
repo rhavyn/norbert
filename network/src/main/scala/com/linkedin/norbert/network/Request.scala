@@ -25,7 +25,7 @@ case class Request[RequestMsg, ResponseMsg](message: RequestMsg, node: Node,
   val timestamp = System.currentTimeMillis
 
   def name: String = {
-    inputSerializer.nameOfRequestMessage
+    inputSerializer.requestName
   }
 
   def requestBytes: Array[Byte] = outputSerializer.requestToBytes(message)

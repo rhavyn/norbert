@@ -36,14 +36,14 @@ class MessageHandlerRegistrySpec extends Specification with Mockito with SampleM
     "return the handler for the specified request message" in {
       messageHandlerRegistry.registerHandler(handler)
 
-      val h = messageHandlerRegistry.handlerFor[Ping, Ping](serializer.nameOfRequestMessage)
+      val h = messageHandlerRegistry.handlerFor[Ping, Ping](serializer.requestName)
 
       h(request) must be_==(request)
       handled must be_==(request)
     }
 
     "throw an InvalidMessageException if no handler is registered" in {
-      messageHandlerRegistry.handlerFor(serializer.nameOfRequestMessage) must throwA[InvalidMessageException]
+      messageHandlerRegistry.handlerFor(serializer.requestName) must throwA[InvalidMessageException]
     }
 
     "return true if the provided response is a valid response for the given request" in {

@@ -128,7 +128,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
       case Left(ex) => ResponseHelper.errorResponse(context.requestId, ex)
       case Right(responseMsg) =>
         ResponseHelper.responseBuilder(context.requestId)
-        .setMessageName(is.nameOfRequestMessage)
+        .setMessageName(os.responseName)
         .setMessage(ByteString.copyFrom(os.responseToBytes(responseMsg)))
         .build
     }

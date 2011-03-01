@@ -31,7 +31,7 @@ class MessageExecutorSpec extends Specification with Mockito with WaitFor with S
 
   val unregisteredSerializer = {
     val s = mock[Serializer[Ping, Ping]]
-    s.nameOfRequestMessage returns ("Foo")
+    s.requestName returns ("Foo")
     s
   }
 

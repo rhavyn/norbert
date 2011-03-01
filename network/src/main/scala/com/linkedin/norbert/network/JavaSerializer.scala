@@ -27,7 +27,8 @@ object JavaSerializer {
 
 class JavaSerializer[RequestMsg, ResponseMsg](requestClass: Class[RequestMsg], responseClass: Class[ResponseMsg])
   extends Serializer[RequestMsg, ResponseMsg] {
-  def nameOfRequestMessage = requestClass.getName + " -> " + responseClass.getName
+  def requestName = requestClass.getName
+  def responseName = responseClass.getName
 
   private def toBytes[T](message: T): Array[Byte] = {
     val baos = new ByteArrayOutputStream
@@ -57,7 +58,9 @@ object ProtobufSerializer {
 }
 
 class ProtobufSerializer[RequestMsg <: Message, ResponseMsg <: Message](requestPrototype: RequestMsg, responsePrototype: ResponseMsg) extends Serializer[RequestMsg, ResponseMsg] {
-  def nameOfRequestMessage = requestPrototype.getDescriptorForType.getFullName
+  def requestName = requestPrototype.getDescriptorForType.getFullName
+
+  def responseName = responsePrototype.getDescriptorForType.getFullName
 
   def requestToBytes(request: RequestMsg) = request.toByteArray
 

@@ -19,7 +19,8 @@ import com.linkedin.norbert.protos.NorbertExampleProtos
 
 object Ping {
   implicit case object PingSerializer extends Serializer[Ping, Ping] {
-    def nameOfRequestMessage = "ping"
+    def requestName = "ping"
+    def responseName = "pong"
 
     def requestToBytes(message: Ping) =
       NorbertExampleProtos.Ping.newBuilder.setTimestamp(message.timestamp).build.toByteArray

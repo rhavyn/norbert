@@ -32,7 +32,7 @@ class MessageHandlerRegistry {
                                               (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]) {
     if(handler == null) throw new NullPointerException
 
-    handlerMap += (is.nameOfRequestMessage -> MessageHandlerEntry(is, os, handler))
+    handlerMap += (is.requestName -> MessageHandlerEntry(is, os, handler))
   }
 
   @throws(classOf[InvalidMessageException])
@@ -52,7 +52,7 @@ class MessageHandlerRegistry {
   @throws(classOf[InvalidMessageException])
   def handlerFor[RequestMsg, ResponseMsg](request: RequestMsg)
                                          (implicit is: InputSerializer[RequestMsg, ResponseMsg]): RequestMsg => ResponseMsg = {
-    handlerFor[RequestMsg, ResponseMsg](is.nameOfRequestMessage)
+    handlerFor[RequestMsg, ResponseMsg](is.requestName)
   }
 
   @throws(classOf[InvalidMessageException])
