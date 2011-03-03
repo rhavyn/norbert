@@ -136,6 +136,8 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     log.debug("Sending response: %s".format(response))
 
     channel.write((context, response))
+
+    statsActor ! statsActor.Stats.EndRequest(0, context.requestId)
   }
 }
 
