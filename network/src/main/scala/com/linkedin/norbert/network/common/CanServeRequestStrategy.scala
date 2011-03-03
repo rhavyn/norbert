@@ -119,6 +119,6 @@ class ServerErrorStrategyMBeanImpl(serviceName: String, ses: SimpleBackoffStrate
   with ServerErrorRequestStrategyMBean {
   def getCanServeRequests = {
     val smap = ses.backoff.keys.map(node => (node.id, ses.canServeRequest(node))).toMap
-    smap
+    toJMap(smap)
   }
 }
