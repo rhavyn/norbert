@@ -89,7 +89,7 @@ object NetworkDefaults {
   /**
    * The default window size/time (in milliseconds) for averaging processing statistics
    */
-  val REQUEST_STATISTICS_WINDOW = 2000L
+  val REQUEST_STATISTICS_WINDOW = 10000L
 
   /**
    *   Detects nodes that may be offline if their request processing times are greater than this multiplier over the average
