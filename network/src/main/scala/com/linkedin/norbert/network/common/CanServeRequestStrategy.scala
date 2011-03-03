@@ -117,6 +117,8 @@ trait ServerErrorRequestStrategyMBean extends CanServeRequestStrategyMBean
 class ServerErrorStrategyMBeanImpl(serviceName: String, ses: SimpleBackoffStrategy)
   extends MBean(classOf[ServerErrorRequestStrategyMBean], "service=%s".format(serviceName))
   with ServerErrorRequestStrategyMBean {
+  import norbertutils._
+
   def getCanServeRequests = {
     val smap = ses.backoff.keys.map(node => (node.id, ses.canServeRequest(node))).toMap
     toJMap(smap)
