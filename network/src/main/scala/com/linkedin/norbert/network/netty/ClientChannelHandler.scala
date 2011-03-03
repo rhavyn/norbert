@@ -168,7 +168,7 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, U
               val nodeSize = entry.completedSize + entry.pendingSize
 
               //    (nodeTime) / (nodeSize)  < (totalTime) / (totalSize) * OUTLIER_MULTIPLIER + OUTLIER_CONSTANT
-              val available = nodeTime * totalSize <= (totalTime * outlierMultiplier + outlierConstant) * nodeSize
+              val available = nodeTime * totalSize <= (totalTime * outlierMultiplier + outlierConstant * totalSize) * nodeSize
 
               if(!available) {
                 val nodeAverage = safeDivide(nodeTime, nodeSize)(0)
