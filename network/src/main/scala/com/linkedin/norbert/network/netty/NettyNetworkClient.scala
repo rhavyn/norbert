@@ -44,9 +44,13 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   val responseHandler = new ThreadPoolResponseHandler(clientConfig.responseHandlerCorePoolSize,
     clientConfig.responseHandlerMaxPoolSize, clientConfig.responseHandlerKeepAliveTime, clientConfig.responseHandlerMaxWaitingQueueSize)
 
-  private val handler = new ClientChannelHandler(clusterClient.serviceName, clientConfig.maxConnectionsPerNode,
-    clientConfig.staleRequestCleanupFrequenceMins, clientConfig.requestStatisticsWindow, clientConfig.outlierMuliplier, clientConfig.outlierConstant,
-    responseHandler)
+  private val handler = new ClientChannelHandler( clusterClient.serviceName,
+                                                  clientConfig.staleRequestTimeoutMins,
+                                                  clientConfig.staleRequestCleanupFrequenceMins,
+                                                  clientConfig.requestStatisticsWindow,
+                                                  clientConfig.outlierMuliplier,
+                                                  clientConfig.outlierConstant,
+                                                  responseHandler)
 
   // TODO why isn't clientConfig visible here?
   bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)
