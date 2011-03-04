@@ -65,4 +65,20 @@ package object norbertutils {
     m
   }
 
+  def calculatePercentile[T](values: Array[T], percentile: Double)(implicit n: Numeric[T]): Double = {
+    import math._
+
+    if(values.isEmpty)
+      return 0.0
+
+    val p = max(0.0, min(1, percentile))
+
+    var idx = p * (values.size - 1)
+    idx = max(0.0, min(values.size - 1, idx))
+
+    val (lIdx, rIdx) = (idx.floor.toInt, idx.ceil.toInt)
+
+    // Linearly Interpolate between the two
+    (idx - lIdx) * n.toDouble(values(rIdx)) + (rIdx - idx) * n.toDouble(values(lIdx))
+  }
 }

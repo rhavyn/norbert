@@ -48,15 +48,9 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
   }
 
   // TODO: We just sort the data in the queue (Hey, Swee did it). Consider tracking this stuff in a sorted map.
-  def percentile(perc: Double): Int = {
+  def percentile(p: Double): Double = {
     clean
-    val sorted = q.map(_._2).sorted
-    if(sorted.isEmpty)
-      0
-    else {
-      val idx = (perc * (sorted.size - 1)).round.toInt
-      getOrElse(sorted, min(max(0, idx), sorted.size - 1), 0)
-    }
+    calculatePercentile(q.map(_._2).toArray.sorted, p)
   }
 
   def size: Int = {
@@ -102,6 +96,11 @@ class PendingRequestTimeTracker[KeyT](clock: Clock) {
   def endRequest(key: KeyT) = {
     getStartTime(key).foreach { time => t -= time }
     unfinishedRequests -= key
+  }
+
+  def percentile(p: Double) = {
+    val medianTime = calculatePercentile(unfinishedRequests.values.toArray.sorted, p)
+    clock.getCurrentTime - medianTime
   }
 }
 
