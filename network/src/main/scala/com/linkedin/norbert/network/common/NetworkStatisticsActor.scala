@@ -19,7 +19,8 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
                                pendingSize: Int,
                                completedTime: Long,
                                completedSize: Int,
-                               percentile: Option[Int] = None)
+                               pendingPercentile: Option[Double],
+                               completedPercentile: Option[Double])
 
     case class ProcessingStatistics(map: Map[GroupIdType, ProcessingEntry])
 
@@ -68,6 +69,7 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
                 tracker.pendingRequestTimeTracker.size,
                 tracker.finishedRequestTimeTracker.total,
                 tracker.finishedRequestTimeTracker.size,
+                percentile.map(tracker.pendingRequestTimeTracker.percentile(_)),
                 percentile.map(tracker.finishedRequestTimeTracker.percentile(_)))
           }))
 

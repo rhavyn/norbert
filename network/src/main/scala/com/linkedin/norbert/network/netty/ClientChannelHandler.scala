@@ -157,24 +157,18 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, U
     val lut = lastUpdateTime.get
     if(clock.getCurrentTime - lut > refreshInterval) {
       if(lastUpdateTime.compareAndSet(lut, clock.getCurrentTime))
-        statsActor !! (statsActor.Stats.GetProcessingStatistics(None), {
+        statsActor !! (statsActor.Stats.GetProcessingStatistics(Some(0.5)), {
           case statsActor.Stats.ProcessingStatistics(map) =>
-            // We now have a map from node_id => statistics. Add up the process
-            val totalTime = map.values.map(_.completedTime).sum + map.values.map(_.pendingTime).sum
-            val totalSize = map.values.map(_.completedSize).sum + map.values.map(_.pendingSize).sum
+
+            val clusterMedian = doCalculation(map.values)
 
             canServeRequests = map.map { case (n, entry) =>
-              val nodeTime = entry.completedTime + entry.pendingTime
-              val nodeSize = entry.completedSize + entry.pendingSize
+              val nodeMedian = doCalculation(List(entry))
 
-              //    (nodeTime) / (nodeSize)  < (totalTime) / (totalSize) * OUTLIER_MULTIPLIER + OUTLIER_CONSTANT
-              val available = nodeTime * totalSize <= (totalTime * outlierMultiplier + outlierConstant * totalSize) * nodeSize
+              val available = nodeMedian <= clusterMedian * outlierConstant + outlierMultiplier
 
               if(!available) {
-                val nodeAverage = safeDivide(nodeTime, nodeSize)(0)
-                val clusterAverage = safeDivide(totalTime, totalSize)(0)
-
-                log.warn("Node %s has an average response time of %f. The cluster response time is %f. Routing requests away temporarily.".format(n, nodeAverage, clusterAverage))
+                log.warn("Node %s has a median response time of %f. The cluster response time is %f. Routing requests away temporarily.".format(n, nodeMedian, clusterMedian))
               }
               (n, available)
             }
@@ -182,6 +176,17 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, U
     }
 
     canServeRequests.getOrElse(node, true)
+  }
+
+  def doCalculation(values: Iterable[statsActor.Stats.ProcessingEntry]): Double = {
+    def completedMedian = safeDivide(values.flatMap(_.completedPercentile).sum, values.size)(0)
+    def pendingMedian = safeDivide(values.flatMap(_.pendingPercentile).sum, values.size)(0)
+
+    def completedSize = values.map(_.completedSize).sum
+    def pendingSize = values.map(_.pendingSize).sum
+
+    // Average between the completed and pending medians, based on how many of each there are
+    safeDivide(completedMedian * completedSize + pendingMedian * pendingSize, completedSize + pendingSize)(0)
   }
 }
 
@@ -211,11 +216,11 @@ class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: Cl
 trait NetworkClientStatisticsMBean {
   def getNumPendingRequests: JMap[Int, Int]
 
-  def getMedianTimes: JMap[Int, Int]
-  def get75thTimes: JMap[Int, Int]
-  def get90thTimes: JMap[Int, Int]
-  def get95thTimes: JMap[Int, Int]
-  def get99thTimes: JMap[Int, Int]
+  def getMedianTimes: JMap[Int, Double]
+  def get75thTimes: JMap[Int, Double]
+  def get90thTimes: JMap[Int, Double]
+  def get95thTimes: JMap[Int, Double]
+  def get99thTimes: JMap[Int, Double]
 
   def getRPS: JMap[Int, Int]
 
@@ -223,7 +228,7 @@ trait NetworkClientStatisticsMBean {
   def getClusterAverageTime: Double
   def getClusterPendingTime: Double
 
-  def getClusterMedianTimes: Double
+  def getClusterMedianTime: Double
   def getCluster75thTimes: Double
   def getCluster90th: Double
   def getCluster95th: Double
@@ -253,19 +258,19 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
   def getNumPendingRequests = toJMap(getProcessingStatistics().mapValues(_.pendingSize))
 
   def getMedianTimes =
-    toJMap(getProcessingStatistics(Some(0.5)).mapValues(_.percentile.getOrElse(0)))
+    toJMap(getProcessingStatistics(Some(0.5)).mapValues(_.completedPercentile.getOrElse(0.0)))
 
   def get75thTimes =
-    toJMap(getProcessingStatistics(Some(0.75)).mapValues(_.percentile.getOrElse(0)))
+    toJMap(getProcessingStatistics(Some(0.75)).mapValues(_.completedPercentile.getOrElse(0)))
 
   def get90thTimes =
-    toJMap(getProcessingStatistics(Some(0.90)).mapValues(_.percentile.getOrElse(0)))
+    toJMap(getProcessingStatistics(Some(0.90)).mapValues(_.completedPercentile.getOrElse(0)))
 
   def get95thTimes =
-    toJMap(getProcessingStatistics(Some(0.95)).mapValues(_.percentile.getOrElse(0)))
+    toJMap(getProcessingStatistics(Some(0.95)).mapValues(_.completedPercentile.getOrElse(0)))
 
   def get99thTimes =
-    toJMap(getProcessingStatistics(Some(0.99)).mapValues(_.percentile.getOrElse(0)))
+    toJMap(getProcessingStatistics(Some(0.99)).mapValues(_.completedPercentile.getOrElse(0)))
 
 
   def getRPS = toJMap(getRps.map { case (n, r) => (n.id -> r) })
@@ -279,7 +284,7 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
 
   def getClusterPendingTime = average(getProcessingStatistics()){_.pendingTime}{_.pendingSize}
 
-  def getClusterMedianTimes = ave(getMedianTimes)
+  def getClusterMedianTime = ave(getMedianTimes)
 
   def getCluster75thTimes = ave(get75thTimes)
 
