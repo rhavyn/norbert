@@ -142,12 +142,27 @@ class ClientChannelHandler(serviceName: String,
   }
 }
 
-class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, UUID],
+trait HealthScoreCalculator {
+  val statsActor: NetworkStatisticsActor[Node, UUID] // TODO: Annoying path dependant types
+
+  def doCalculation(values: Iterable[statsActor.Stats.ProcessingEntry]): Double = {
+    def completedMedian = safeDivide(values.flatMap(_.completedPercentile).sum, values.size)(0)
+    def pendingMedian = safeDivide(values.flatMap(_.pendingPercentile).sum, values.size)(0)
+
+    def completedSize = values.map(_.completedSize).sum
+    def pendingSize = values.map(_.pendingSize).sum
+
+    // Average between the completed and pending medians, based on how many of each there are
+    safeDivide(completedMedian * completedSize + pendingMedian * pendingSize, completedSize + pendingSize)(0)
+  }
+}
+
+class ClientStatisticsRequestStrategy(val statsActor: NetworkStatisticsActor[Node, UUID],
                                       @volatile var outlierMultiplier: Double,
                                       @volatile var outlierConstant: Double,
                                       clock: Clock,
                                       refreshInterval: Long = 200L)
-  extends CanServeRequestStrategy with Logging {
+  extends CanServeRequestStrategy with Logging with HealthScoreCalculator {
   // Must be more than outlierMultiplier * average + outlierConstant ms the others by default
 
   @volatile var canServeRequests = Map.empty[Node, Boolean]
@@ -176,17 +191,6 @@ class ClientStatisticsRequestStrategy(statsActor: NetworkStatisticsActor[Node, U
     }
 
     canServeRequests.getOrElse(node, true)
-  }
-
-  def doCalculation(values: Iterable[statsActor.Stats.ProcessingEntry]): Double = {
-    def completedMedian = safeDivide(values.flatMap(_.completedPercentile).sum, values.size)(0)
-    def pendingMedian = safeDivide(values.flatMap(_.pendingPercentile).sum, values.size)(0)
-
-    def completedSize = values.map(_.completedSize).sum
-    def pendingSize = values.map(_.pendingSize).sum
-
-    // Average between the completed and pending medians, based on how many of each there are
-    safeDivide(completedMedian * completedSize + pendingMedian * pendingSize, completedSize + pendingSize)(0)
   }
 }
 
@@ -221,6 +225,7 @@ trait NetworkClientStatisticsMBean {
   def get90thTimes: JMap[Int, Double]
   def get95thTimes: JMap[Int, Double]
   def get99thTimes: JMap[Int, Double]
+  def getHealthScoreTimings: JMap[Int, Double]
 
   def getRPS: JMap[Int, Int]
 
@@ -233,6 +238,7 @@ trait NetworkClientStatisticsMBean {
   def getCluster90th: Double
   def getCluster95th: Double
   def getCluster99th: Double
+  def getClusterHealthScoreTiming: Double
 
   def reset
 
@@ -241,9 +247,9 @@ trait NetworkClientStatisticsMBean {
   def getAverageRequestProcessingTime = getClusterAverageTime
 }
 
-class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkStatisticsActor[Node, UUID])
+class NetworkClientStatisticsMBeanImpl(serviceName: String, val statsActor: NetworkStatisticsActor[Node, UUID])
   extends MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName))
-  with NetworkClientStatisticsMBean {
+  with NetworkClientStatisticsMBean with HealthScoreCalculator {
   import statsActor.Stats._
 
   private def getProcessingStatistics(percentile: Option[Double] = None) =
@@ -272,6 +278,9 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
   def get99thTimes =
     toJMap(getProcessingStatistics(Some(0.99)).mapValues(_.completedPercentile.getOrElse(0)))
 
+  def getHealthScoreTimings = {
+    toJMap(getProcessingStatistics(Some(0.5)).mapValues(entry => doCalculation(List(entry))))
+  }
 
   def getRPS = toJMap(getRps.map { case (n, r) => (n.id -> r) })
 
@@ -297,6 +306,8 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, statsActor: NetworkS
   def getClusterRPS = statsActor !? GetRequestsPerSecond match {
     case RequestsPerSecond(rps) => rps.values.sum
   }
+
+  def getClusterHealthScoreTiming = doCalculation(getProcessingStatistics(Some(0.5)).values)
 
   def reset = statsActor ! Reset
 }

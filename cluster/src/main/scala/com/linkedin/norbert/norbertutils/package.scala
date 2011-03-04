@@ -65,11 +65,11 @@ package object norbertutils {
     m
   }
 
-  def calculatePercentile[T](values: Array[T], percentile: Double)(implicit n: Numeric[T]): Double = {
+  def calculatePercentile[T](values: Array[T], percentile: Double, default: Double = 0.0)(implicit n: Numeric[T]): Double = {
     import math._
 
     if(values.isEmpty)
-      return 0.0
+      return default
 
     val p = max(0.0, min(1, percentile))
 
