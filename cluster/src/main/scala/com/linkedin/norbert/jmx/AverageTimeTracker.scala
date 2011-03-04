@@ -100,9 +100,9 @@ class PendingRequestTimeTracker[KeyT](clock: Clock) {
 
   def percentile(p: Double) = {
     val now = clock.getCurrentTime
-    val medianTime = calculatePercentile(unfinishedRequests.values.toArray.sorted, p, now)
-    now - medianTime
+    calculatePercentile(unfinishedRequests.values.map(startTime => now - startTime).toArray.sorted, p)
   }
+
 }
 
 class RequestTimeTracker[KeyT](clock: Clock, interval: Long) {
