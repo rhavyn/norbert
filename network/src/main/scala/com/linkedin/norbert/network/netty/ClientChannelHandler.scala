@@ -54,11 +54,15 @@ class ClientChannelHandler(serviceName: String,
         var expiredEntryCount = 0
 
         requestMap.keySet.foreach { uuid =>
-          val request = requestMap.get(uuid)
-          if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) {
-            requestMap.remove(uuid)
-            statsActor ! statsActor.Stats.EndRequest(request.node, request.id)
-            expiredEntryCount += 1
+          val request = Option(requestMap.get(uuid))
+          val now = System.currentTimeMillis
+
+          request.foreach { r =>
+             if ((now - r.timestamp) > staleRequestTimeoutMillis) {
+                requestMap.remove(uuid)
+                statsActor ! statsActor.Stats.EndRequest(r.node, r.id)
+                expiredEntryCount += 1
+             }
           }
         }
 
