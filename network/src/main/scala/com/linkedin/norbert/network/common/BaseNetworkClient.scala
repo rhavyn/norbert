@@ -160,7 +160,7 @@ trait BaseNetworkClient extends Logging {
     def getEndpoints: JMap[Int, Boolean]
   }
 
-  private val jmxHandle = JMX.register(new MBean(classOf[EndpointStatusMBean], "endpoints=%s".format("status")) with EndpointStatusMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[EndpointStatusMBean], "service=%s".format(clusterClient.serviceName)) with EndpointStatusMBean {
     def getEndpoints = {
       toJMap(endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap)
     }
