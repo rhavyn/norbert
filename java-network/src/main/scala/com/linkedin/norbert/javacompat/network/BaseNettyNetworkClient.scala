@@ -49,6 +49,15 @@ abstract class BaseNettyNetworkClient extends BaseNetworkClient {
     c.staleRequestTimeoutMins = config.getStaleRequestTimeoutMins
     c.staleRequestCleanupFrequenceMins = config.getStaleRequestCleanupFrequencyMins
 
+    c.requestStatisticsWindow = config.getRequestStatisticsWindow
+    c.outlierMuliplier = config.getOutlierMuliplier
+    c.outlierConstant = config.getOutlierConstant
+
+    c.responseHandlerCorePoolSize = config.getResponseHandlerCorePoolSize
+    c.responseHandlerMaxPoolSize = config.getResponseHandlerMaxPoolSize
+    c.responseHandlerKeepAliveTime = config.getResponseHandlerKeepAliveTime
+    c.responseHandlerMaxWaitingQueueSize = config.getResponseHandlerMaxWaitingQueueSize
+
     c
   }
 }
