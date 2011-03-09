@@ -6,7 +6,7 @@ import logging.Logging
 import actors.DaemonActor
 import collection.immutable.SortedMap
 import jmx.{RequestTimeTracker}
-import norbertutils.{Clock, ClockComponent}
+import norbertutils.{Clock, LinkActor, KeepAliveActor}
 
 class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long) extends DaemonActor with Logging {
   object Stats {
@@ -56,6 +56,8 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
 
     loop {
       react {
+        case LinkActor(actor) => this.link(actor)
+
         case BeginRequest(groupId, requestId) =>
           val tracker = getOrUpdateTrackers(groupId, new RequestTimeTracker(clock, timeWindow))
           tracker.beginRequest(requestId)
@@ -83,4 +85,6 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
       }
     }
   }
+
+  this ! LinkActor(KeepAliveActor)
 }
