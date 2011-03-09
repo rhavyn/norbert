@@ -50,7 +50,7 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
   // TODO: We just sort the data in the queue (Hey, Swee did it). Consider tracking this stuff in a sorted map.
   def percentile(p: Double): Double = {
     clean
-    calculatePercentile(q.map(_._2).toArray.sorted, p)
+    calculatePercentile(q.flatMap(pair => Option(pair).map(_._2)).toArray.sorted, p)
   }
 
   def size: Int = {
