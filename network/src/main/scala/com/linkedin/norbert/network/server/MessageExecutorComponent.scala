@@ -62,10 +62,12 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
 
   def executeMessage[RequestMsg, ResponseMsg](request: RequestMsg, responseHandler: (Either[Exception, ResponseMsg]) => Unit)
                                              (implicit is: InputSerializer[RequestMsg, ResponseMsg]) {
+    val rr = new RequestRunner(request, responseHandler, is = is)
     try {
-      threadPool.execute(new RequestRunner(request, responseHandler, is = is))
+      threadPool.execute(rr)
     } catch {
       case ex: RejectedExecutionException =>   throw new HeavyLoadException
+      statsActor ! statsActor.Stats.EndRequest(0, rr.id)
     }
   }
 

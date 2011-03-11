@@ -104,6 +104,8 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     } catch {
       case ex: InvalidMessageException =>
         Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
+        statsActor ! statsActor.Stats.EndRequest(0, context.requestId)
+
         throw ex
     }
 
@@ -117,6 +119,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     catch {
       case ex: HeavyLoadException =>
         Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex, NorbertProtos.NorbertMessage.Status.HEAVYLOAD)))
+        statsActor ! statsActor.Stats.EndRequest(0, context.requestId)
     }
   }
 

@@ -18,7 +18,7 @@ package jmx
 
 import collection.mutable.{Map, Queue}
 import norbertutils._
-import annotation.tailrec
+import collection.JavaConversions._
 import math._
 
 class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
@@ -38,6 +38,7 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
   }
 
   def addTime(processingTime: Int) {
+    clean
     q.enqueue( (clock.getCurrentTime, processingTime) )
     t += processingTime
   }
@@ -54,10 +55,12 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
   }
 
   def size: Int = {
+    clean
     q.size
   }
 
   def rps: Int = {
+    clean
     val now = clock.getCurrentTime
     implicit val timeOrdering: Ordering[(Long, Int)] = new Ordering[(Long, Int)] {
       def compare(x: (Long, Int), y: (Long, Int)) = (x._1 - y._1).asInstanceOf[Int]
@@ -100,7 +103,7 @@ class PendingRequestTimeTracker[KeyT](clock: Clock) {
 
   def percentile(p: Double) = {
     val now = clock.getCurrentTime
-    calculatePercentile(unfinishedRequests.values.map(startTime => now - startTime).toArray.sorted, p)
+    calculatePercentile(unfinishedRequests.values.map(startTime => now - startTime).toArray.sorted, p, now)
   }
 
 }
