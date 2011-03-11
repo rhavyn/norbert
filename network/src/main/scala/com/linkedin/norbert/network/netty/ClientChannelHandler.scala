@@ -184,7 +184,7 @@ class ClientStatisticsRequestStrategy(val statsActor: NetworkStatisticsActor[Nod
             canServeRequests = map.map { case (n, entry) =>
               val nodeMedian = doCalculation(List(entry))
 
-              val available = nodeMedian <= clusterMedian * outlierConstant + outlierMultiplier
+              val available = nodeMedian <= clusterMedian * outlierMultiplier + outlierConstant
 
               if(!available) {
                 log.warn("Node %s has a median response time of %f. The cluster response time is %f. Routing requests away temporarily.".format(n, nodeMedian, clusterMedian))
