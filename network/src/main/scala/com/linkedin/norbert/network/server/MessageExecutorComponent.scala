@@ -22,9 +22,9 @@ import jmx.JMX.MBean
 import jmx.{FinishedRequestTimeTracker, JMX}
 import actors.DaemonActor
 import java.util.concurrent.atomic.AtomicInteger
-import common.NetworkStatisticsActor
 import norbertutils.{SystemClock, NamedPoolThreadFactory}
 import java.util.concurrent._
+import common.{NetworkStatisticsActorMBeanImpl, NetworkStatisticsActor}
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -39,11 +39,13 @@ trait MessageExecutor {
   def shutdown: Unit
 }
 
-class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
+class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int, maxWaitingQueueSize: Int, requestStatisticsWindow: Long) extends MessageExecutor with Logging {
 
-    private val statsActor = new NetworkStatisticsActor[Int, Int](SystemClock, requestStatisticsWindow)
-    statsActor.start
+  private val statsActor = new NetworkStatisticsActor[Int, Int](SystemClock, requestStatisticsWindow)
+  statsActor.start
+
+  val statsActorJMX = JMX.register(new NetworkStatisticsActorMBeanImpl("MessageExecutorStatistics", serviceName, statsActor))
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new ArrayBlockingQueue[Runnable](maxWaitingQueueSize),
     new NamedPoolThreadFactory("norbert-message-executor")) {
@@ -73,6 +75,7 @@ class ThreadPoolMessageExecutor(messageHandlerRegistry: MessageHandlerRegistry, 
 
   def shutdown {
     threadPool.shutdown
+    statsActorJMX.foreach { JMX.unregister(_) }
     log.debug("MessageExecutor shut down")
   }
 

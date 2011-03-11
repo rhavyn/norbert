@@ -89,6 +89,7 @@ class ClientChannelHandler(serviceName: String,
 
   val clientStatsStrategyJMX = JMX.register(new ClientStatisticsRequestStrategyMBeanImpl(serviceName, clientStatsStrategy))
   val serverErrorStrategyJMX = JMX.register(new ServerErrorStrategyMBeanImpl(serviceName, serverErrorStrategy))
+  val statsActorJMX = JMX.register(new NetworkStatisticsActorMBeanImpl("ClientStatistics", serviceName, statsActor))
 
   val strategy = CompositeCanServeRequestStrategy(clientStatsStrategy, serverErrorStrategy)
 
@@ -143,6 +144,7 @@ class ClientChannelHandler(serviceName: String,
     statsJMX.foreach { JMX.unregister(_) }
     serverErrorStrategyJMX.foreach { JMX.unregister(_) }
     clientStatsStrategyJMX.foreach { JMX.unregister(_) }
+    statsActorJMX.foreach { JMX.unregister(_) }
   }
 }
 

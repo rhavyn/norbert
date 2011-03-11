@@ -51,7 +51,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
     serverConfig.zooKeeperSessionTimeoutMillis)
 
   val messageHandlerRegistry = new MessageHandlerRegistry
-  val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, serverConfig.requestThreadCorePoolSize, serverConfig.requestThreadMaxPoolSize,
+  val messageExecutor = new ThreadPoolMessageExecutor(clusterClient.serviceName, messageHandlerRegistry, serverConfig.requestThreadCorePoolSize, serverConfig.requestThreadMaxPoolSize,
     serverConfig.requestThreadKeepAliveTimeSecs, serverConfig.threadPoolQueueSize, serverConfig.requestStatisticsWindow)
 
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))

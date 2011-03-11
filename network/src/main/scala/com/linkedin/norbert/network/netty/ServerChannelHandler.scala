@@ -28,8 +28,8 @@ import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
 import jmx.{FinishedRequestTimeTracker, JMX}
 import java.lang.String
 import com.google.protobuf.{ByteString}
-import common.NetworkStatisticsActor
 import norbertutils.SystemClock
+import common.{NetworkStatisticsActorMBeanImpl, NetworkStatisticsActor}
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -78,7 +78,12 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     }
   })
 
-  def shutdown: Unit = jmxHandle.foreach { JMX.unregister(_) }
+  val statsActorJMX = JMX.register(new NetworkStatisticsActorMBeanImpl("ServerStatistics", serviceName, statsActor))
+
+  def shutdown: Unit = {
+    statsActorJMX.foreach { JMX.unregister(_) }
+    jmxHandle.foreach { JMX.unregister(_) }
+  }
 
   override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     val channel = e.getChannel
