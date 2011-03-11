@@ -71,7 +71,7 @@ package object norbertutils {
     if(values.isEmpty)
       return default
 
-    val p = max(0.0, min(1, percentile))
+    val p = max(0.0, min(1.0, percentile))
 
     var idx = p * (values.size - 1)
     idx = max(0.0, min(values.size - 1, idx))
