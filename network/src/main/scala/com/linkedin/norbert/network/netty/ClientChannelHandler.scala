@@ -171,11 +171,14 @@ class ClientStatisticsRequestStrategy(val statsActor: NetworkStatisticsActor[Nod
 
   @volatile var canServeRequests = Map.empty[Node, Boolean]
   val lastUpdateTime = new AtomicLong(0)
+  @volatile var refreshingStatistics = false
 
   def canServeRequest(node: Node): Boolean = {
     val lut = lastUpdateTime.get
-    if(clock.getCurrentTime - lut > refreshInterval) {
+
+    if(!refreshingStatistics && clock.getCurrentTime - lut > refreshInterval) {
       if(lastUpdateTime.compareAndSet(lut, clock.getCurrentTime))
+        refreshingStatistics = true
         statsActor !! (statsActor.Stats.GetProcessingStatistics(Some(0.5)), {
           case statsActor.Stats.ProcessingStatistics(map) =>
 
@@ -191,6 +194,7 @@ class ClientStatisticsRequestStrategy(val statsActor: NetworkStatisticsActor[Nod
               }
               (n, available)
             }
+          refreshingStatistics = false
         })
     }
 
