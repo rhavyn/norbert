@@ -3,11 +3,11 @@ package network
 package common
 
 import logging.Logging
-import actors.DaemonActor
 import collection.immutable.SortedMap
 import jmx.{RequestTimeTracker}
 import norbertutils.{Clock, LinkActor, KeepAliveActor}
 import jmx.JMX.MBean
+import actors.{TIMEOUT, DaemonActor}
 
 class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long) extends DaemonActor with Logging {
   object Stats {
@@ -58,28 +58,9 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
     import Stats._
 
     loop {
-      react {
+      reactWithin(0) {
+        // Linking, Resetting, and getting the mailbox size are the highest priority
         case LinkActor(actor) => this.link(actor)
-
-        case BeginRequest(groupId, requestId) =>
-          val tracker = getOrUpdateTrackers(groupId, new RequestTimeTracker(clock, timeWindow))
-          tracker.beginRequest(requestId)
-
-        case EndRequest(groupId, requestId) =>
-          val tracker = timeTrackers.get(groupId).foreach { _.endRequest(requestId) }
-
-        case GetProcessingStatistics(percentile) =>
-          reply(ProcessingStatistics(timeTrackers.mapValues { tracker =>
-              ProcessingEntry(tracker.pendingRequestTimeTracker.total,
-                tracker.pendingRequestTimeTracker.size,
-                tracker.finishedRequestTimeTracker.total,
-                tracker.finishedRequestTimeTracker.size,
-                percentile.map(tracker.pendingRequestTimeTracker.percentile(_)),
-                percentile.map(tracker.finishedRequestTimeTracker.percentile(_)))
-          }))
-
-        case GetRequestsPerSecond =>
-          reply(RequestsPerSecond(timeTrackers.mapValues(_.finishedRequestTimeTracker.rps)))
 
         case Reset =>
           timeTrackers = timeTrackers.empty
@@ -87,7 +68,32 @@ class NetworkStatisticsActor[GroupIdType, RequestIdType](clock: Clock, timeWindo
         case MailboxSize =>
           reply(mailboxSize)
 
-        case msg => log.error("NetworkStatistics actor got invalid message: %s".format(msg))
+        case TIMEOUT =>
+          react {
+            // The next highest priority messages are start and end request times
+
+            case BeginRequest(groupId, requestId) =>
+              val tracker = getOrUpdateTrackers(groupId, new RequestTimeTracker(clock, timeWindow))
+              tracker.beginRequest(requestId)
+
+            case EndRequest(groupId, requestId) =>
+              val tracker = timeTrackers.get(groupId).foreach { _.endRequest(requestId) }
+
+              case GetProcessingStatistics(percentile) =>
+                reply(ProcessingStatistics(timeTrackers.mapValues { tracker =>
+                    ProcessingEntry(tracker.pendingRequestTimeTracker.total,
+                      tracker.pendingRequestTimeTracker.size,
+                      tracker.finishedRequestTimeTracker.total,
+                      tracker.finishedRequestTimeTracker.size,
+                      percentile.map(tracker.pendingRequestTimeTracker.percentile(_)),
+                      percentile.map(tracker.finishedRequestTimeTracker.percentile(_)))
+                }))
+
+              case GetRequestsPerSecond =>
+                reply(RequestsPerSecond(timeTrackers.mapValues(_.finishedRequestTimeTracker.rps)))
+
+              case msg => log.error("NetworkStatistics actor got invalid message: %s".format(msg))
+          }
       }
     }
   }
