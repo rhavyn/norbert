@@ -58,7 +58,7 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
   }
 
   def getTimings: Array[Int] = {
-    getArray.map(_._2)
+    getArray.map(_._2).sorted
   }
 
   def total = {

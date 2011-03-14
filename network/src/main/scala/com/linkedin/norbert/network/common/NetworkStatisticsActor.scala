@@ -42,14 +42,14 @@ case class CacheMaintainer[T](clock: Clock, ttl: Long, fn: () => T) {
     item = fn()
   }
 
-  def get: T = {
+  def get: Option[T] = {
     refresh
-    item
+    Option(item)
   }
 }
 
 class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: NetworkStatisticsTracker[GroupIdType, RequestIdType], clock: Clock, refreshInterval: Long) {
-  val finishedArray = CacheMaintainer(clock, refreshInterval, () => stats.getFinishedArray)
+  val finishedArray = CacheMaintainer(clock, refreshInterval, () => stats.getFinishedArrays)
   val timings = CacheMaintainer(clock, refreshInterval, () => stats.getTimings)
   val pendingTimings = CacheMaintainer(clock, refreshInterval, () => stats.getPendingTimings)
 
@@ -64,9 +64,9 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
   def reset { stats.reset }
 
   private def calculate(map: Map[GroupIdType, Array[Int]], p: Double) = {
-    Statistics(map.mapValues { v =>
+    map.mapValues { v =>
       StatsEntry(calculatePercentile(v, p), v.length, v.sum)
-    })
+    }
   }
 
   val statisticsCache =
@@ -76,9 +76,9 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
     atomicCreateIfAbsent(statisticsCache, p) { k =>
       CacheMaintainer(clock, refreshInterval, () => {
         JoinedStatistics(
-          calculate(timings.get, p),
-          calculate(pendingTimings.get, p),
-          () => finishedArray.get.mapValues(rps(_)))
+          timings.get.map(calculate(_, p)).getOrElse(Map.empty),
+          pendingTimings.get.map(calculate(_, p)).getOrElse(Map.empty),
+          () => finishedArray.get.getOrElse(Map.empty[GroupIdType, Array[(Long, Int)]]).mapValues(rps(_)))
       })
     }.get
   }
@@ -97,8 +97,7 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
 }
 
 case class StatsEntry(percentile: Double, size: Int, total: Int)
-case class Statistics[K](map: Map[K, StatsEntry])
-case class JoinedStatistics[K](finished: Statistics[K], pending: Statistics[K], rps: () => Map[K, Int])
+case class JoinedStatistics[K](finished: Map[K, StatsEntry], pending: Map[K, StatsEntry], rps: () => Map[K, Int])
 
 private case class NetworkStatisticsTracker[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long) extends Logging {
   private var timeTrackers: java.util.concurrent.ConcurrentMap[GroupIdType, RequestTimeTracker[RequestIdType]] =
@@ -125,10 +124,10 @@ private case class NetworkStatisticsTracker[GroupIdType, RequestIdType](clock: C
   }
 
   def getTimings = {
-    getFinishedArray.mapValues(array => array.map(_._2))
+    getFinishedArrays.mapValues(array => array.map(_._2).sorted)
   }
 
-  def getFinishedArray = {
+  def getFinishedArrays = {
     timeTrackers.toMap.mapValues( _.finishedRequestTimeTracker.getArray)
   }
 }
@@ -167,38 +166,38 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNet
   extends MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with HealthScoreCalculator
   with NetworkClientStatisticsMBean {
 
-  private def getPendingStats(p: Double) = stats.getStatistics(p).pending
-  private def getFinishedStats(p: Double) = stats.getStatistics(p).finished
+  private def getPendingStats(p: Double) = stats.getStatistics(p).map(_.pending).getOrElse(Map.empty)
+  private def getFinishedStats(p: Double) = stats.getStatistics(p).map(_.finished).getOrElse(Map.empty)
 
-  def getNumPendingRequests = toJMap(getPendingStats(0.5).map.map(kv => (kv._1.id, kv._2.size)))
+  def getNumPendingRequests = toJMap(getPendingStats(0.5).map(kv => (kv._1.id, kv._2.size)))
 
   def getMedianTimes =
-    toJMap(getFinishedStats(0.5).map.map(kv => (kv._1.id, kv._2.percentile)))
+    toJMap(getFinishedStats(0.5).map(kv => (kv._1.id, kv._2.percentile)))
 
   def get75thTimes =
-    toJMap(getFinishedStats(0.75).map.map(kv => (kv._1.id, kv._2.percentile)))
+    toJMap(getFinishedStats(0.75).map(kv => (kv._1.id, kv._2.percentile)))
 
   def get90thTimes =
-    toJMap(getFinishedStats(0.90).map.map(kv => (kv._1.id, kv._2.percentile)))
+    toJMap(getFinishedStats(0.90).map(kv => (kv._1.id, kv._2.percentile)))
 
   def get95thTimes =
-    toJMap(getFinishedStats(0.95).map.map(kv => (kv._1.id, kv._2.percentile)))
+    toJMap(getFinishedStats(0.95).map(kv => (kv._1.id, kv._2.percentile)))
 
   def get99thTimes =
-    toJMap(getFinishedStats(0.99).map.map(kv => (kv._1.id, kv._2.percentile)))
+    toJMap(getFinishedStats(0.99).map(kv => (kv._1.id, kv._2.percentile)))
 
   def getHealthScoreTimings = {
     val s = stats.getStatistics(0.5)
-    val f = s.finished
-    val p = s.pending
+    val f = s.map(_.finished).getOrElse(Map.empty)
+    val p = s.map(_.pending).getOrElse(Map.empty)
 
-    toJMap(f.map.map { case (n, nodeN) =>
-      val nodeP = p.map.get(n).getOrElse(StatsEntry(0.0, 0, 0))
-      (n.id, doCalculation(Statistics(Map(0 -> nodeP)),Statistics(Map(0 -> nodeN))))
+    toJMap(f.map { case (n, nodeN) =>
+      val nodeP = p.get(n).getOrElse(StatsEntry(0.0, 0, 0))
+      (n.id, doCalculation(Map(0 -> nodeP),Map(0 -> nodeN)))
     })
   }
 
-  def getRPS = toJMap(stats.getStatistics(0.5).rps().map(kv => (kv._1.id, kv._2)))
+  def getRPS = toJMap(stats.getStatistics(0.5).map(_.rps().map(kv => (kv._1.id, kv._2))).getOrElse(Map.empty))
 //
 //  def ave[K, V : Numeric](map: JMap[K, V]) = {
 //    import scala.collection.JavaConversions._
@@ -206,16 +205,16 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNet
 //  }
 //
   def getClusterAverageTime = {
-    val s = stats.getStatistics(0.5).finished
-    val total = s.map.values.map(_.total).sum
-    val size = s.map.values.map(_.size).sum
+    val s = getFinishedStats(0.5)
+    val total = s.values.map(_.total).sum
+    val size = s.values.map(_.size).sum
 
     safeDivide(total, size)(0.0)
   }
 
   def getClusterPendingTime = {
-    val s = stats.getStatistics(0.5).pending
-    s.map.values.map(_.total).sum
+    val s = getPendingStats(0.5)
+    s.values.map(_.total).sum
   }
 
   def getClusterMedianTime = averagePercentiles(getFinishedStats(0.5))
@@ -228,7 +227,10 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNet
 
   def getCluster99th = averagePercentiles(getFinishedStats(0.99))
 
-  def getClusterRPS = stats.getStatistics(0.5).rps().values.sum
+  def getClusterRPS = {
+    import scala.collection.JavaConversions._
+    getRPS.values.sum
+  }
 
   def getClusterHealthScoreTiming = doCalculation(getPendingStats(0.5), getFinishedStats(0.5))
 

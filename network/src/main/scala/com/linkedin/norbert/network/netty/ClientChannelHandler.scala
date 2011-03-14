@@ -146,19 +146,19 @@ class ClientChannelHandler(serviceName: String,
 }
 
 trait HealthScoreCalculator {
-  def doCalculation[T](p: Statistics[T], f: Statistics[T]): Double = {
-    def fSize = f.map.values.map(_.size).sum
-    def pSize = p.map.values.map(_.size).sum
+  def doCalculation[T](p: Map[T, StatsEntry], f: Map[T, StatsEntry]): Double = {
+    def fSize = f.values.map(_.size).sum
+    def pSize = p.values.map(_.size).sum
 
-    val fTotal = f.map.map{ case(k, v) => v.percentile * v.size }.sum
-    val pTotal = p.map.map{ case(k, v) => v.percentile * v.size }.sum
+    val fTotal = f.map{ case(k, v) => v.percentile * v.size }.sum
+    val pTotal = p.map{ case(k, v) => v.percentile * v.size }.sum
 
     safeDivide(fTotal + pTotal, fSize + pSize)(0)
   }
 
-  def averagePercentiles[T](s: Statistics[T]): Double = {
-    val size = s.map.values.map(_.size).sum
-    val total = s.map.map { case (k, v) => v.percentile * v.size }.sum
+  def averagePercentiles[T](s: Map[T, StatsEntry]): Double = {
+    val size = s.values.map(_.size).sum
+    val total = s.map { case (k, v) => v.percentile * v.size }.sum
     safeDivide(total, size)(0.0)
   }
 }
@@ -172,14 +172,14 @@ class ClientStatisticsRequestStrategy(val stats: CachedNetworkStatistics[Node, U
 
   val canServeRequests = CacheMaintainer(clock, 200L, () => {
     val s = stats.getStatistics(0.5)
-    val (p, f) = (s.pending, s.finished)
+    val (p, f) = (s.map(_.pending).getOrElse(Map.empty), s.map(_.finished).getOrElse(Map.empty))
 
     val clusterMedian = doCalculation(p, f)
 
-    f.map.map { case (n, nodeN) =>
-      val nodeP = p.map.get(n).getOrElse(StatsEntry(0.0, 0, 0))
+    f.map { case (n, nodeN) =>
+      val nodeP = p.get(n).getOrElse(StatsEntry(0.0, 0, 0))
 
-      val nodeMedian = doCalculation(Statistics(Map(0 -> nodeP)),Statistics(Map(0 -> nodeN)))
+      val nodeMedian = doCalculation(Map(0 -> nodeP),Map(0 -> nodeN))
       val available = nodeMedian <= clusterMedian * outlierMultiplier + outlierConstant
 
       if(!available) {
@@ -189,7 +189,10 @@ class ClientStatisticsRequestStrategy(val stats: CachedNetworkStatistics[Node, U
     }
   })
 
-  def canServeRequest(node: Node) = canServeRequests.get.getOrElse(node, true)
+  def canServeRequest(node: Node) = {
+    val map = canServeRequests.get
+    map.flatMap(_.get(node)).getOrElse(true)
+  }
 }
 
 trait ClientStatisticsRequestStrategyMBean extends CanServeRequestStrategyMBean {
@@ -204,7 +207,7 @@ class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: Cl
   extends MBean(classOf[ClientStatisticsRequestStrategyMBean], "service=%s".format(serviceName))
   with ClientStatisticsRequestStrategyMBean {
 
-  def getCanServeRequests = toJMap(strategy.canServeRequests.get.map { case (n, a) => (n.id -> a) })
+  def getCanServeRequests = toJMap(strategy.canServeRequests.get.getOrElse(Map.empty).map { case (n, a) => (n.id -> a) })
 
   def getOutlierMultiplier = strategy.outlierMultiplier
 
