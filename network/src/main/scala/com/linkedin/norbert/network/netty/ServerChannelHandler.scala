@@ -29,7 +29,7 @@ import jmx.{FinishedRequestTimeTracker, JMX}
 import java.lang.String
 import com.google.protobuf.{ByteString}
 import norbertutils.SystemClock
-import common.{NetworkStatisticsActorMBeanImpl, NetworkStatisticsActor}
+import common.CachedNetworkStatistics
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -63,26 +63,11 @@ class RequestContextEncoder extends OneToOneEncoder with Logging {
 
 @ChannelPipelineCoverage("all")
 class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor, requestStatisticsWindow: Long) extends SimpleChannelHandler with Logging {
-  private val statsActor = new NetworkStatisticsActor[Int, UUID](SystemClock, requestStatisticsWindow)
-  statsActor.start
-
-  private val jmxHandle = JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
-    import statsActor.Stats._
-
-    def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
-      case RequestsPerSecond(rps) => rps.values.sum
-    }
-
-    def getAverageRequestProcessingTime = statsActor !? GetProcessingStatistics(None) match {
-      case ProcessingStatistics(map) => average(map){_.completedTime}{_.completedSize}
-    }
-  })
-
-  val statsActorJMX = JMX.register(new NetworkStatisticsActorMBeanImpl("ServerStatistics", serviceName, statsActor))
+  private val statsActor = CachedNetworkStatistics[Int, UUID](SystemClock, requestStatisticsWindow, 200L)
 
   def shutdown: Unit = {
-    statsActorJMX.foreach { JMX.unregister(_) }
-    jmxHandle.foreach { JMX.unregister(_) }
+//    statsActorJMX.foreach { JMX.unregister(_) }
+//    jmxHandle.foreach { JMX.unregister(_) }
   }
 
   override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
@@ -98,7 +83,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     val messageName = norbertMessage.getMessageName
     val requestBytes = norbertMessage.getMessage.toByteArray
 
-    statsActor ! statsActor.Stats.BeginRequest(0, context.requestId)
+    statsActor.beginRequest(0, context.requestId)
 
     val (handler, is, os) = try {
       val handler: Any => Any = messageHandlerRegistry.handlerFor(messageName)
@@ -109,7 +94,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     } catch {
       case ex: InvalidMessageException =>
         Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
-        statsActor ! statsActor.Stats.EndRequest(0, context.requestId)
+        statsActor.endRequest(0, context.requestId)
 
         throw ex
     }
@@ -124,7 +109,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     catch {
       case ex: HeavyLoadException =>
         Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex, NorbertProtos.NorbertMessage.Status.HEAVYLOAD)))
-        statsActor ! statsActor.Stats.EndRequest(0, context.requestId)
+        statsActor.endRequest(0, context.requestId)
     }
   }
 
@@ -145,7 +130,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
 
     channel.write((context, response))
 
-    statsActor ! statsActor.Stats.EndRequest(0, context.requestId)
+    statsActor.endRequest(0, context.requestId)
   }
 }
 
