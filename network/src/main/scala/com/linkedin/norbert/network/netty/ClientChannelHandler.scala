@@ -60,7 +60,7 @@ class ClientChannelHandler(serviceName: String,
           request.foreach { r =>
              if ((now - r.timestamp) > staleRequestTimeoutMillis) {
                 requestMap.remove(uuid)
-                statsActor ! statsActor.Stats.EndRequest(r.node, r.id)
+                stats.endRequest(r.node, r.id)
                 expiredEntryCount += 1
              }
           }
@@ -81,26 +81,24 @@ class ClientChannelHandler(serviceName: String,
   val cleanupExecutor = new ScheduledThreadPoolExecutor(1)
   cleanupExecutor.scheduleAtFixedRate(cleanupTask, staleRequestCleanupFrequencyMins, staleRequestCleanupFrequencyMins, TimeUnit.MINUTES)
 
-  private val statsActor = new NetworkStatisticsActor[Node, UUID](clock, requestStatisticsWindow)
-  statsActor.start
+  private val stats = CachedNetworkStatistics[Node, UUID](clock, requestStatisticsWindow, 200L)
 
-  val clientStatsStrategy = new ClientStatisticsRequestStrategy(statsActor, outlierMultiplier, outlierConstant, clock)
+  val clientStatsStrategy = new ClientStatisticsRequestStrategy(stats, outlierMultiplier, outlierConstant, clock)
   val serverErrorStrategy = new SimpleBackoffStrategy(clock)
 
   val clientStatsStrategyJMX = JMX.register(new ClientStatisticsRequestStrategyMBeanImpl(serviceName, clientStatsStrategy))
   val serverErrorStrategyJMX = JMX.register(new ServerErrorStrategyMBeanImpl(serviceName, serverErrorStrategy))
-  val statsActorJMX = JMX.register(new NetworkStatisticsActorMBeanImpl("ClientStatistics", serviceName, statsActor))
 
   val strategy = CompositeCanServeRequestStrategy(clientStatsStrategy, serverErrorStrategy)
 
-  private val statsJMX = JMX.register(new NetworkClientStatisticsMBeanImpl(serviceName, statsActor))
+  private val statsJMX = JMX.register(new NetworkClientStatisticsMBeanImpl(serviceName, stats))
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request[_, _]]
     log.debug("Writing request: %s".format(request))
 
     requestMap.put(request.id, request)
-    statsActor ! statsActor.Stats.BeginRequest(request.node, request.id)
+    stats.beginRequest(request.node, request.id)
 
     val message = NorbertProtos.NorbertMessage.newBuilder
     message.setRequestIdMsb(request.id.getMostSignificantBits)
@@ -121,7 +119,7 @@ class ClientChannelHandler(serviceName: String,
       case request =>
         requestMap.remove(requestId)
 
-        statsActor ! statsActor.Stats.EndRequest(request.node, request.id)
+        stats.endRequest(request.node, request.id)
 
         if (message.getStatus == NorbertProtos.NorbertMessage.Status.OK) {
           responseHandler.onSuccess(request, message)
@@ -144,64 +142,54 @@ class ClientChannelHandler(serviceName: String,
     statsJMX.foreach { JMX.unregister(_) }
     serverErrorStrategyJMX.foreach { JMX.unregister(_) }
     clientStatsStrategyJMX.foreach { JMX.unregister(_) }
-    statsActorJMX.foreach { JMX.unregister(_) }
   }
 }
 
 trait HealthScoreCalculator {
-  val statsActor: NetworkStatisticsActor[Node, UUID] // TODO: Annoying path dependant types
+  def doCalculation[T](p: Statistics[T], f: Statistics[T]): Double = {
+    def fSize = f.map.values.map(_.size).sum
+    def pSize = p.map.values.map(_.size).sum
 
-  def doCalculation(values: Iterable[statsActor.Stats.ProcessingEntry]): Double = {
-    def completedMedian = safeDivide(values.flatMap(_.completedPercentile).sum, values.size)(0)
-    def pendingMedian = safeDivide(values.flatMap(_.pendingPercentile).sum, values.size)(0)
+    val fTotal = f.map.map{ case(k, v) => v.percentile * v.size }.sum
+    val pTotal = p.map.map{ case(k, v) => v.percentile * v.size }.sum
 
-    def completedSize = values.map(_.completedSize).sum
-    def pendingSize = values.map(_.pendingSize).sum
+    safeDivide(fTotal + pTotal, fSize + pSize)(0)
+  }
 
-    // Average between the completed and pending medians, based on how many of each there are
-    safeDivide(completedMedian * completedSize + pendingMedian * pendingSize, completedSize + pendingSize)(0)
+  def averagePercentiles[T](s: Statistics[T]): Double = {
+    val size = s.map.values.map(_.size).sum
+    val total = s.map.map { case (k, v) => v.percentile * v.size }.sum
+    safeDivide(total, size)(0.0)
   }
 }
 
-class ClientStatisticsRequestStrategy(val statsActor: NetworkStatisticsActor[Node, UUID],
+class ClientStatisticsRequestStrategy(val stats: CachedNetworkStatistics[Node, UUID],
                                       @volatile var outlierMultiplier: Double,
                                       @volatile var outlierConstant: Double,
-                                      clock: Clock,
-                                      refreshInterval: Long = 200L)
+                                      clock: Clock)
   extends CanServeRequestStrategy with Logging with HealthScoreCalculator {
   // Must be more than outlierMultiplier * average + outlierConstant ms the others by default
 
-  @volatile var canServeRequests = Map.empty[Node, Boolean]
-  val lastUpdateTime = new AtomicLong(0)
-  @volatile var refreshingStatistics = false
+  val canServeRequests = CacheMaintainer(clock, 200L, () => {
+    val s = stats.getStatistics(0.5)
+    val (p, f) = (s.pending, s.finished)
 
-  def canServeRequest(node: Node): Boolean = {
-    val lut = lastUpdateTime.get
+    val clusterMedian = doCalculation(p, f)
 
-    if(!refreshingStatistics && clock.getCurrentTime - lut > refreshInterval) {
-      if(lastUpdateTime.compareAndSet(lut, clock.getCurrentTime))
-        refreshingStatistics = true
-        statsActor !! (statsActor.Stats.GetProcessingStatistics(Some(0.5)), {
-          case statsActor.Stats.ProcessingStatistics(map) =>
+    f.map.map { case (n, nodeN) =>
+      val nodeP = p.map.get(n).getOrElse(StatsEntry(0.0, 0, 0))
 
-            val clusterMedian = doCalculation(map.values)
+      val nodeMedian = doCalculation(Statistics(Map(0 -> nodeP)),Statistics(Map(0 -> nodeN)))
+      val available = nodeMedian <= clusterMedian * outlierMultiplier + outlierConstant
 
-            canServeRequests = map.map { case (n, entry) =>
-              val nodeMedian = doCalculation(List(entry))
-
-              val available = nodeMedian <= clusterMedian * outlierMultiplier + outlierConstant
-
-              if(!available) {
-                log.warn("Node %s has a median response time of %f. The cluster response time is %f. Routing requests away temporarily.".format(n, nodeMedian, clusterMedian))
-              }
-              (n, available)
-            }
-          refreshingStatistics = false
-        })
+      if(!available) {
+        log.warn("Node %s has a median response time of %f. The cluster response time is %f. Routing requests away temporarily.".format(n, nodeMedian, clusterMedian))
+      }
+      (n, available)
     }
+  })
 
-    canServeRequests.getOrElse(node, true)
-  }
+  def canServeRequest(node: Node) = canServeRequests.get.getOrElse(node, true)
 }
 
 trait ClientStatisticsRequestStrategyMBean extends CanServeRequestStrategyMBean {
@@ -216,7 +204,7 @@ class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: Cl
   extends MBean(classOf[ClientStatisticsRequestStrategyMBean], "service=%s".format(serviceName))
   with ClientStatisticsRequestStrategyMBean {
 
-  def getCanServeRequests = toJMap(strategy.canServeRequests.map { case (n, a) => (n.id -> a) })
+  def getCanServeRequests = toJMap(strategy.canServeRequests.get.map { case (n, a) => (n.id -> a) })
 
   def getOutlierMultiplier = strategy.outlierMultiplier
 
@@ -226,99 +214,3 @@ class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: Cl
 
   def setOutlierConstant(c: Double) = { strategy.outlierConstant = c}
 }
-
-trait NetworkClientStatisticsMBean {
-  def getNumPendingRequests: JMap[Int, Int]
-
-  def getMedianTimes: JMap[Int, Double]
-  def get75thTimes: JMap[Int, Double]
-  def get90thTimes: JMap[Int, Double]
-  def get95thTimes: JMap[Int, Double]
-  def get99thTimes: JMap[Int, Double]
-  def getHealthScoreTimings: JMap[Int, Double]
-
-  def getRPS: JMap[Int, Int]
-
-  def getClusterRPS: Int
-  def getClusterAverageTime: Double
-  def getClusterPendingTime: Double
-
-  def getClusterMedianTime: Double
-  def getCluster75thTimes: Double
-  def getCluster90th: Double
-  def getCluster95th: Double
-  def getCluster99th: Double
-  def getClusterHealthScoreTiming: Double
-
-  def reset
-
-  // Jill will be very upset if I break her graphs
-  def getRequestsPerSecond = getClusterRPS
-  def getAverageRequestProcessingTime = getClusterAverageTime
-}
-
-class NetworkClientStatisticsMBeanImpl(serviceName: String, val statsActor: NetworkStatisticsActor[Node, UUID])
-  extends MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName))
-  with NetworkClientStatisticsMBean with HealthScoreCalculator {
-  import statsActor.Stats._
-
-  private def getProcessingStatistics(percentile: Option[Double] = None) =
-    statsActor !? GetProcessingStatistics(percentile) match {
-      case ProcessingStatistics(map) => map.map { case (n, s) => (n.id -> s) }
-    }
-
-  private def getRps = statsActor !? GetRequestsPerSecond match {
-    case RequestsPerSecond(rps) => rps
-  }
-
-  def getNumPendingRequests = toJMap(getProcessingStatistics().mapValues(_.pendingSize))
-
-  def getMedianTimes =
-    toJMap(getProcessingStatistics(Some(0.5)).mapValues(_.completedPercentile.getOrElse(0.0)))
-
-  def get75thTimes =
-    toJMap(getProcessingStatistics(Some(0.75)).mapValues(_.completedPercentile.getOrElse(0)))
-
-  def get90thTimes =
-    toJMap(getProcessingStatistics(Some(0.90)).mapValues(_.completedPercentile.getOrElse(0)))
-
-  def get95thTimes =
-    toJMap(getProcessingStatistics(Some(0.95)).mapValues(_.completedPercentile.getOrElse(0)))
-
-  def get99thTimes =
-    toJMap(getProcessingStatistics(Some(0.99)).mapValues(_.completedPercentile.getOrElse(0)))
-
-  def getHealthScoreTimings = {
-    toJMap(getProcessingStatistics(Some(0.5)).mapValues(entry => doCalculation(List(entry))))
-  }
-
-  def getRPS = toJMap(getRps.map { case (n, r) => (n.id -> r) })
-
-  def ave[K, V : Numeric](map: JMap[K, V]) = {
-    import scala.collection.JavaConversions._
-    average(map.values.sum, map.size)
-  }
-
-  def getClusterAverageTime = average(getProcessingStatistics()){_.completedTime}{_.completedSize}
-
-  def getClusterPendingTime = average(getProcessingStatistics()){_.pendingTime}{_.pendingSize}
-
-  def getClusterMedianTime = ave(getMedianTimes)
-
-  def getCluster75thTimes = ave(get75thTimes)
-
-  def getCluster90th = ave(get90thTimes)
-
-  def getCluster95th = ave(get95thTimes)
-
-  def getCluster99th = ave(get99thTimes)
-
-  def getClusterRPS = statsActor !? GetRequestsPerSecond match {
-    case RequestsPerSecond(rps) => rps.values.sum
-  }
-
-  def getClusterHealthScoreTiming = doCalculation(getProcessingStatistics(Some(0.5)).values)
-
-  def reset = statsActor ! Reset
-}
-

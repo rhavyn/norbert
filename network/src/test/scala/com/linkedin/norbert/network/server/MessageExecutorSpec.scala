@@ -24,7 +24,7 @@ import common.SampleMessage
 
 class MessageExecutorSpec extends Specification with Mockito with WaitFor with SampleMessage {
   val messageHandlerRegistry = mock[MessageHandlerRegistry]
-  val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, 1, 1, 1, 100, 1000L)
+  val messageExecutor = new ThreadPoolMessageExecutor("service", messageHandlerRegistry, 1, 1, 1, 100, 1000L)
 
   var handlerCalled = false
   var either: Either[Exception, Ping] = null
@@ -50,7 +50,7 @@ class MessageExecutorSpec extends Specification with Mockito with WaitFor with S
 
       messageExecutor.executeMessage(request, (either: Either[Exception, Ping]) => null)
 
-      waitFor(10.ms)
+      waitFor(50.ms)
 
       there was one(messageHandlerRegistry).handlerFor(request)
     }

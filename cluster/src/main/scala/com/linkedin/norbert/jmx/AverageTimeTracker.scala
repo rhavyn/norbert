@@ -16,21 +16,31 @@
 package com.linkedin.norbert
 package jmx
 
-import collection.mutable.{Map, Queue}
 import norbertutils._
-import collection.JavaConversions._
-import math._
+import collection.JavaConversions
 
+// Threadsafe. Writers should always complete more or less instantly. Readers work via copy-on-write.
 class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
-  private val q = Queue[(Long, Int)]() // (When the request completed, request processing time)
-  private var t = 0L
+  private val q = new java.util.concurrent.ConcurrentLinkedQueue[(Long, Int)]()
+  private val currentlyCleaning = new java.util.concurrent.atomic.AtomicBoolean
 
   private def clean {
+    // Let only one thread clean at a time
+    if(currentlyCleaning.compareAndSet(false, true)) {
+      clean0
+      currentlyCleaning.set(false)
+    }
+  }
+
+  private def clean0 {
     while(!q.isEmpty) {
-      val (completion, processingTime) = q.head
+      val head = q.peek
+      if(head == null)
+        return
+
+      val (completion, processingTime) = head
       if(clock.getCurrentTime - completion > interval) {
-        t -= processingTime
-        q.dequeue
+        q.remove(head)
       } else {
         return
       }
@@ -39,73 +49,60 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
 
   def addTime(processingTime: Int) {
     clean
-    q.enqueue( (clock.getCurrentTime, processingTime) )
-    t += processingTime
+    q.offer( (clock.getCurrentTime, processingTime) )
   }
 
-  def total: Long = {
+  def getArray: Array[(Long, Int)] = {
     clean
-    t
+    q.toArray(Array.empty[(Long, Int)])
   }
 
-  // TODO: We just sort the data in the queue (Hey, Swee did it). Consider tracking this stuff in a sorted map.
-  def percentile(p: Double): Double = {
-    clean
-    calculatePercentile(q.flatMap(pair => Option(pair).map(_._2)).toArray.sorted, p)
+  def getTimings: Array[Int] = {
+    getArray.map(_._2)
   }
 
-  def size: Int = {
-    clean
-    q.size
+  def total = {
+    getTimings.sum
   }
 
-  def rps: Int = {
-    clean
-    val now = clock.getCurrentTime
-    implicit val timeOrdering: Ordering[(Long, Int)] = new Ordering[(Long, Int)] {
-      def compare(x: (Long, Int), y: (Long, Int)) = (x._1 - y._1).asInstanceOf[Int]
-    }
-
-    val bs = binarySearch(q, (now - 1000L, 0))
-    val idx = if(bs < 0) -bs - 1 else bs
-    q.size - idx
+  def reset {
+    q.clear
   }
 }
 
+// Threadsafe
 class PendingRequestTimeTracker[KeyT](clock: Clock) {
-  private val unfinishedRequests = Map.empty[KeyT, Long]
+  private val map : java.util.concurrent.ConcurrentMap[KeyT, Long] =
+    new java.util.concurrent.ConcurrentHashMap[KeyT, Long]
+//  private val t = new java.util.concurrent.atomic.AtomicLong
 
-  // We can have about 7 million requests outstanding before overflow.
-  // Long.MAX_LONG / System.currentTimeMillis
-  // TODO: Make sure dead requests get properly expired from this value
-  private var t = 0L
+  def getStartTime(key: KeyT) = Option(map.get(key))
 
-  def total: Long = {
+  def beginRequest(key: KeyT) {
     val now = clock.getCurrentTime
-    val s = size
-    (now * s) - t
+//    t.addAndGet(now)
+    map.put(key, now)
   }
 
-  def size: Int = unfinishedRequests.size
+  def endRequest(key: KeyT) {
+//    getStartTime(key).foreach { time =>
+//      t.addAndGet(-time)
+//    }
+    map.remove(key)
+  }
 
-  def getStartTime(key: KeyT) = unfinishedRequests.get(key)
-
-  def beginRequest(key: KeyT) = {
+  def getTimings = {
     val now = clock.getCurrentTime
-    unfinishedRequests += key -> now
-    t += now
+    val timings = JavaConversions.asIterable(map.values).toArray
+    timings.map(t => (now - t).asInstanceOf[Int]).sorted
   }
 
-  def endRequest(key: KeyT) = {
-    getStartTime(key).foreach { time => t -= time }
-    unfinishedRequests -= key
+  def reset {
+//    t.set(0)
+    map.clear
   }
 
-  def percentile(p: Double) = {
-    val now = clock.getCurrentTime
-    calculatePercentile(unfinishedRequests.values.map(startTime => now - startTime).toArray.sorted, p)
-  }
-
+  def total = getTimings.sum
 }
 
 class RequestTimeTracker[KeyT](clock: Clock, interval: Long) {
@@ -121,5 +118,10 @@ class RequestTimeTracker[KeyT](clock: Clock, interval: Long) {
       finishedRequestTimeTracker.addTime((clock.getCurrentTime - startTime).asInstanceOf[Int])
     }
     pendingRequestTimeTracker.endRequest(key)
+  }
+
+  def reset {
+    finishedRequestTimeTracker.reset
+    pendingRequestTimeTracker.reset
   }
 }

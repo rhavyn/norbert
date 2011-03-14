@@ -24,7 +24,7 @@ import actors.DaemonActor
 import java.util.concurrent.atomic.AtomicInteger
 import norbertutils.{SystemClock, NamedPoolThreadFactory}
 import java.util.concurrent._
-import common.{NetworkStatisticsActorMBeanImpl, NetworkStatisticsActor}
+import common.{CachedNetworkStatistics}
 
 /**
  * A component which submits incoming messages to their associated message handler.
@@ -42,10 +42,9 @@ trait MessageExecutor {
 class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int, maxWaitingQueueSize: Int, requestStatisticsWindow: Long) extends MessageExecutor with Logging {
 
-  private val statsActor = new NetworkStatisticsActor[Int, Int](SystemClock, requestStatisticsWindow)
-  statsActor.start
+  private val statsActor = CachedNetworkStatistics[Int, Int](SystemClock, requestStatisticsWindow, 200L)
 
-  val statsActorJMX = JMX.register(new NetworkStatisticsActorMBeanImpl("MessageExecutorStatistics", serviceName, statsActor))
+//  val statsActorJMX = JMX.register(new NetworkStatisticsActorMBeanImpl("MessageExecutorStatistics", serviceName, statsActor))
 
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new ArrayBlockingQueue[Runnable](maxWaitingQueueSize),
     new NamedPoolThreadFactory("norbert-message-executor")) {
@@ -53,12 +52,12 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
     override def beforeExecute(t: Thread, r: Runnable) = {
       val rr = r.asInstanceOf[RequestRunner[_, _]]
 
-      statsActor ! statsActor.Stats.BeginRequest(0, rr.id)
+      statsActor.beginRequest(0, rr.id)
     }
 
     override def afterExecute(r: Runnable, t: Throwable) = {
       val rr = r.asInstanceOf[RequestRunner[_, _]]
-      statsActor ! statsActor.Stats.EndRequest(0, rr.id)
+      statsActor.endRequest(0, rr.id)
     }
   }
 
@@ -69,13 +68,13 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
       threadPool.execute(rr)
     } catch {
       case ex: RejectedExecutionException =>   throw new HeavyLoadException
-      statsActor ! statsActor.Stats.EndRequest(0, rr.id)
+      statsActor.endRequest(0, rr.id)
     }
   }
 
   def shutdown {
     threadPool.shutdown
-    statsActorJMX.foreach { JMX.unregister(_) }
+//    statsActorJMX.foreach { JMX.unregister(_) }
     log.debug("MessageExecutor shut down")
   }
 
