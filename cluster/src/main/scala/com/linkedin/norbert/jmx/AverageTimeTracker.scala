@@ -93,8 +93,8 @@ class PendingRequestTimeTracker[KeyT](clock: Clock) {
 
   def getTimings = {
     val now = clock.getCurrentTime
-    val timings = JavaConversions.asIterable(map.values).toArray
-    timings.map(t => (now - t).asInstanceOf[Int]).sorted
+    val timings = map.values.toArray(Array.empty[java.lang.Long])
+    timings.map(t => (now - t.longValue).asInstanceOf[Int]).sorted
   }
 
   def reset {
