@@ -145,7 +145,7 @@ class ClientChannelHandler(serviceName: String,
   }
 }
 
-trait HealthScoreCalculator {
+trait HealthScoreCalculator extends Logging {
   def doCalculation[T](p: Map[T, StatsEntry], f: Map[T, StatsEntry]): Double = {
     def fSize = f.values.map(_.size).sum
     def pSize = p.values.map(_.size).sum
@@ -153,7 +153,13 @@ trait HealthScoreCalculator {
     val fTotal = f.map{ case(k, v) => v.percentile * v.size }.sum
     val pTotal = p.map{ case(k, v) => v.percentile * v.size }.sum
 
-    safeDivide(fTotal + pTotal, fSize + pSize)(0)
+    val result = safeDivide(fTotal + pTotal, fSize + pSize)(0)
+
+    if(result < 0.0) {
+      log.warn("Found a negative result when calculating weighted median. Pending = %s. Finished = %s. fSize = %s. pSize = %s. fTotal = %s. pTotal = %s"
+                .format(p, f, fSize, pSize, fTotal, pTotal))
+    }
+    result
   }
 
   def averagePercentiles[T](s: Map[T, StatsEntry]): Double = {
