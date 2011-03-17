@@ -85,6 +85,6 @@ trait ResponseProcessorMBean {
 }
 
 class ResponseProcessorMBeanImpl(serviceName: String, queue: ArrayBlockingQueue[Runnable])
-  extends MBean(classOf[RequestProcessorMBean], "service=%s".format(serviceName)) with ResponseProcessorMBean {
+  extends MBean(classOf[ResponseProcessorMBean], "service=%s".format(serviceName)) with ResponseProcessorMBean {
   def getQueueSize = queue.size
 }

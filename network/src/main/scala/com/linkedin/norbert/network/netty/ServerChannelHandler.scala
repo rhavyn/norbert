@@ -28,7 +28,7 @@ import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
 import jmx.{FinishedRequestTimeTracker, JMX}
 import java.lang.String
 import com.google.protobuf.{ByteString}
-import norbertutils.SystemClock
+import norbertutils._
 import common.CachedNetworkStatistics
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
@@ -51,14 +51,11 @@ class RequestContextDecoder extends OneToOneDecoder {
 
 @ChannelPipelineCoverage("all")
 class RequestContextEncoder extends OneToOneEncoder with Logging {
-
   def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Any) = {
     val (context, norbertMessage) = msg.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
 
-
     norbertMessage
   }
-
 }
 
 @ChannelPipelineCoverage("all")
@@ -146,11 +143,26 @@ private[netty] object ResponseHelper {
             .setErrorMessage(if (ex.getMessage == null) "" else ex.getMessage)
             .build
   }
-
-
 }
 
 trait NetworkServerStatisticsMBean {
   def getRequestsPerSecond: Int
   def getAverageRequestProcessingTime: Double
+  def getMedianTime: Double
 }
+
+class RequestProcessorMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, Int])
+  extends MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
+
+  def getMedianTime = stats.getStatistics(0.5).map(_.finished.values.map(_.percentile)).flatten.sum
+
+  def getRequestsPerSecond = stats.getStatistics(0.5).map(_.rps().values).flatten.sum
+
+  def getAverageRequestProcessingTime = stats.getStatistics(0.5).map { stats =>
+    val total = stats.finished.values.map(_.total).sum
+    val size = stats.finished.values.map(_.size).sum
+
+    safeDivide(total.toDouble, size)(0.0)
+  } getOrElse(0.0)
+}
+
