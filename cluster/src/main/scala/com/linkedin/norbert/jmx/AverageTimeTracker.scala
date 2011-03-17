@@ -74,20 +74,15 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
 class PendingRequestTimeTracker[KeyT](clock: Clock) {
   private val map : java.util.concurrent.ConcurrentMap[KeyT, Long] =
     new java.util.concurrent.ConcurrentHashMap[KeyT, Long]
-//  private val t = new java.util.concurrent.atomic.AtomicLong
 
   def getStartTime(key: KeyT) = Option(map.get(key))
 
   def beginRequest(key: KeyT) {
     val now = clock.getCurrentTime
-//    t.addAndGet(now)
     map.put(key, now)
   }
 
   def endRequest(key: KeyT) {
-//    getStartTime(key).foreach { time =>
-//      t.addAndGet(-time)
-//    }
     map.remove(key)
   }
 
@@ -98,7 +93,6 @@ class PendingRequestTimeTracker[KeyT](clock: Clock) {
   }
 
   def reset {
-//    t.set(0)
     map.clear
   }
 
