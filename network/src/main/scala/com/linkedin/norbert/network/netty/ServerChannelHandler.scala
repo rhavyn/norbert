@@ -62,9 +62,10 @@ class RequestContextEncoder extends OneToOneEncoder with Logging {
 class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor, requestStatisticsWindow: Long) extends SimpleChannelHandler with Logging {
   private val statsActor = CachedNetworkStatistics[Int, UUID](SystemClock, requestStatisticsWindow, 200L)
 
+  val statsJmx = JMX.register(new NetworkServerStatisticsMBeanImpl(serviceName, statsActor))
+
   def shutdown: Unit = {
-//    statsActorJMX.foreach { JMX.unregister(_) }
-//    jmxHandle.foreach { JMX.unregister(_) }
+    statsJmx.foreach { JMX.unregister(_) }
   }
 
   override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
@@ -151,7 +152,7 @@ trait NetworkServerStatisticsMBean {
   def getMedianTime: Double
 }
 
-class RequestProcessorMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, Int])
+class NetworkServerStatisticsMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, UUID])
   extends MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
 
   def getMedianTime = stats.getStatistics(0.5).map(_.finished.values.map(_.percentile)).flatten.sum
