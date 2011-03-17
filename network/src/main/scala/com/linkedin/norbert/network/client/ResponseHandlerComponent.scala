@@ -18,13 +18,13 @@ package network
 package client
 
 import protos.NorbertProtos
-import java.util.concurrent.{ArrayBlockingQueue, TimeUnit, ThreadPoolExecutor, Executors}
 import protos.NorbertProtos.NorbertMessage
 import logging.Logging
 import norbertutils.NamedPoolThreadFactory
 import jmx.JMX.MBean
 import server.RequestProcessorMBean
 import jmx.JMX
+import java.util.concurrent._
 
 trait ResponseHandlerComponent {
   val responseHandler: ResponseHandler
@@ -54,17 +54,23 @@ class ThreadPoolResponseHandler(serviceName: String, corePoolSize: Int, maxPoolS
   }
 
   def onSuccess[RequestMsg, ResponseMsg](request: Request[RequestMsg, ResponseMsg], message: NorbertMessage) {
-    threadPool.execute(new Runnable {
-      def run = {
-        try {
-          val data = message.getMessage.toByteArray
-          request.onSuccess(data)
-        } catch {
-          case ex: Exception =>
-            request.onFailure(ex)
+    try {
+      threadPool.execute(new Runnable {
+        def run = {
+          try {
+            val data = message.getMessage.toByteArray
+            request.onSuccess(data)
+          } catch {
+            case ex: Exception =>
+              request.onFailure(ex)
+          }
         }
-      }
-    })
+      })
+    } catch {
+      case (ex: RejectedExecutionException) =>
+        log.warn("The response processing queue is full! Reporting an error")
+        request.onFailure(ex)
+    }
   }
 
   def onFailure[RequestMsg, ResponseMsg](request: Request[RequestMsg, ResponseMsg], error: Throwable) {

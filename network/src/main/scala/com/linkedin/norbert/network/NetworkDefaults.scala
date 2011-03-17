@@ -84,7 +84,7 @@ object NetworkDefaults {
   /**
    * The default thread pool queue size for processing requests
    */
-  val RESPONSE_THREAD_POOL_QUEUE_SIZE = 200
+  val RESPONSE_THREAD_POOL_QUEUE_SIZE = 500
 
   /**
    * The default window size/time (in milliseconds) for averaging processing statistics
