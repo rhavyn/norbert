@@ -78,7 +78,8 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
         JoinedStatistics(
           timings.get.map(calculate(_, p)).getOrElse(Map.empty),
           pendingTimings.get.map(calculate(_, p)).getOrElse(Map.empty),
-          () => finishedArray.get.getOrElse(Map.empty[GroupIdType, Array[(Long, Int)]]).mapValues(rps(_)))
+          () => finishedArray.get.map(_.mapValues(rps(_))).getOrElse(Map.empty),
+          () => finishedArray.get.map(_.mapValues(_.length)).getOrElse(Map.empty))
       })
     }.get
   }
@@ -97,7 +98,7 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
 }
 
 case class StatsEntry(percentile: Double, size: Int, total: Int)
-case class JoinedStatistics[K](finished: Map[K, StatsEntry], pending: Map[K, StatsEntry], rps: () => Map[K, Int])
+case class JoinedStatistics[K](finished: Map[K, StatsEntry], pending: Map[K, StatsEntry], rps: () => Map[K, Int], requestQueueSize: () => Map[K, Int])
 
 private case class NetworkStatisticsTracker[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long) extends Logging {
   private var timeTrackers: java.util.concurrent.ConcurrentMap[GroupIdType, RequestTimeTracker[RequestIdType]] =
@@ -160,6 +161,8 @@ trait NetworkClientStatisticsMBean {
   // Jill will be very upset if I break her graphs
   def getRequestsPerSecond = getClusterRPS
   def getAverageRequestProcessingTime = getClusterAverageTime
+
+  def getQueueSize: Int
 }
 
 class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Node, UUID])
@@ -198,12 +201,7 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNet
   }
 
   def getRPS = toJMap(stats.getStatistics(0.5).map(_.rps().map(kv => (kv._1.id, kv._2))).getOrElse(Map.empty))
-//
-//  def ave[K, V : Numeric](map: JMap[K, V]) = {
-//    import scala.collection.JavaConversions._
-//    average(map.values.sum, map.size)
-//  }
-//
+
   def getClusterAverageTime = {
     val s = getFinishedStats(0.5)
     val total = s.values.map(_.total).sum
@@ -233,6 +231,8 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNet
   }
 
   def getClusterHealthScoreTiming = doCalculation(getPendingStats(0.5), getFinishedStats(0.5))
+
+  def getQueueSize = stats.getStatistics(0.5).map(_.requestQueueSize().values.sum) getOrElse(0)
 
   def reset = stats.reset
 }
