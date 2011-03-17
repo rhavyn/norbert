@@ -22,6 +22,9 @@ import java.util.concurrent.{ArrayBlockingQueue, TimeUnit, ThreadPoolExecutor, E
 import protos.NorbertProtos.NorbertMessage
 import logging.Logging
 import norbertutils.NamedPoolThreadFactory
+import jmx.JMX.MBean
+import server.RequestProcessorMBean
+import jmx.JMX
 
 trait ResponseHandlerComponent {
   val responseHandler: ResponseHandler
@@ -33,14 +36,20 @@ trait ResponseHandler {
   def shutdown: Unit
 }
 
-class ThreadPoolResponseHandler(corePoolSize: Int, maxPoolSize: Int,
+class ThreadPoolResponseHandler(serviceName: String, corePoolSize: Int, maxPoolSize: Int,
     keepAliveTime: Int, maxWaitingQueueSize: Int) extends ResponseHandler with Logging {
 
+  private val responseQueue = new ArrayBlockingQueue[Runnable](maxWaitingQueueSize)
+
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS,
-    new ArrayBlockingQueue[Runnable](maxWaitingQueueSize), new NamedPoolThreadFactory("norbert-response-handler"))
+    responseQueue, new NamedPoolThreadFactory("norbert-response-handler"))
+
+  val statsJmx = JMX.register(new ResponseProcessorMBeanImpl(serviceName, responseQueue))
 
   def shutdown {
     threadPool.shutdown
+    statsJmx.foreach(JMX.unregister(_))
+
     log.debug("Thread pool response handler shut down")
   }
 
@@ -63,4 +72,13 @@ class ThreadPoolResponseHandler(corePoolSize: Int, maxPoolSize: Int,
       def run = request.onFailure(error)
     })
   }
+}
+
+trait ResponseProcessorMBean {
+  def getQueueSize: Int
+}
+
+class ResponseProcessorMBeanImpl(serviceName: String, queue: ArrayBlockingQueue[Runnable])
+  extends MBean(classOf[RequestProcessorMBean], "service=%s".format(serviceName)) with ResponseProcessorMBean {
+  def getQueueSize = queue.size
 }

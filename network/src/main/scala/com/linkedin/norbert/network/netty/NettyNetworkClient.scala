@@ -41,7 +41,7 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
 
-  val responseHandler = new ThreadPoolResponseHandler(clientConfig.responseHandlerCorePoolSize,
+  val responseHandler = new ThreadPoolResponseHandler(clusterClient.serviceName, clientConfig.responseHandlerCorePoolSize,
     clientConfig.responseHandlerMaxPoolSize, clientConfig.responseHandlerKeepAliveTime, clientConfig.responseHandlerMaxWaitingQueueSize)
 
   private val handler = new ClientChannelHandler( clusterClient.serviceName,

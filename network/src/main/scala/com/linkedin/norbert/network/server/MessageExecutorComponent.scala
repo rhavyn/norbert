@@ -44,9 +44,10 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
 
   private val statsActor = CachedNetworkStatistics[Int, Int](SystemClock, requestStatisticsWindow, 200L)
 
-//  val statsActorJMX = JMX.register(new NetworkStatisticsActorMBeanImpl("MessageExecutorStatistics", serviceName, statsActor))
+  val requestQueue = new ArrayBlockingQueue[Runnable](maxWaitingQueueSize)
+  val statsJmx = JMX.register(new RequestProcessorMBeanImpl(serviceName, statsActor, requestQueue))
 
-  private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, new ArrayBlockingQueue[Runnable](maxWaitingQueueSize),
+  private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS, requestQueue,
     new NamedPoolThreadFactory("norbert-message-executor")) {
 
     override def beforeExecute(t: Thread, r: Runnable) = {
@@ -74,7 +75,7 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
 
   def shutdown {
     threadPool.shutdown
-//    statsActorJMX.foreach { JMX.unregister(_) }
+    statsJmx.foreach { JMX.unregister(_) }
     log.debug("MessageExecutor shut down")
   }
 
@@ -117,7 +118,14 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
 
 trait RequestProcessorMBean {
   def getQueueSize: Int
-  def getAverageWaitTime: Int
-  def getAverageProcessingTime: Int
-  def getRequestCount: Long
+
+  def getMedianTime: Double
 }
+
+class RequestProcessorMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, Int], queue: ArrayBlockingQueue[Runnable])
+  extends MBean(classOf[RequestProcessorMBean], "service=%s".format(serviceName)) with RequestProcessorMBean {
+  def getQueueSize = queue.size
+
+  def getMedianTime = stats.getStatistics(0.5).map(_.finished.values.map(_.percentile)).flatten.sum
+}
+
