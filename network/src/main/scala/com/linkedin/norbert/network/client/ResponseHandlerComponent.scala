@@ -68,7 +68,7 @@ class ThreadPoolResponseHandler(serviceName: String, corePoolSize: Int, maxPoolS
       })
     } catch {
       case (ex: RejectedExecutionException) =>
-        log.warn("The response processing queue is full! Reporting an error")
+        log.warn("Response processing queue full")
         request.onFailure(ex)
     }
   }

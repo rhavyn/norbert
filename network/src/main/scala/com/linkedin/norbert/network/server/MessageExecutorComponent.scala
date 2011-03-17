@@ -68,8 +68,11 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
     try {
       threadPool.execute(rr)
     } catch {
-      case ex: RejectedExecutionException =>   throw new HeavyLoadException
-      statsActor.endRequest(0, rr.id)
+      case ex: RejectedExecutionException =>
+        statsActor.endRequest(0, rr.id)
+
+        log.warn("Request processing queue full")
+        throw new HeavyLoadException
     }
   }
 
