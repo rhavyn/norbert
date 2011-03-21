@@ -71,7 +71,7 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
       case ex: RejectedExecutionException =>
         statsActor.endRequest(0, rr.id)
 
-        log.warn("Request processing queue full")
+        log.warn("Request processing queue full. Size is currently " + requestQueue.size)
         throw new HeavyLoadException
     }
   }
