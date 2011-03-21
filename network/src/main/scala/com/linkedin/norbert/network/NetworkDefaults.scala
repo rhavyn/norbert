@@ -44,7 +44,7 @@ object NetworkDefaults {
   /**
    * The default length of time to wait before considering a request to be stale in minutes.
    */
-  val STALE_REQUEST_TIMEOUT_MINS = 10
+  val STALE_REQUEST_TIMEOUT_MINS = 1
 
   /**
    * The default number of core request threads.
