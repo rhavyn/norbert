@@ -84,6 +84,8 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
 
   trait EndpointStatusMBean {
     def getEndpoints: JMap[Int, Boolean]
+
+    def getNumNodesDown: Int
   }
 
   private val endpointsJMX = JMX.register(new MBean(classOf[EndpointStatusMBean], "service=%s".format(clusterClient.serviceName))
@@ -91,6 +93,8 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     def getEndpoints = {
       toJMap(endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap)
     }
+
+    def getNumNodesDown = endpoints.filter(e => !e.canServeRequests).size
   })
 
 
