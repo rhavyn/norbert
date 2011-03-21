@@ -22,10 +22,6 @@ import java.util.concurrent.Future
 import cluster._
 import logging.Logging
 import jmx.JMX
-import jmx.JMX.MBean
-import norbertutils._
-
-import java.util.{Map => JMap}
 
 trait BaseNetworkClient extends Logging {
   this: ClusterClientComponent with ClusterIoClientComponent =>
@@ -156,16 +152,6 @@ trait BaseNetworkClient extends Logging {
     else block
   }
 
-  trait EndpointStatusMBean {
-    def getEndpoints: JMap[Int, Boolean]
-  }
-
-  private val jmxHandle = JMX.register(new MBean(classOf[EndpointStatusMBean], "service=%s".format(Option(clusterClient).flatMap(cc => Option(cc.serviceName)).getOrElse("Service")))
-          with EndpointStatusMBean {
-    def getEndpoints = {
-      toJMap(endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap)
-    }
-  })
 
   private def updateCurrentState(nodes: Set[Node]) {
     currentNodes = nodes
@@ -176,9 +162,6 @@ trait BaseNetworkClient extends Logging {
   private def doShutdown(fromCluster: Boolean) {
     if (shutdownSwitch.compareAndSet(false, true) && startedSwitch.get) {
       log.info("Shutting down NetworkClient")
-
-      log.info("Stopping jmx")
-      jmxHandle.foreach(JMX.unregister(_))
 
       if (!fromCluster) {
         log.debug("Unregistering from ClusterClient")

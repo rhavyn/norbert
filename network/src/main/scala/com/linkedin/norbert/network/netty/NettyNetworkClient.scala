@@ -30,8 +30,11 @@ import cluster.{ClusterClient, ClusterClientComponent}
 import protos.NorbertProtos
 import org.jboss.netty.channel.{ChannelPipelineFactory, Channels}
 import client.{ThreadPoolResponseHandler, ResponseHandlerComponent, NetworkClient, NetworkClientConfig}
-import norbertutils.{SystemClock, NamedPoolThreadFactory}
 import common.{CompositeCanServeRequestStrategy, SimpleBackoffStrategy, BaseNetworkClient}
+import java.util.{Map => JMap}
+import jmx.JMX
+import jmx.JMX.MBean
+import norbertutils._
 
 abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with ResponseHandlerComponent {
   val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
@@ -79,6 +82,18 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     }
   })
 
+  trait EndpointStatusMBean {
+    def getEndpoints: JMap[Int, Boolean]
+  }
+
+  private val endpointsJMX = JMX.register(new MBean(classOf[EndpointStatusMBean], "service=%s".format(clusterClient.serviceName))
+          with EndpointStatusMBean {
+    def getEndpoints = {
+      toJMap(endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap)
+    }
+  })
+
+
   val channelPoolStrategy = new SimpleBackoffStrategy(SystemClock)
   val clientChannelStrategy = handler.strategy // TODO: Carefully consider making this strategy a constructor for the ClientChannelHandler
 
@@ -90,6 +105,7 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   override def shutdown = {
     if (clientConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
     handler.shutdown
+    endpointsJMX.foreach(JMX.unregister(_))
   }
 }
 
