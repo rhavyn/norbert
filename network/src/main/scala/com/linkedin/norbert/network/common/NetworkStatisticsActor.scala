@@ -52,6 +52,7 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
   val finishedArray = CacheMaintainer(clock, refreshInterval, () => stats.getFinishedArrays)
   val timings = CacheMaintainer(clock, refreshInterval, () => stats.getTimings)
   val pendingTimings = CacheMaintainer(clock, refreshInterval, () => stats.getPendingTimings)
+  val totalRequests = CacheMaintainer(clock, refreshInterval, () => stats.getTotalRequests )
 
   def beginRequest(groupId: GroupIdType, requestId: RequestIdType) {
     stats.beginRequest(groupId, requestId)
@@ -78,6 +79,7 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
         JoinedStatistics(
           timings.get.map(calculate(_, p)).getOrElse(Map.empty),
           pendingTimings.get.map(calculate(_, p)).getOrElse(Map.empty),
+          () => totalRequests.get.getOrElse(Map.empty),
           () => finishedArray.get.map(_.mapValues(rps(_))).getOrElse(Map.empty),
           () => finishedArray.get.map(_.mapValues(_.length)).getOrElse(Map.empty))
       })
@@ -98,7 +100,11 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
 }
 
 case class StatsEntry(percentile: Double, size: Int, total: Int)
-case class JoinedStatistics[K](finished: Map[K, StatsEntry], pending: Map[K, StatsEntry], rps: () => Map[K, Int], requestQueueSize: () => Map[K, Int])
+case class JoinedStatistics[K](finished: Map[K, StatsEntry],
+                               pending: Map[K, StatsEntry],
+                               rps: () => Map[K, Int],
+                               totalRequests: () => Map[K, Int],
+                               requestQueueSize: () => Map[K, Int])
 
 private case class NetworkStatisticsTracker[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long) extends Logging {
   private var timeTrackers: java.util.concurrent.ConcurrentMap[GroupIdType, RequestTimeTracker[RequestIdType]] =
@@ -131,6 +137,8 @@ private case class NetworkStatisticsTracker[GroupIdType, RequestIdType](clock: C
   def getFinishedArrays = {
     timeTrackers.toMap.mapValues( _.finishedRequestTimeTracker.getArray)
   }
+
+  def getTotalRequests = timeTrackers.toMap.mapValues( _.pendingRequestTimeTracker.getTotalNumRequests )
 }
 
 trait NetworkClientStatisticsMBean {
@@ -145,6 +153,8 @@ trait NetworkClientStatisticsMBean {
 
   def getRPS: JMap[Int, Int]
 
+  def getTotalRequests: JMap[Int, Int]
+
   def getClusterRPS: Int
   def getClusterAverageTime: Double
   def getClusterPendingTime: Double
@@ -155,6 +165,8 @@ trait NetworkClientStatisticsMBean {
   def getCluster95th: Double
   def getCluster99th: Double
   def getClusterHealthScoreTiming: Double
+
+  def getClusterTotalRequests: Int
 
   def reset
 
@@ -200,7 +212,9 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNet
     })
   }
 
-  def getRPS = toJMap(stats.getStatistics(0.5).map(_.rps().map(kv => (kv._1.id, kv._2))).getOrElse(Map.empty))
+  def getRPS = toJMap(stats.getStatistics(0.5).map(_.rps().map(kv => (kv._1.id, kv._2))))
+
+  def getTotalRequests = toJMap(stats.getStatistics(0.5).map(_.totalRequests().map(kv => (kv._1.id, kv._2))))
 
   def getClusterAverageTime = {
     val s = getFinishedStats(0.5)
@@ -225,10 +239,13 @@ class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNet
 
   def getCluster99th = averagePercentiles(getFinishedStats(0.99))
 
+  import scala.collection.JavaConversions._
+
   def getClusterRPS = {
-    import scala.collection.JavaConversions._
     getRPS.values.sum
   }
+
+  def getClusterTotalRequests = getTotalRequests.values.sum
 
   def getClusterHealthScoreTiming = doCalculation(getPendingStats(0.5), getFinishedStats(0.5))
 

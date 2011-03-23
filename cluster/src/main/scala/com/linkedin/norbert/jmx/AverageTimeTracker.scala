@@ -18,6 +18,7 @@ package jmx
 
 import norbertutils._
 import collection.JavaConversions
+import java.util.concurrent.atomic.AtomicInteger
 
 // Threadsafe. Writers should always complete more or less instantly. Readers work via copy-on-write.
 class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
@@ -72,12 +73,15 @@ class FinishedRequestTimeTracker(clock: Clock, interval: Long) {
 
 // Threadsafe
 class PendingRequestTimeTracker[KeyT](clock: Clock) {
+  private val numRequests = new AtomicInteger()
+
   private val map : java.util.concurrent.ConcurrentMap[KeyT, Long] =
     new java.util.concurrent.ConcurrentHashMap[KeyT, Long]
 
   def getStartTime(key: KeyT) = Option(map.get(key))
 
   def beginRequest(key: KeyT) {
+    numRequests.incrementAndGet
     val now = clock.getCurrentTime
     map.put(key, now)
   }
@@ -95,6 +99,8 @@ class PendingRequestTimeTracker[KeyT](clock: Clock) {
   def reset {
     map.clear
   }
+
+  def getTotalNumRequests = numRequests.get
 
   def total = getTimings.sum
 }

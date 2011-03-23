@@ -60,7 +60,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
 
     def getMaxChannels = maxConnections
 
-    def getNumberRequestsSent = requestsSent.get
+    def getNumberRequestsSent = requestsSent.get.abs
   })
 
   def sendRequest[RequestMsg, ResponseMsg](request: Request[RequestMsg, ResponseMsg]): Unit = if (closed.get) {

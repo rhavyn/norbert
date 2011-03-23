@@ -43,6 +43,7 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
     keepAliveTime: Int, maxWaitingQueueSize: Int, requestStatisticsWindow: Long) extends MessageExecutor with Logging {
 
   private val statsActor = CachedNetworkStatistics[Int, Int](SystemClock, requestStatisticsWindow, 200L)
+  private val totalNumRejected = new AtomicInteger
 
   val requestQueue = new ArrayBlockingQueue[Runnable](maxWaitingQueueSize)
   val statsJmx = JMX.register(new RequestProcessorMBeanImpl(serviceName, statsActor, requestQueue))
@@ -71,6 +72,7 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
       case ex: RejectedExecutionException =>
         statsActor.endRequest(0, rr.id)
 
+        totalNumRejected.incrementAndGet
         log.warn("Request processing queue full. Size is currently " + requestQueue.size)
         throw new HeavyLoadException
     }
@@ -117,18 +119,22 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
       response.foreach(callback)
     }
   }
-}
 
-trait RequestProcessorMBean {
-  def getQueueSize: Int
+  trait RequestProcessorMBean {
+    def getQueueSize: Int
 
-  def getMedianTime: Double
-}
+    def getTotalNumRejected: Int
 
-class RequestProcessorMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, Int], queue: ArrayBlockingQueue[Runnable])
-  extends MBean(classOf[RequestProcessorMBean], "service=%s".format(serviceName)) with RequestProcessorMBean {
-  def getQueueSize = queue.size
+    def getMedianTime: Double
+  }
 
-  def getMedianTime = stats.getStatistics(0.5).map(_.finished.values.map(_.percentile)).flatten.sum
+  class RequestProcessorMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, Int], queue: ArrayBlockingQueue[Runnable])
+    extends MBean(classOf[RequestProcessorMBean], "service=%s".format(serviceName)) with RequestProcessorMBean {
+    def getQueueSize = queue.size
+
+    def getTotalNumRejected = totalNumRejected.get.abs
+
+    def getMedianTime = stats.getStatistics(0.5).map(_.finished.values.map(_.percentile)).flatten.sum
+  }
 }
 

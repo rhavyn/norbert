@@ -32,8 +32,8 @@ import common._
 import norbertutils._
 import network.client.ResponseHandler
 import norbertutils.{Clock, SystemClock, SystemClockComponent}
-import java.util.concurrent.atomic.AtomicLong
 import java.util.{Map => JMap}
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String,
@@ -176,6 +176,8 @@ class ClientStatisticsRequestStrategy(val stats: CachedNetworkStatistics[Node, U
   extends CanServeRequestStrategy with Logging with HealthScoreCalculator {
   // Must be more than outlierMultiplier * average + outlierConstant ms the others by default
 
+  val totalNodesMarkedDown = new AtomicInteger(0)
+
   val canServeRequests = CacheMaintainer(clock, 200L, () => {
     val s = stats.getStatistics(0.5)
     val (p, f) = (s.map(_.pending).getOrElse(Map.empty), s.map(_.finished).getOrElse(Map.empty))
@@ -190,6 +192,7 @@ class ClientStatisticsRequestStrategy(val stats: CachedNetworkStatistics[Node, U
 
       if(!available) {
         log.warn("Node %s has a median response time of %f. The cluster response time is %f. Routing requests away temporarily.".format(n, nodeMedian, clusterMedian))
+        totalNodesMarkedDown.incrementAndGet
       }
       (n, available)
     }
@@ -207,6 +210,8 @@ trait ClientStatisticsRequestStrategyMBean extends CanServeRequestStrategyMBean 
 
   def setOutlierMultiplier(m: Double)
   def setOutlierConstant(c: Double)
+
+  def getTotalNodesMarkedDown: Int
 }
 
 class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: ClientStatisticsRequestStrategy)
@@ -222,4 +227,6 @@ class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: Cl
   def setOutlierMultiplier(m: Double) { strategy.outlierMultiplier = m}
 
   def setOutlierConstant(c: Double) = { strategy.outlierConstant = c}
+
+  def getTotalNodesMarkedDown = strategy.totalNodesMarkedDown.get.abs
 }

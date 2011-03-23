@@ -65,6 +65,9 @@ package object norbertutils {
     m
   }
 
+  def toJMap[K, V](map: Option[Map[K, V]]): java.util.Map[K, V] =
+    toJMap(map.getOrElse(Map.empty[K, V]))
+
   def calculatePercentile[T](values: Array[T], percentile: Double, default: Double = 0.0)(implicit n: Numeric[T]): Double = {
     import math._
 
