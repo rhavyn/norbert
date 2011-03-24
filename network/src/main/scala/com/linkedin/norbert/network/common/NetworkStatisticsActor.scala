@@ -77,11 +77,11 @@ class CachedNetworkStatistics[GroupIdType, RequestIdType](private val stats: Net
     atomicCreateIfAbsent(statisticsCache, p) { k =>
       CacheMaintainer(clock, refreshInterval, () => {
         JoinedStatistics(
-          timings.get.map(calculate(_, p)).getOrElse(Map.empty),
-          pendingTimings.get.map(calculate(_, p)).getOrElse(Map.empty),
-          () => totalRequests.get.getOrElse(Map.empty),
-          () => finishedArray.get.map(_.mapValues(rps(_))).getOrElse(Map.empty),
-          () => finishedArray.get.map(_.mapValues(_.length)).getOrElse(Map.empty))
+          finished = timings.get.map(calculate(_, p)).getOrElse(Map.empty),
+          pending = pendingTimings.get.map(calculate(_, p)).getOrElse(Map.empty),
+          totalRequests = () => totalRequests.get.getOrElse(Map.empty),
+          rps = () => finishedArray.get.map(_.mapValues(rps(_))).getOrElse(Map.empty),
+          requestQueueSize = () => finishedArray.get.map(_.mapValues(_.length)).getOrElse(Map.empty))
       })
     }.get
   }
