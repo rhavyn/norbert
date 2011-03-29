@@ -36,6 +36,8 @@ class NetworkServerConfig {
   var zooKeeperConnectString: String = _
   var zooKeeperSessionTimeoutMillis = 30000
 
+  var requestTimeoutMillis = NetworkDefaults.REQUEST_TIMEOUT_MILLIS
+
   var requestThreadCorePoolSize = NetworkDefaults.REQUEST_THREAD_CORE_POOL_SIZE
   var requestThreadMaxPoolSize = NetworkDefaults.REQUEST_THREAD_MAX_POOL_SIZE
   var requestThreadKeepAliveTimeSecs = NetworkDefaults.REQUEST_THREAD_KEEP_ALIVE_TIME_SECS
@@ -51,8 +53,14 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
     serverConfig.zooKeeperSessionTimeoutMillis)
 
   val messageHandlerRegistry = new MessageHandlerRegistry
-  val messageExecutor = new ThreadPoolMessageExecutor(clusterClient.serviceName, messageHandlerRegistry, serverConfig.requestThreadCorePoolSize, serverConfig.requestThreadMaxPoolSize,
-    serverConfig.requestThreadKeepAliveTimeSecs, serverConfig.threadPoolQueueSize, serverConfig.requestStatisticsWindow)
+  val messageExecutor = new ThreadPoolMessageExecutor(serviceName = clusterClient.serviceName,
+                                                      messageHandlerRegistry = messageHandlerRegistry,
+                                                      requestTimeout = serverConfig.requestTimeoutMillis,
+                                                      corePoolSize = serverConfig.requestThreadCorePoolSize,
+                                                      maxPoolSize = serverConfig.requestThreadMaxPoolSize,
+                                                      keepAliveTime = serverConfig.requestThreadKeepAliveTimeSecs,
+                                                      maxWaitingQueueSize = serverConfig.threadPoolQueueSize,
+                                                      requestStatisticsWindow = serverConfig.requestStatisticsWindow)
 
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))

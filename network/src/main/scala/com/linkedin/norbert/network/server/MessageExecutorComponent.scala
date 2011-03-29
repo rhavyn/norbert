@@ -39,8 +39,14 @@ trait MessageExecutor {
   def shutdown: Unit
 }
 
-class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: MessageHandlerRegistry, corePoolSize: Int, maxPoolSize: Int,
-    keepAliveTime: Int, maxWaitingQueueSize: Int, requestStatisticsWindow: Long) extends MessageExecutor with Logging {
+class ThreadPoolMessageExecutor(serviceName: String,
+                                messageHandlerRegistry: MessageHandlerRegistry,
+                                requestTimeout: Long,
+                                corePoolSize: Int,
+                                maxPoolSize: Int,
+                                keepAliveTime: Int,
+                                maxWaitingQueueSize: Int,
+                                requestStatisticsWindow: Long) extends MessageExecutor with Logging {
 
   private val statsActor = CachedNetworkStatistics[Int, Int](SystemClock, requestStatisticsWindow, 200L)
   private val totalNumRejected = new AtomicInteger
@@ -92,31 +98,39 @@ class ThreadPoolMessageExecutor(serviceName: String, messageHandlerRegistry: Mes
                                                        val id: Int = idGenerator.getAndIncrement.abs,
                                                        implicit val is: InputSerializer[RequestMsg, ResponseMsg]) extends Runnable {
     def run = {
-      log.debug("Executing message: %s".format(request))
+      val now = System.currentTimeMillis
 
-      val response: Option[Either[Exception, ResponseMsg]] =
-      try {
-        val handler = messageHandlerRegistry.handlerFor(request)
+      if(now - queuedAt > requestTimeout) {
+        totalNumRejected.incrementAndGet
+        log.warn("Request timed out, ignoring! Currently = " + now + ". Queued at = " + queuedAt + ". Timeout = " + requestTimeout)
+        callback(Left(new HeavyLoadException))
+      } else {
+        log.debug("Executing message: %s".format(request))
+
+        val response: Option[Either[Exception, ResponseMsg]] =
         try {
-          val response = handler(request)
-          if(response == null) None else Some(Right(response))
+          val handler = messageHandlerRegistry.handlerFor(request)
+          try {
+            val response = handler(request)
+            if(response == null) None else Some(Right(response))
+          } catch {
+            case ex: Exception =>
+              log.error(ex, "Message handler threw an exception while processing message")
+              Some(Left(ex))
+          }
         } catch {
+          case ex: InvalidMessageException =>
+            log.error(ex, "Received an invalid message: %s".format(request))
+            Some(Left(ex))
+
+
           case ex: Exception =>
-            log.error(ex, "Message handler threw an exception while processing message")
+            log.error(ex, "Unexpected error while handling message: %s".format(request))
             Some(Left(ex))
         }
-      } catch {
-        case ex: InvalidMessageException =>
-          log.error(ex, "Received an invalid message: %s".format(request))
-          Some(Left(ex))
 
-
-        case ex: Exception =>
-          log.error(ex, "Unexpected error while handling message: %s".format(request))
-          Some(Left(ex))
+        response.foreach(callback)
       }
-
-      response.foreach(callback)
     }
   }
 
