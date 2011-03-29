@@ -22,7 +22,6 @@ import protos.NorbertProtos.NorbertMessage
 import logging.Logging
 import norbertutils.NamedPoolThreadFactory
 import jmx.JMX.MBean
-import server.RequestProcessorMBean
 import jmx.JMX
 import java.util.concurrent._
 
