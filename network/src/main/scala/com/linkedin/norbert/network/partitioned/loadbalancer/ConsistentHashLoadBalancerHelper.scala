@@ -50,10 +50,6 @@ trait ConsistentHashLoadBalancerHelper extends LoadBalancerHelpers {
       case (map, (partitionId, node)) => map + (partitionId -> (node +: map.get(partitionId).getOrElse(Vector.empty[Endpoint])))
     }
 
-    for (i <- 0 until numPartitions) {
-      if (!partitionToNodeMap.contains(i)) throw new InvalidClusterException("Partition %d is not assigned a node".format(i))
-    }
-
     partitionToNodeMap.map { case (pId, endPoints) => pId -> (endPoints, new AtomicInteger(0)) }
   }
 
