@@ -45,6 +45,7 @@ class NetworkServerConfig {
   var threadPoolQueueSize = NetworkDefaults.REQUEST_THREAD_POOL_QUEUE_SIZE
 
   var requestStatisticsWindow = NetworkDefaults.REQUEST_STATISTICS_WINDOW
+  var avoidByteStringCopy = NetworkDefaults.AVOID_BYTESTRING_COPY
 }
 
 class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent
@@ -72,7 +73,13 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
   bootstrap.setOption("child.tcpNoDelay", true)
   bootstrap.setOption("child.reuseAddress", true)
 
-  val serverChannelHandler = new ServerChannelHandler(clusterClient.serviceName, channelGroup, messageHandlerRegistry, messageExecutor, serverConfig.requestStatisticsWindow)
+  val serverChannelHandler = new ServerChannelHandler(
+    serviceName = clusterClient.serviceName,
+    channelGroup = channelGroup,
+    messageHandlerRegistry = messageHandlerRegistry,
+    messageExecutor = messageExecutor,
+    requestStatisticsWindow = serverConfig.requestStatisticsWindow,
+    avoidByteStringCopy = serverConfig.avoidByteStringCopy)
 
   bootstrap.setPipelineFactory(new ChannelPipelineFactory {
     val loggingHandler = new LoggingHandler

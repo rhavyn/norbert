@@ -22,9 +22,9 @@ import protos.NorbertProtos.NorbertMessage
 import logging.Logging
 import norbertutils.NamedPoolThreadFactory
 import jmx.JMX.MBean
-import server.RequestProcessorMBean
 import jmx.JMX
 import java.util.concurrent._
+import util.ProtoUtils
 
 trait ResponseHandlerComponent {
   val responseHandler: ResponseHandler
@@ -36,8 +36,12 @@ trait ResponseHandler {
   def shutdown: Unit
 }
 
-class ThreadPoolResponseHandler(serviceName: String, corePoolSize: Int, maxPoolSize: Int,
-    keepAliveTime: Int, maxWaitingQueueSize: Int) extends ResponseHandler with Logging {
+class ThreadPoolResponseHandler(serviceName: String,
+                                corePoolSize: Int,
+                                maxPoolSize: Int,
+                                keepAliveTime: Int,
+                                maxWaitingQueueSize: Int,
+                                avoidByteStringCopy: Boolean) extends ResponseHandler with Logging {
 
   private val responseQueue = new ArrayBlockingQueue[Runnable](maxWaitingQueueSize)
 
@@ -58,7 +62,7 @@ class ThreadPoolResponseHandler(serviceName: String, corePoolSize: Int, maxPoolS
       threadPool.execute(new Runnable {
         def run = {
           try {
-            val data = message.getMessage.toByteArray
+            val data = ProtoUtils.byteStringToByteArray(message.getMessage, avoidByteStringCopy)
             request.onSuccess(data)
           } catch {
             case ex: Exception =>

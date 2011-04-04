@@ -44,16 +44,23 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
 
-  val responseHandler = new ThreadPoolResponseHandler(clusterClient.serviceName, clientConfig.responseHandlerCorePoolSize,
-    clientConfig.responseHandlerMaxPoolSize, clientConfig.responseHandlerKeepAliveTime, clientConfig.responseHandlerMaxWaitingQueueSize)
+  val responseHandler = new ThreadPoolResponseHandler(
+    serviceName = clusterClient.serviceName,
+    corePoolSize = clientConfig.responseHandlerCorePoolSize,
+    maxPoolSize = clientConfig.responseHandlerMaxPoolSize,
+    keepAliveTime = clientConfig.responseHandlerKeepAliveTime,
+    maxWaitingQueueSize = clientConfig.responseHandlerMaxWaitingQueueSize,
+    avoidByteStringCopy = clientConfig.avoidByteStringCopy)
 
-  private val handler = new ClientChannelHandler( clusterClient.serviceName,
-                                                  clientConfig.staleRequestTimeoutMins,
-                                                  clientConfig.staleRequestCleanupFrequenceMins,
-                                                  clientConfig.requestStatisticsWindow,
-                                                  clientConfig.outlierMuliplier,
-                                                  clientConfig.outlierConstant,
-                                                  responseHandler)
+  private val handler = new ClientChannelHandler(
+    serviceName = clusterClient.serviceName,
+    staleRequestTimeoutMins = clientConfig.staleRequestTimeoutMins,
+    staleRequestCleanupFrequencyMins= clientConfig.staleRequestCleanupFrequenceMins,
+    requestStatisticsWindow = clientConfig.requestStatisticsWindow,
+    outlierMultiplier = clientConfig.outlierMuliplier,
+    outlierConstant = clientConfig.outlierConstant,
+    responseHandler = responseHandler,
+    avoidByteStringCopy = clientConfig.avoidByteStringCopy)
 
   // TODO why isn't clientConfig visible here?
   bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)

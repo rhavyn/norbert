@@ -45,6 +45,8 @@ class NetworkClientConfig {
   var responseHandlerMaxPoolSize = NetworkDefaults.RESPONSE_THREAD_MAX_POOL_SIZE
   var responseHandlerKeepAliveTime = NetworkDefaults.RESPONSE_THREAD_KEEP_ALIVE_TIME_SECS
   var responseHandlerMaxWaitingQueueSize = NetworkDefaults.RESPONSE_THREAD_POOL_QUEUE_SIZE
+
+  var avoidByteStringCopy = NetworkDefaults.AVOID_BYTESTRING_COPY
 }
 
 object NetworkClient {

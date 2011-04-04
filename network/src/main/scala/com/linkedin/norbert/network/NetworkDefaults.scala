@@ -106,4 +106,12 @@ object NetworkDefaults {
    * Detects nodes that may be offline if their request processing times are also greater than this additional constant
    */
   val OUTLIER_CONSTANT = 10.0
+
+  /**
+   * Protocol Buffers ByteString.copyFrom(byte[]) and ByteString.toByteArray both make a defensive copy of the
+   * data contained in the ByteString. There's no fundamental reason they need to do so, and if this property
+   * is set to true, Norbert will attempt to bypass the copy using reflection. You will have to disable this
+   * if your JMV is running a Security Manager.
+   */
+  val AVOID_BYTESTRING_COPY = true
 }

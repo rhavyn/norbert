@@ -30,6 +30,7 @@ import java.lang.String
 import com.google.protobuf.{ByteString}
 import norbertutils._
 import common.CachedNetworkStatistics
+import util.ProtoUtils
 
 case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
@@ -59,7 +60,12 @@ class RequestContextEncoder extends OneToOneEncoder with Logging {
 }
 
 @ChannelPipelineCoverage("all")
-class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor, requestStatisticsWindow: Long) extends SimpleChannelHandler with Logging {
+class ServerChannelHandler(serviceName: String,
+                           channelGroup: ChannelGroup,
+                           messageHandlerRegistry: MessageHandlerRegistry,
+                           messageExecutor: MessageExecutor,
+                           requestStatisticsWindow: Long,
+                           avoidByteStringCopy: Boolean) extends SimpleChannelHandler with Logging {
   private val statsActor = CachedNetworkStatistics[Int, UUID](SystemClock, requestStatisticsWindow, 200L)
 
   val statsJmx = JMX.register(new NetworkServerStatisticsMBeanImpl(serviceName, statsActor))
@@ -79,7 +85,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
     val channel = e.getChannel
 
     val messageName = norbertMessage.getMessageName
-    val requestBytes = norbertMessage.getMessage.toByteArray
+    val requestBytes = ProtoUtils.byteStringToByteArray(norbertMessage.getMessage, avoidByteStringCopy)
 
     statsActor.beginRequest(0, context.requestId)
 
@@ -120,7 +126,7 @@ class ServerChannelHandler(serviceName: String, channelGroup: ChannelGroup, mess
       case Right(responseMsg) =>
         ResponseHelper.responseBuilder(context.requestId)
         .setMessageName(os.responseName)
-        .setMessage(ByteString.copyFrom(os.responseToBytes(responseMsg)))
+        .setMessage(ProtoUtils.byteArrayToByteString(os.responseToBytes(responseMsg), avoidByteStringCopy))
         .build
     }
 
@@ -137,7 +143,7 @@ private[netty] object ResponseHelper {
     NorbertProtos.NorbertMessage.newBuilder.setRequestIdMsb(requestId.getMostSignificantBits).setRequestIdLsb(requestId.getLeastSignificantBits)
   }
 
-  def errorResponse(requestId: UUID, ex: Exception, status :NorbertProtos.NorbertMessage.Status = NorbertProtos.NorbertMessage.Status.ERROR) = {
+  def errorResponse(requestId: UUID, ex: Exception, status: NorbertProtos.NorbertMessage.Status = NorbertProtos.NorbertMessage.Status.ERROR) = {
     responseBuilder(requestId)
             .setMessageName(ex.getClass.getName)
             .setStatus(status)

@@ -34,6 +34,7 @@ import network.client.ResponseHandler
 import norbertutils.{Clock, SystemClock, SystemClockComponent}
 import java.util.{Map => JMap}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import util.ProtoUtils
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String,
@@ -42,7 +43,8 @@ class ClientChannelHandler(serviceName: String,
                            requestStatisticsWindow: Long,
                            outlierMultiplier: Double,
                            outlierConstant: Double,
-                           responseHandler: ResponseHandler) extends SimpleChannelHandler with Logging {
+                           responseHandler: ResponseHandler,
+                           avoidByteStringCopy: Boolean) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request[_, _]]
 
   val cleanupTask = new Runnable() {
@@ -104,7 +106,7 @@ class ClientChannelHandler(serviceName: String,
     message.setRequestIdMsb(request.id.getMostSignificantBits)
     message.setRequestIdLsb(request.id.getLeastSignificantBits)
     message.setMessageName(request.name)
-    message.setMessage(ByteString.copyFrom(request.requestBytes))
+    message.setMessage(ProtoUtils.byteArrayToByteString(request.requestBytes, avoidByteStringCopy))
 
     super.writeRequested(ctx, new DownstreamMessageEvent(e.getChannel, e.getFuture, message.build, e.getRemoteAddress))
   }
