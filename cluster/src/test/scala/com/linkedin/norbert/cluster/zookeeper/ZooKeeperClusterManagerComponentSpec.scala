@@ -285,7 +285,6 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
         }
       }
 
-      "and the membership node changed" in {
         "update the nodes and notify listeners" in {
           val membership = new ArrayList[String]
           membership.add("1")
@@ -397,7 +396,6 @@ class ZooKeeperClusterManagerComponentSpec extends Specification with Mockito wi
           nodesChangedCount must eventually(be_==(0))
         }
       }
-    }
 
     "when a Shutdown message is received" in {
       "shop handling events" in {

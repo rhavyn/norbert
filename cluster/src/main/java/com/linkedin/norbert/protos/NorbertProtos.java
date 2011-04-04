@@ -8,11 +8,39 @@ public final class NorbertProtos {
   public static void registerAllExtensions(
       com.google.protobuf.ExtensionRegistry registry) {
   }
+  public interface NorbertMessageOrBuilder
+      extends com.google.protobuf.MessageOrBuilder {
+    
+    // required sfixed64 request_id_msb = 1;
+    boolean hasRequestIdMsb();
+    long getRequestIdMsb();
+    
+    // required sfixed64 request_id_lsb = 2;
+    boolean hasRequestIdLsb();
+    long getRequestIdLsb();
+    
+    // optional .norbert.NorbertMessage.Status status = 10 [default = OK];
+    boolean hasStatus();
+    com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status getStatus();
+    
+    // required string message_name = 11;
+    boolean hasMessageName();
+    String getMessageName();
+    
+    // optional bytes message = 12;
+    boolean hasMessage();
+    com.google.protobuf.ByteString getMessage();
+    
+    // optional string error_message = 13;
+    boolean hasErrorMessage();
+    String getErrorMessage();
+  }
   public static final class NorbertMessage extends
-      com.google.protobuf.GeneratedMessage {
+      com.google.protobuf.GeneratedMessage
+      implements NorbertMessageOrBuilder {
     // Use NorbertMessage.newBuilder() to construct.
-    private NorbertMessage() {
-      initFields();
+    private NorbertMessage(Builder builder) {
+      super(builder);
     }
     private NorbertMessage(boolean noInit) {}
     
@@ -42,6 +70,10 @@ public final class NorbertProtos {
       HEAVYLOAD(2, 2),
       ;
       
+      public static final int OK_VALUE = 0;
+      public static final int ERROR_VALUE = 1;
+      public static final int HEAVYLOAD_VALUE = 2;
+      
       
       public final int getNumber() { return value; }
       
@@ -62,8 +94,8 @@ public final class NorbertProtos {
           internalValueMap =
             new com.google.protobuf.Internal.EnumLiteMap<Status>() {
               public Status findValueByNumber(int number) {
-                return Status.valueOf(number)
-      ;        }
+                return Status.valueOf(number);
+              }
             };
       
       public final com.google.protobuf.Descriptors.EnumValueDescriptor
@@ -82,6 +114,7 @@ public final class NorbertProtos {
       private static final Status[] VALUES = {
         OK, ERROR, HEAVYLOAD, 
       };
+      
       public static Status valueOf(
           com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
         if (desc.getType() != getDescriptor()) {
@@ -90,92 +123,172 @@ public final class NorbertProtos {
         }
         return VALUES[desc.getIndex()];
       }
+      
       private final int index;
       private final int value;
+      
       private Status(int index, int value) {
         this.index = index;
         this.value = value;
       }
       
-      static {
-        com.linkedin.norbert.protos.NorbertProtos.getDescriptor();
-      }
-      
       // @@protoc_insertion_point(enum_scope:norbert.NorbertMessage.Status)
     }
     
+    private int bitField0_;
     // required sfixed64 request_id_msb = 1;
     public static final int REQUEST_ID_MSB_FIELD_NUMBER = 1;
-    private boolean hasRequestIdMsb;
-    private long requestIdMsb_ = 0L;
-    public boolean hasRequestIdMsb() { return hasRequestIdMsb; }
-    public long getRequestIdMsb() { return requestIdMsb_; }
+    private long requestIdMsb_;
+    public boolean hasRequestIdMsb() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public long getRequestIdMsb() {
+      return requestIdMsb_;
+    }
     
     // required sfixed64 request_id_lsb = 2;
     public static final int REQUEST_ID_LSB_FIELD_NUMBER = 2;
-    private boolean hasRequestIdLsb;
-    private long requestIdLsb_ = 0L;
-    public boolean hasRequestIdLsb() { return hasRequestIdLsb; }
-    public long getRequestIdLsb() { return requestIdLsb_; }
+    private long requestIdLsb_;
+    public boolean hasRequestIdLsb() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public long getRequestIdLsb() {
+      return requestIdLsb_;
+    }
     
     // optional .norbert.NorbertMessage.Status status = 10 [default = OK];
     public static final int STATUS_FIELD_NUMBER = 10;
-    private boolean hasStatus;
     private com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status status_;
-    public boolean hasStatus() { return hasStatus; }
-    public com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status getStatus() { return status_; }
+    public boolean hasStatus() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status getStatus() {
+      return status_;
+    }
     
     // required string message_name = 11;
     public static final int MESSAGE_NAME_FIELD_NUMBER = 11;
-    private boolean hasMessageName;
-    private java.lang.String messageName_ = "";
-    public boolean hasMessageName() { return hasMessageName; }
-    public java.lang.String getMessageName() { return messageName_; }
+    private Object messageName_;
+    public boolean hasMessageName() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public String getMessageName() {
+      Object ref = messageName_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          messageName_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getMessageNameBytes() {
+      Object ref = messageName_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        messageName_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
     
     // optional bytes message = 12;
     public static final int MESSAGE_FIELD_NUMBER = 12;
-    private boolean hasMessage;
-    private com.google.protobuf.ByteString message_ = com.google.protobuf.ByteString.EMPTY;
-    public boolean hasMessage() { return hasMessage; }
-    public com.google.protobuf.ByteString getMessage() { return message_; }
+    private com.google.protobuf.ByteString message_;
+    public boolean hasMessage() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public com.google.protobuf.ByteString getMessage() {
+      return message_;
+    }
     
     // optional string error_message = 13;
     public static final int ERROR_MESSAGE_FIELD_NUMBER = 13;
-    private boolean hasErrorMessage;
-    private java.lang.String errorMessage_ = "";
-    public boolean hasErrorMessage() { return hasErrorMessage; }
-    public java.lang.String getErrorMessage() { return errorMessage_; }
+    private Object errorMessage_;
+    public boolean hasErrorMessage() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    public String getErrorMessage() {
+      Object ref = errorMessage_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          errorMessage_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getErrorMessageBytes() {
+      Object ref = errorMessage_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        errorMessage_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
     
     private void initFields() {
+      requestIdMsb_ = 0L;
+      requestIdLsb_ = 0L;
       status_ = com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status.OK;
+      messageName_ = "";
+      message_ = com.google.protobuf.ByteString.EMPTY;
+      errorMessage_ = "";
     }
+    private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
-      if (!hasRequestIdMsb) return false;
-      if (!hasRequestIdLsb) return false;
-      if (!hasMessageName) return false;
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasRequestIdMsb()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasRequestIdLsb()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasMessageName()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
       return true;
     }
     
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
       getSerializedSize();
-      if (hasRequestIdMsb()) {
-        output.writeSFixed64(1, getRequestIdMsb());
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeSFixed64(1, requestIdMsb_);
       }
-      if (hasRequestIdLsb()) {
-        output.writeSFixed64(2, getRequestIdLsb());
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeSFixed64(2, requestIdLsb_);
       }
-      if (hasStatus()) {
-        output.writeEnum(10, getStatus().getNumber());
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeEnum(10, status_.getNumber());
       }
-      if (hasMessageName()) {
-        output.writeString(11, getMessageName());
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeBytes(11, getMessageNameBytes());
       }
-      if (hasMessage()) {
-        output.writeBytes(12, getMessage());
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeBytes(12, message_);
       }
-      if (hasErrorMessage()) {
-        output.writeString(13, getErrorMessage());
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeBytes(13, getErrorMessageBytes());
       }
       getUnknownFields().writeTo(output);
     }
@@ -186,33 +299,38 @@ public final class NorbertProtos {
       if (size != -1) return size;
     
       size = 0;
-      if (hasRequestIdMsb()) {
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeSFixed64Size(1, getRequestIdMsb());
+          .computeSFixed64Size(1, requestIdMsb_);
       }
-      if (hasRequestIdLsb()) {
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeSFixed64Size(2, getRequestIdLsb());
+          .computeSFixed64Size(2, requestIdLsb_);
       }
-      if (hasStatus()) {
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(10, getStatus().getNumber());
+          .computeEnumSize(10, status_.getNumber());
       }
-      if (hasMessageName()) {
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(11, getMessageName());
+          .computeBytesSize(11, getMessageNameBytes());
       }
-      if (hasMessage()) {
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(12, getMessage());
+          .computeBytesSize(12, message_);
       }
-      if (hasErrorMessage()) {
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(13, getErrorMessage());
+          .computeBytesSize(13, getErrorMessageBytes());
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
       return size;
+    }
+    
+    @java.lang.Override
+    protected Object writeReplace() throws java.io.ObjectStreamException {
+      return super.writeReplace();
     }
     
     public static com.linkedin.norbert.protos.NorbertProtos.NorbertMessage parseFrom(
@@ -289,34 +407,61 @@ public final class NorbertProtos {
     }
     public Builder toBuilder() { return newBuilder(this); }
     
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessage.Builder<Builder> {
-      private com.linkedin.norbert.protos.NorbertProtos.NorbertMessage result;
-      
-      // Construct using com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.newBuilder()
-      private Builder() {}
-      
-      private static Builder create() {
-        Builder builder = new Builder();
-        builder.result = new com.linkedin.norbert.protos.NorbertProtos.NorbertMessage();
-        return builder;
+        com.google.protobuf.GeneratedMessage.Builder<Builder>
+       implements com.linkedin.norbert.protos.NorbertProtos.NorbertMessageOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return com.linkedin.norbert.protos.NorbertProtos.internal_static_norbert_NorbertMessage_descriptor;
       }
       
-      protected com.linkedin.norbert.protos.NorbertProtos.NorbertMessage internalGetResult() {
-        return result;
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return com.linkedin.norbert.protos.NorbertProtos.internal_static_norbert_NorbertMessage_fieldAccessorTable;
+      }
+      
+      // Construct using com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+      
+      private Builder(BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
+        }
+      }
+      private static Builder create() {
+        return new Builder();
       }
       
       public Builder clear() {
-        if (result == null) {
-          throw new IllegalStateException(
-            "Cannot call clear() after build().");
-        }
-        result = new com.linkedin.norbert.protos.NorbertProtos.NorbertMessage();
+        super.clear();
+        requestIdMsb_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        requestIdLsb_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        status_ = com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status.OK;
+        bitField0_ = (bitField0_ & ~0x00000004);
+        messageName_ = "";
+        bitField0_ = (bitField0_ & ~0x00000008);
+        message_ = com.google.protobuf.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000010);
+        errorMessage_ = "";
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
       
       public Builder clone() {
-        return create().mergeFrom(result);
+        return create().mergeFrom(buildPartial());
       }
       
       public com.google.protobuf.Descriptors.Descriptor
@@ -328,33 +473,55 @@ public final class NorbertProtos {
         return com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.getDefaultInstance();
       }
       
-      public boolean isInitialized() {
-        return result.isInitialized();
-      }
       public com.linkedin.norbert.protos.NorbertProtos.NorbertMessage build() {
-        if (result != null && !isInitialized()) {
+        com.linkedin.norbert.protos.NorbertProtos.NorbertMessage result = buildPartial();
+        if (!result.isInitialized()) {
           throw newUninitializedMessageException(result);
         }
-        return buildPartial();
+        return result;
       }
       
       private com.linkedin.norbert.protos.NorbertProtos.NorbertMessage buildParsed()
           throws com.google.protobuf.InvalidProtocolBufferException {
-        if (!isInitialized()) {
+        com.linkedin.norbert.protos.NorbertProtos.NorbertMessage result = buildPartial();
+        if (!result.isInitialized()) {
           throw newUninitializedMessageException(
             result).asInvalidProtocolBufferException();
         }
-        return buildPartial();
+        return result;
       }
       
       public com.linkedin.norbert.protos.NorbertProtos.NorbertMessage buildPartial() {
-        if (result == null) {
-          throw new IllegalStateException(
-            "build() has already been called on this Builder.");
+        com.linkedin.norbert.protos.NorbertProtos.NorbertMessage result = new com.linkedin.norbert.protos.NorbertProtos.NorbertMessage(this);
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
         }
-        com.linkedin.norbert.protos.NorbertProtos.NorbertMessage returnMe = result;
-        result = null;
-        return returnMe;
+        result.requestIdMsb_ = requestIdMsb_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.requestIdLsb_ = requestIdLsb_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.status_ = status_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.messageName_ = messageName_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.message_ = message_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000020;
+        }
+        result.errorMessage_ = errorMessage_;
+        result.bitField0_ = to_bitField0_;
+        onBuilt();
+        return result;
       }
       
       public Builder mergeFrom(com.google.protobuf.Message other) {
@@ -390,6 +557,22 @@ public final class NorbertProtos {
         return this;
       }
       
+      public final boolean isInitialized() {
+        if (!hasRequestIdMsb()) {
+          
+          return false;
+        }
+        if (!hasRequestIdLsb()) {
+          
+          return false;
+        }
+        if (!hasMessageName()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
       public Builder mergeFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -402,21 +585,25 @@ public final class NorbertProtos {
           switch (tag) {
             case 0:
               this.setUnknownFields(unknownFields.build());
+              onChanged();
               return this;
             default: {
               if (!parseUnknownField(input, unknownFields,
                                      extensionRegistry, tag)) {
                 this.setUnknownFields(unknownFields.build());
+                onChanged();
                 return this;
               }
               break;
             }
             case 9: {
-              setRequestIdMsb(input.readSFixed64());
+              bitField0_ |= 0x00000001;
+              requestIdMsb_ = input.readSFixed64();
               break;
             }
             case 17: {
-              setRequestIdLsb(input.readSFixed64());
+              bitField0_ |= 0x00000002;
+              requestIdLsb_ = input.readSFixed64();
               break;
             }
             case 80: {
@@ -425,145 +612,192 @@ public final class NorbertProtos {
               if (value == null) {
                 unknownFields.mergeVarintField(10, rawValue);
               } else {
-                setStatus(value);
+                bitField0_ |= 0x00000004;
+                status_ = value;
               }
               break;
             }
             case 90: {
-              setMessageName(input.readString());
+              bitField0_ |= 0x00000008;
+              messageName_ = input.readBytes();
               break;
             }
             case 98: {
-              setMessage(input.readBytes());
+              bitField0_ |= 0x00000010;
+              message_ = input.readBytes();
               break;
             }
             case 106: {
-              setErrorMessage(input.readString());
+              bitField0_ |= 0x00000020;
+              errorMessage_ = input.readBytes();
               break;
             }
           }
         }
       }
       
+      private int bitField0_;
       
       // required sfixed64 request_id_msb = 1;
+      private long requestIdMsb_ ;
       public boolean hasRequestIdMsb() {
-        return result.hasRequestIdMsb();
+        return ((bitField0_ & 0x00000001) == 0x00000001);
       }
       public long getRequestIdMsb() {
-        return result.getRequestIdMsb();
+        return requestIdMsb_;
       }
       public Builder setRequestIdMsb(long value) {
-        result.hasRequestIdMsb = true;
-        result.requestIdMsb_ = value;
+        bitField0_ |= 0x00000001;
+        requestIdMsb_ = value;
+        onChanged();
         return this;
       }
       public Builder clearRequestIdMsb() {
-        result.hasRequestIdMsb = false;
-        result.requestIdMsb_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        requestIdMsb_ = 0L;
+        onChanged();
         return this;
       }
       
       // required sfixed64 request_id_lsb = 2;
+      private long requestIdLsb_ ;
       public boolean hasRequestIdLsb() {
-        return result.hasRequestIdLsb();
+        return ((bitField0_ & 0x00000002) == 0x00000002);
       }
       public long getRequestIdLsb() {
-        return result.getRequestIdLsb();
+        return requestIdLsb_;
       }
       public Builder setRequestIdLsb(long value) {
-        result.hasRequestIdLsb = true;
-        result.requestIdLsb_ = value;
+        bitField0_ |= 0x00000002;
+        requestIdLsb_ = value;
+        onChanged();
         return this;
       }
       public Builder clearRequestIdLsb() {
-        result.hasRequestIdLsb = false;
-        result.requestIdLsb_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        requestIdLsb_ = 0L;
+        onChanged();
         return this;
       }
       
       // optional .norbert.NorbertMessage.Status status = 10 [default = OK];
+      private com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status status_ = com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status.OK;
       public boolean hasStatus() {
-        return result.hasStatus();
+        return ((bitField0_ & 0x00000004) == 0x00000004);
       }
       public com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status getStatus() {
-        return result.getStatus();
+        return status_;
       }
       public Builder setStatus(com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        result.hasStatus = true;
-        result.status_ = value;
+        bitField0_ |= 0x00000004;
+        status_ = value;
+        onChanged();
         return this;
       }
       public Builder clearStatus() {
-        result.hasStatus = false;
-        result.status_ = com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status.OK;
+        bitField0_ = (bitField0_ & ~0x00000004);
+        status_ = com.linkedin.norbert.protos.NorbertProtos.NorbertMessage.Status.OK;
+        onChanged();
         return this;
       }
       
       // required string message_name = 11;
+      private Object messageName_ = "";
       public boolean hasMessageName() {
-        return result.hasMessageName();
+        return ((bitField0_ & 0x00000008) == 0x00000008);
       }
-      public java.lang.String getMessageName() {
-        return result.getMessageName();
+      public String getMessageName() {
+        Object ref = messageName_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          messageName_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
       }
-      public Builder setMessageName(java.lang.String value) {
+      public Builder setMessageName(String value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  result.hasMessageName = true;
-        result.messageName_ = value;
+  bitField0_ |= 0x00000008;
+        messageName_ = value;
+        onChanged();
         return this;
       }
       public Builder clearMessageName() {
-        result.hasMessageName = false;
-        result.messageName_ = getDefaultInstance().getMessageName();
+        bitField0_ = (bitField0_ & ~0x00000008);
+        messageName_ = getDefaultInstance().getMessageName();
+        onChanged();
         return this;
+      }
+      void setMessageName(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000008;
+        messageName_ = value;
+        onChanged();
       }
       
       // optional bytes message = 12;
+      private com.google.protobuf.ByteString message_ = com.google.protobuf.ByteString.EMPTY;
       public boolean hasMessage() {
-        return result.hasMessage();
+        return ((bitField0_ & 0x00000010) == 0x00000010);
       }
       public com.google.protobuf.ByteString getMessage() {
-        return result.getMessage();
+        return message_;
       }
       public Builder setMessage(com.google.protobuf.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  result.hasMessage = true;
-        result.message_ = value;
+  bitField0_ |= 0x00000010;
+        message_ = value;
+        onChanged();
         return this;
       }
       public Builder clearMessage() {
-        result.hasMessage = false;
-        result.message_ = getDefaultInstance().getMessage();
+        bitField0_ = (bitField0_ & ~0x00000010);
+        message_ = getDefaultInstance().getMessage();
+        onChanged();
         return this;
       }
       
       // optional string error_message = 13;
+      private Object errorMessage_ = "";
       public boolean hasErrorMessage() {
-        return result.hasErrorMessage();
+        return ((bitField0_ & 0x00000020) == 0x00000020);
       }
-      public java.lang.String getErrorMessage() {
-        return result.getErrorMessage();
+      public String getErrorMessage() {
+        Object ref = errorMessage_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          errorMessage_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
       }
-      public Builder setErrorMessage(java.lang.String value) {
+      public Builder setErrorMessage(String value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  result.hasErrorMessage = true;
-        result.errorMessage_ = value;
+  bitField0_ |= 0x00000020;
+        errorMessage_ = value;
+        onChanged();
         return this;
       }
       public Builder clearErrorMessage() {
-        result.hasErrorMessage = false;
-        result.errorMessage_ = getDefaultInstance().getErrorMessage();
+        bitField0_ = (bitField0_ & ~0x00000020);
+        errorMessage_ = getDefaultInstance().getErrorMessage();
+        onChanged();
         return this;
+      }
+      void setErrorMessage(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000020;
+        errorMessage_ = value;
+        onChanged();
       }
       
       // @@protoc_insertion_point(builder_scope:norbert.NorbertMessage)
@@ -571,18 +805,34 @@ public final class NorbertProtos {
     
     static {
       defaultInstance = new NorbertMessage(true);
-      com.linkedin.norbert.protos.NorbertProtos.internalForceInit();
       defaultInstance.initFields();
     }
     
     // @@protoc_insertion_point(class_scope:norbert.NorbertMessage)
   }
   
+  public interface NodeOrBuilder
+      extends com.google.protobuf.MessageOrBuilder {
+    
+    // required int32 id = 1;
+    boolean hasId();
+    int getId();
+    
+    // required string url = 2;
+    boolean hasUrl();
+    String getUrl();
+    
+    // repeated int32 partition = 3;
+    java.util.List<java.lang.Integer> getPartitionList();
+    int getPartitionCount();
+    int getPartition(int index);
+  }
   public static final class Node extends
-      com.google.protobuf.GeneratedMessage {
+      com.google.protobuf.GeneratedMessage
+      implements NodeOrBuilder {
     // Use Node.newBuilder() to construct.
-    private Node() {
-      initFields();
+    private Node(Builder builder) {
+      super(builder);
     }
     private Node(boolean noInit) {}
     
@@ -605,51 +855,96 @@ public final class NorbertProtos {
       return com.linkedin.norbert.protos.NorbertProtos.internal_static_norbert_Node_fieldAccessorTable;
     }
     
+    private int bitField0_;
     // required int32 id = 1;
     public static final int ID_FIELD_NUMBER = 1;
-    private boolean hasId;
-    private int id_ = 0;
-    public boolean hasId() { return hasId; }
-    public int getId() { return id_; }
+    private int id_;
+    public boolean hasId() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public int getId() {
+      return id_;
+    }
     
     // required string url = 2;
     public static final int URL_FIELD_NUMBER = 2;
-    private boolean hasUrl;
-    private java.lang.String url_ = "";
-    public boolean hasUrl() { return hasUrl; }
-    public java.lang.String getUrl() { return url_; }
+    private Object url_;
+    public boolean hasUrl() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public String getUrl() {
+      Object ref = url_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          url_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getUrlBytes() {
+      Object ref = url_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        url_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
     
     // repeated int32 partition = 3;
     public static final int PARTITION_FIELD_NUMBER = 3;
-    private java.util.List<java.lang.Integer> partition_ =
-      java.util.Collections.emptyList();
-    public java.util.List<java.lang.Integer> getPartitionList() {
+    private java.util.List<java.lang.Integer> partition_;
+    public java.util.List<java.lang.Integer>
+        getPartitionList() {
       return partition_;
     }
-    public int getPartitionCount() { return partition_.size(); }
+    public int getPartitionCount() {
+      return partition_.size();
+    }
     public int getPartition(int index) {
       return partition_.get(index);
     }
     
     private void initFields() {
+      id_ = 0;
+      url_ = "";
+      partition_ = java.util.Collections.emptyList();;
     }
+    private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
-      if (!hasId) return false;
-      if (!hasUrl) return false;
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasUrl()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
       return true;
     }
     
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
       getSerializedSize();
-      if (hasId()) {
-        output.writeInt32(1, getId());
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeInt32(1, id_);
       }
-      if (hasUrl()) {
-        output.writeString(2, getUrl());
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeBytes(2, getUrlBytes());
       }
-      for (int element : getPartitionList()) {
-        output.writeInt32(3, element);
+      for (int i = 0; i < partition_.size(); i++) {
+        output.writeInt32(3, partition_.get(i));
       }
       getUnknownFields().writeTo(output);
     }
@@ -660,19 +955,19 @@ public final class NorbertProtos {
       if (size != -1) return size;
     
       size = 0;
-      if (hasId()) {
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(1, getId());
+          .computeInt32Size(1, id_);
       }
-      if (hasUrl()) {
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeStringSize(2, getUrl());
+          .computeBytesSize(2, getUrlBytes());
       }
       {
         int dataSize = 0;
-        for (int element : getPartitionList()) {
+        for (int i = 0; i < partition_.size(); i++) {
           dataSize += com.google.protobuf.CodedOutputStream
-            .computeInt32SizeNoTag(element);
+            .computeInt32SizeNoTag(partition_.get(i));
         }
         size += dataSize;
         size += 1 * getPartitionList().size();
@@ -680,6 +975,11 @@ public final class NorbertProtos {
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
       return size;
+    }
+    
+    @java.lang.Override
+    protected Object writeReplace() throws java.io.ObjectStreamException {
+      return super.writeReplace();
     }
     
     public static com.linkedin.norbert.protos.NorbertProtos.Node parseFrom(
@@ -756,34 +1056,55 @@ public final class NorbertProtos {
     }
     public Builder toBuilder() { return newBuilder(this); }
     
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessage.Builder<Builder> {
-      private com.linkedin.norbert.protos.NorbertProtos.Node result;
-      
-      // Construct using com.linkedin.norbert.protos.NorbertProtos.Node.newBuilder()
-      private Builder() {}
-      
-      private static Builder create() {
-        Builder builder = new Builder();
-        builder.result = new com.linkedin.norbert.protos.NorbertProtos.Node();
-        return builder;
+        com.google.protobuf.GeneratedMessage.Builder<Builder>
+       implements com.linkedin.norbert.protos.NorbertProtos.NodeOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return com.linkedin.norbert.protos.NorbertProtos.internal_static_norbert_Node_descriptor;
       }
       
-      protected com.linkedin.norbert.protos.NorbertProtos.Node internalGetResult() {
-        return result;
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return com.linkedin.norbert.protos.NorbertProtos.internal_static_norbert_Node_fieldAccessorTable;
+      }
+      
+      // Construct using com.linkedin.norbert.protos.NorbertProtos.Node.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+      
+      private Builder(BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders) {
+        }
+      }
+      private static Builder create() {
+        return new Builder();
       }
       
       public Builder clear() {
-        if (result == null) {
-          throw new IllegalStateException(
-            "Cannot call clear() after build().");
-        }
-        result = new com.linkedin.norbert.protos.NorbertProtos.Node();
+        super.clear();
+        id_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        url_ = "";
+        bitField0_ = (bitField0_ & ~0x00000002);
+        partition_ = java.util.Collections.emptyList();;
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
       public Builder clone() {
-        return create().mergeFrom(result);
+        return create().mergeFrom(buildPartial());
       }
       
       public com.google.protobuf.Descriptors.Descriptor
@@ -795,37 +1116,44 @@ public final class NorbertProtos {
         return com.linkedin.norbert.protos.NorbertProtos.Node.getDefaultInstance();
       }
       
-      public boolean isInitialized() {
-        return result.isInitialized();
-      }
       public com.linkedin.norbert.protos.NorbertProtos.Node build() {
-        if (result != null && !isInitialized()) {
+        com.linkedin.norbert.protos.NorbertProtos.Node result = buildPartial();
+        if (!result.isInitialized()) {
           throw newUninitializedMessageException(result);
         }
-        return buildPartial();
+        return result;
       }
       
       private com.linkedin.norbert.protos.NorbertProtos.Node buildParsed()
           throws com.google.protobuf.InvalidProtocolBufferException {
-        if (!isInitialized()) {
+        com.linkedin.norbert.protos.NorbertProtos.Node result = buildPartial();
+        if (!result.isInitialized()) {
           throw newUninitializedMessageException(
             result).asInvalidProtocolBufferException();
         }
-        return buildPartial();
+        return result;
       }
       
       public com.linkedin.norbert.protos.NorbertProtos.Node buildPartial() {
-        if (result == null) {
-          throw new IllegalStateException(
-            "build() has already been called on this Builder.");
+        com.linkedin.norbert.protos.NorbertProtos.Node result = new com.linkedin.norbert.protos.NorbertProtos.Node(this);
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
         }
-        if (result.partition_ != java.util.Collections.EMPTY_LIST) {
-          result.partition_ =
-            java.util.Collections.unmodifiableList(result.partition_);
+        result.id_ = id_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
         }
-        com.linkedin.norbert.protos.NorbertProtos.Node returnMe = result;
-        result = null;
-        return returnMe;
+        result.url_ = url_;
+        if (((bitField0_ & 0x00000004) == 0x00000004)) {
+          partition_ = java.util.Collections.unmodifiableList(partition_);
+          bitField0_ = (bitField0_ & ~0x00000004);
+        }
+        result.partition_ = partition_;
+        result.bitField0_ = to_bitField0_;
+        onBuilt();
+        return result;
       }
       
       public Builder mergeFrom(com.google.protobuf.Message other) {
@@ -846,13 +1174,29 @@ public final class NorbertProtos {
           setUrl(other.getUrl());
         }
         if (!other.partition_.isEmpty()) {
-          if (result.partition_.isEmpty()) {
-            result.partition_ = new java.util.ArrayList<java.lang.Integer>();
+          if (partition_.isEmpty()) {
+            partition_ = other.partition_;
+            bitField0_ = (bitField0_ & ~0x00000004);
+          } else {
+            ensurePartitionIsMutable();
+            partition_.addAll(other.partition_);
           }
-          result.partition_.addAll(other.partition_);
+          onChanged();
         }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasId()) {
+          
+          return false;
+        }
+        if (!hasUrl()) {
+          
+          return false;
+        }
+        return true;
       }
       
       public Builder mergeFrom(
@@ -867,25 +1211,30 @@ public final class NorbertProtos {
           switch (tag) {
             case 0:
               this.setUnknownFields(unknownFields.build());
+              onChanged();
               return this;
             default: {
               if (!parseUnknownField(input, unknownFields,
                                      extensionRegistry, tag)) {
                 this.setUnknownFields(unknownFields.build());
+                onChanged();
                 return this;
               }
               break;
             }
             case 8: {
-              setId(input.readInt32());
+              bitField0_ |= 0x00000001;
+              id_ = input.readInt32();
               break;
             }
             case 18: {
-              setUrl(input.readString());
+              bitField0_ |= 0x00000002;
+              url_ = input.readBytes();
               break;
             }
             case 24: {
-              addPartition(input.readInt32());
+              ensurePartitionIsMutable();
+              partition_.add(input.readInt32());
               break;
             }
             case 26: {
@@ -901,77 +1250,107 @@ public final class NorbertProtos {
         }
       }
       
+      private int bitField0_;
       
       // required int32 id = 1;
+      private int id_ ;
       public boolean hasId() {
-        return result.hasId();
+        return ((bitField0_ & 0x00000001) == 0x00000001);
       }
       public int getId() {
-        return result.getId();
+        return id_;
       }
       public Builder setId(int value) {
-        result.hasId = true;
-        result.id_ = value;
+        bitField0_ |= 0x00000001;
+        id_ = value;
+        onChanged();
         return this;
       }
       public Builder clearId() {
-        result.hasId = false;
-        result.id_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        id_ = 0;
+        onChanged();
         return this;
       }
       
       // required string url = 2;
+      private Object url_ = "";
       public boolean hasUrl() {
-        return result.hasUrl();
+        return ((bitField0_ & 0x00000002) == 0x00000002);
       }
-      public java.lang.String getUrl() {
-        return result.getUrl();
+      public String getUrl() {
+        Object ref = url_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          url_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
       }
-      public Builder setUrl(java.lang.String value) {
+      public Builder setUrl(String value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  result.hasUrl = true;
-        result.url_ = value;
+  bitField0_ |= 0x00000002;
+        url_ = value;
+        onChanged();
         return this;
       }
       public Builder clearUrl() {
-        result.hasUrl = false;
-        result.url_ = getDefaultInstance().getUrl();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        url_ = getDefaultInstance().getUrl();
+        onChanged();
         return this;
+      }
+      void setUrl(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000002;
+        url_ = value;
+        onChanged();
       }
       
       // repeated int32 partition = 3;
-      public java.util.List<java.lang.Integer> getPartitionList() {
-        return java.util.Collections.unmodifiableList(result.partition_);
+      private java.util.List<java.lang.Integer> partition_ = java.util.Collections.emptyList();;
+      private void ensurePartitionIsMutable() {
+        if (!((bitField0_ & 0x00000004) == 0x00000004)) {
+          partition_ = new java.util.ArrayList<java.lang.Integer>(partition_);
+          bitField0_ |= 0x00000004;
+         }
+      }
+      public java.util.List<java.lang.Integer>
+          getPartitionList() {
+        return java.util.Collections.unmodifiableList(partition_);
       }
       public int getPartitionCount() {
-        return result.getPartitionCount();
+        return partition_.size();
       }
       public int getPartition(int index) {
-        return result.getPartition(index);
+        return partition_.get(index);
       }
-      public Builder setPartition(int index, int value) {
-        result.partition_.set(index, value);
+      public Builder setPartition(
+          int index, int value) {
+        ensurePartitionIsMutable();
+        partition_.set(index, value);
+        onChanged();
         return this;
       }
       public Builder addPartition(int value) {
-        if (result.partition_.isEmpty()) {
-          result.partition_ = new java.util.ArrayList<java.lang.Integer>();
-        }
-        result.partition_.add(value);
+        ensurePartitionIsMutable();
+        partition_.add(value);
+        onChanged();
         return this;
       }
       public Builder addAllPartition(
           java.lang.Iterable<? extends java.lang.Integer> values) {
-        if (result.partition_.isEmpty()) {
-          result.partition_ = new java.util.ArrayList<java.lang.Integer>();
-        }
-        super.addAll(values, result.partition_);
+        ensurePartitionIsMutable();
+        super.addAll(values, partition_);
+        onChanged();
         return this;
       }
       public Builder clearPartition() {
-        result.partition_ = java.util.Collections.emptyList();
+        partition_ = java.util.Collections.emptyList();;
+        bitField0_ = (bitField0_ & ~0x00000004);
+        onChanged();
         return this;
       }
       
@@ -980,7 +1359,6 @@ public final class NorbertProtos {
     
     static {
       defaultInstance = new Node(true);
-      com.linkedin.norbert.protos.NorbertProtos.internalForceInit();
       defaultInstance.initFields();
     }
     
@@ -1045,8 +1423,6 @@ public final class NorbertProtos {
         new com.google.protobuf.Descriptors.FileDescriptor[] {
         }, assigner);
   }
-  
-  public static void internalForceInit() {}
   
   // @@protoc_insertion_point(outer_class_scope)
 }

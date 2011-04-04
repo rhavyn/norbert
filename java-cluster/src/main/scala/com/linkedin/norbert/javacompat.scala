@@ -26,7 +26,7 @@ package object javacompat {
   }
 
   implicit def javaSetToImmutableSet[T](nodes: java.util.Set[T]): Set[T] = {
-    collection.JavaConversions.asSet(nodes).foldLeft(Set[T]()) { (set, n) => set + n }
+    collection.JavaConversions.asScalaSet(nodes).foldLeft(Set[T]()) { (set, n) => set + n }
   }
 
   implicit def scalaNodeToJavaNode(node: SNode): JNode = {

@@ -26,9 +26,10 @@ class NodeSpec extends Specification {
       builder.setId(1)
       builder.setUrl("localhost:31313")
       builder.addPartition(0).addPartition(1)
-      val bytes = builder.build.toByteArray
+      val expectedBytes = builder.build.toByteArray.toList
 
-      List(Node.nodeToByteArray(Node(1, "localhost:31313", false, Set(0, 1))): _*) must containInOrder(List(bytes: _*))
+      val nodeBytes = Node.nodeToByteArray(Node(1, "localhost:31313", false, Set(0, 1))).toList
+      nodeBytes must be_==(expectedBytes)
     }
 
     "deserialize into the corrent Node" in {
