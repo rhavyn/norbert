@@ -58,16 +58,6 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
         Node(4, "localhost:31313", true, Set(0, 4))) must contain(_))
     }
 
-    "throw InvalidClusterException if a partition is not assigned to a node" in {
-      val nodes = Set(
-        Node(0, "localhost:31313", true, Set(0, 9)),
-        Node(1, "localhost:31313", true, Set(1)),
-        Node(2, "localhost:31313", true, Set(2, 7)),
-        Node(3, "localhost:31313", true, Set(3, 6)),
-        Node(4, "localhost:31313", true, Set(4, 5, 1)))
 
-
-      new EIdConsistentHashLoadBalancerFactory(10).newLoadBalancer(toEndpoints(nodes)) must throwA[InvalidClusterException]
-    }
   }
 }
