@@ -24,17 +24,24 @@ import java.util.*;
 
 public abstract class ConsistentHashPartitionedLoadBalancerFactory<PartitionedId> implements PartitionedLoadBalancerFactory<PartitionedId> {
     private final int numPartitions;
+    private final boolean serveRequestsIfPartitionUnavailable;
     private final com.linkedin.norbert.network.partitioned.loadbalancer.ConsistentHashPartitionedLoadBalancerFactory<PartitionedId> scalaBalancer;
 
-    public ConsistentHashPartitionedLoadBalancerFactory(int numPartitions) {
-        this.numPartitions = numPartitions;
-        scalaBalancer =
-        new com.linkedin.norbert.network.partitioned.loadbalancer.ConsistentHashPartitionedLoadBalancerFactory<PartitionedId>(numPartitions) {
+    public ConsistentHashPartitionedLoadBalancerFactory(int numPartitions, boolean serveRequestsIfPartitionUnavailable) {
+      this.numPartitions = numPartitions;
+      this.serveRequestsIfPartitionUnavailable = serveRequestsIfPartitionUnavailable;
+      scalaBalancer =
+        new com.linkedin.norbert.network.partitioned.loadbalancer.ConsistentHashPartitionedLoadBalancerFactory<PartitionedId>(numPartitions, serveRequestsIfPartitionUnavailable) {
           public int calculateHash(PartitionedId id) {
             return hashPartitionedId(id);
           }
         };
     }
+
+    public ConsistentHashPartitionedLoadBalancerFactory(int numPartitions) {
+      this(numPartitions, true);
+    }
+
 
     @Override
     public PartitionedLoadBalancer<PartitionedId> newLoadBalancer(Set<Endpoint> endpoints) throws InvalidClusterException {

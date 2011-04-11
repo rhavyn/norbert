@@ -23,11 +23,12 @@ import common.Endpoint
 import java.util.concurrent.atomic.AtomicInteger
 import annotation.tailrec
 import client.loadbalancer.LoadBalancerHelpers
+import logging.Logging
 
 /**
  * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
  */
-trait ConsistentHashLoadBalancerHelper extends LoadBalancerHelpers {
+trait ConsistentHashLoadBalancerHelper extends LoadBalancerHelpers with Logging {
 
   /**
    * A mapping from partition id to the <code>Node</code>s which can service that partition.
@@ -45,9 +46,21 @@ trait ConsistentHashLoadBalancerHelper extends LoadBalancerHelpers {
    * @throws InvalidClusterException thrown if every partition doesn't have at least one available <code>Node</code>
    * assigned to it
    */
-  protected def generatePartitionToNodeMap(nodes: Set[Endpoint], numPartitions: Int): Map[Int, (IndexedSeq[Endpoint], AtomicInteger)] = {
+  protected def generatePartitionToNodeMap(nodes: Set[Endpoint], numPartitions: Int, serveRequestsIfPartitionMissing: Boolean): Map[Int, (IndexedSeq[Endpoint], AtomicInteger)] = {
     val partitionToNodeMap = (for (n <- nodes; p <- n.node.partitionIds) yield(p, n)).foldLeft(Map.empty[Int, IndexedSeq[Endpoint]]) {
       case (map, (partitionId, node)) => map + (partitionId -> (node +: map.get(partitionId).getOrElse(Vector.empty[Endpoint])))
+    }
+
+    val possiblePartitions = (0 until numPartitions).toSet
+    val missingPartitions = possiblePartitions diff (partitionToNodeMap.keys.toSet)
+
+    if(missingPartitions.size == possiblePartitions.size)
+      throw new InvalidClusterException("Every single partition appears to be missing. There are %d partitions".format(numPartitions))
+    else if(!missingPartitions.isEmpty) {
+      if(serveRequestsIfPartitionMissing)
+        log.warn("Partitions %s are unavailable, attempting to continue serving requests to other partitions.".format(missingPartitions))
+      else
+        throw new InvalidClusterException("Partitions %s are unavailable, cannot serve requests.".format(missingPartitions))
     }
 
     partitionToNodeMap.map { case (pId, endPoints) => pId -> (endPoints, new AtomicInteger(0)) }

@@ -26,7 +26,7 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
   case class EId(id: Int)
   implicit def eId2ByteArray(eId: EId): Array[Byte] = BigInt(eId.id).toByteArray
 
-  class EIdConsistentHashLoadBalancerFactory(numPartitions: Int) extends ConsistentHashPartitionedLoadBalancerFactory[EId](numPartitions) {
+  class EIdConsistentHashLoadBalancerFactory(numPartitions: Int, serveRequestsIfPartitionMissing: Boolean) extends ConsistentHashPartitionedLoadBalancerFactory[EId](numPartitions, serveRequestsIfPartitionMissing) {
     protected def calculateHash(id: EId) = HashFunctions.fnv(id)
   }
 
@@ -36,7 +36,7 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
       def canServeRequests = true
     })
 
-  val loadBalancerFactory = new EIdConsistentHashLoadBalancerFactory(5)
+  val loadBalancerFactory = new EIdConsistentHashLoadBalancerFactory(5, true)
 
   "ConsistentHashPartitionedLoadBalancerFactory" should {
     "return the correct partition id" in {
@@ -59,5 +59,21 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
     }
 
 
+    "throw InvalidClusterException if all partitions are unavailable" in {
+      val nodes = Set(
+        Node(0, "localhost:31313", true, Set()),
+        Node(1, "localhost:31313", true, Set()))
+
+      new EIdConsistentHashLoadBalancerFactory(2, false).newLoadBalancer(toEndpoints(nodes)) must throwA[InvalidClusterException]
+    }
+
+    "throw InvalidClusterException if one partition is unavailable, and the LBF cannot serve requests in that state, " in {
+      val nodes = Set(
+        Node(0, "localhost:31313", true, Set(1)),
+        Node(1, "localhost:31313", true, Set()))
+
+      new EIdConsistentHashLoadBalancerFactory(2, true).newLoadBalancer(toEndpoints(nodes)) must not (throwA[InvalidClusterException])
+      new EIdConsistentHashLoadBalancerFactory(2, false).newLoadBalancer(toEndpoints(nodes)) must throwA[InvalidClusterException]
+    }
   }
 }

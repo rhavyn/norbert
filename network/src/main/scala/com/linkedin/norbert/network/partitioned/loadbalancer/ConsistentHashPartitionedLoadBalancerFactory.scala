@@ -22,9 +22,9 @@ package loadbalancer
 import common.Endpoint
 
 
-abstract class ConsistentHashPartitionedLoadBalancerFactory[PartitionedId](numPartitions: Int) extends PartitionedLoadBalancerFactory[PartitionedId] {
+abstract class ConsistentHashPartitionedLoadBalancerFactory[PartitionedId](numPartitions: Int, serveRequestsIfPartitionMissing: Boolean = true) extends PartitionedLoadBalancerFactory[PartitionedId] {
   def newLoadBalancer(endpoints: Set[Endpoint]): PartitionedLoadBalancer[PartitionedId] = new PartitionedLoadBalancer[PartitionedId] with ConsistentHashLoadBalancerHelper {
-    val partitionToNodeMap = generatePartitionToNodeMap(endpoints, numPartitions)
+    val partitionToNodeMap = generatePartitionToNodeMap(endpoints, numPartitions, serveRequestsIfPartitionMissing)
 
     def nextNode(id: PartitionedId) = nodeForPartition(partitionForId(id))
   }

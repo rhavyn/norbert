@@ -16,11 +16,15 @@
 package com.linkedin.norbert.javacompat.network;
 
 public class IntegerConsistentHashPartitionedLoadBalancerFactory extends ConsistentHashPartitionedLoadBalancerFactory<Integer> {
+  public IntegerConsistentHashPartitionedLoadBalancerFactory(int numPartitions, boolean serveRequestsIfPartitionUnavailable) {
+    super(numPartitions, serveRequestsIfPartitionUnavailable);
+  }
+
   public IntegerConsistentHashPartitionedLoadBalancerFactory(int numPartitions) {
     super(numPartitions);
   }
 
-    @Override
+  @Override
   protected int hashPartitionedId(Integer i) {
     return i.hashCode();
   }
