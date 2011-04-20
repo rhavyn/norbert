@@ -20,6 +20,7 @@ package common
 import java.util.concurrent._
 import atomic.AtomicInteger
 import logging.Logging
+import annotation.tailrec
 
 class ResponseQueue[ResponseMsg] extends java.util.concurrent.LinkedBlockingQueue[Either[Throwable, ResponseMsg]] {
   def += (res: Either[Throwable, ResponseMsg]): ResponseQueue[ResponseMsg] = {
@@ -93,6 +94,80 @@ case class TimeoutIterator[ResponseMsg](inner: ResponseIterator[ResponseMsg], ti
   }
 
   def next(t: Long, unit: TimeUnit): ResponseMsg = inner.next(t, unit)
+}
+
+/**
+ * An optional iterator you can use that exposes the success/failure options for each message
+ * as a monad
+ */
+case class ExceptionIterator[ResponseMsg](inner: ResponseIterator[ResponseMsg]) extends ResponseIterator[Either[Exception, ResponseMsg]] {
+  def hasNext = inner.hasNext
+
+  def nextAvailable = inner.nextAvailable
+
+  def next = try {
+    val result = inner.next
+    Right(result)
+  } catch {
+    case ex: Exception =>
+    Left(ex)
+  }
+
+  def next(timeout: Long, unit: TimeUnit) = try {
+    val result = inner.next(timeout, unit)
+    Right(result)
+  } catch {
+    case ex: Exception =>
+    Left(ex)
+  }
+}
+
+/**
+ * A "partial iterator" If there's an exception during one of the computations, the iterator will simply either ignore
+ * that exception (if it's somewhere in the middle) or return some default value if it happens as the last result remaining.
+ * This is useful for scatter-gather algorithms that may be able to temporarily tolerate partial results for
+ * stability, such as in the case of search.
+ */
+case class PartialIterator[ResponseMsg](inner: ExceptionIterator[ResponseMsg], default: ResponseMsg) extends ResponseIterator[ResponseMsg] {
+  var nextElem: Either[Exception, ResponseMsg] = null
+
+  def hasNext: Boolean = hasNext0
+
+  private final def hasNext0: Boolean = {
+    if(inner.hasNext) {
+      if(nextElem == null)
+        nextElem = inner.next
+      if(nextElem.isLeft)
+        true
+      else hasNext0
+    }
+    else
+      false
+  }
+
+  def nextAvailable = inner.nextAvailable
+
+  def next = {
+    val hn = hasNext
+    if(hn) {
+      val result = nextElem.right.get
+      nextElem = null
+      result
+    } else {
+      default
+    }
+  }
+
+  def next(timeout: Long, unit: TimeUnit) = {
+    val hn = hasNext
+    if(hn) {
+      val result = nextElem.right.get
+      nextElem = null
+      result
+    } else {
+      default
+    }
+  }
 }
 
 private[common] trait ResponseHelper extends Logging {
