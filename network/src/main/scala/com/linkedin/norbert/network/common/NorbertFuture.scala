@@ -137,12 +137,15 @@ case class PartialIterator[ResponseMsg](inner: ExceptionIterator[ResponseMsg], d
     if(inner.hasNext) {
       if(nextElem == null)
         nextElem = inner.next
-      if(nextElem.isLeft)
+      if(nextElem.isRight)
         true
-      else hasNext0
+      else {
+        nextElem = null
+        hasNext0
+      }
     }
     else
-      false
+      nextElem != null && nextElem.isRight
   }
 
   def nextAvailable = inner.nextAvailable
