@@ -70,6 +70,22 @@ object NorbertClusterClientMain {
           println("Left Norbert cluster")
         }
 
+      case "down" =>
+        if (args.length < 1) {
+          println("Invalid syntax: join nodeId")
+        } else {
+          cluster.markNodeUnavailable(args.head.toInt)
+          println("Marked node offline")
+        }
+
+      case "up" =>
+        if (args.length < 1) {
+          println("Invalid syntax: join nodeId")
+        } else {
+          cluster.markNodeAvailable(args.head.toInt)
+          println("Marked node online")
+        }
+
       case "exit" => exit
 
       case "quit" => exit
