@@ -17,7 +17,9 @@ package com.linkedin.norbert.javacompat.network;
 
 import com.linkedin.norbert.EndpointConversions;
 import com.linkedin.norbert.cluster.InvalidClusterException;
+import com.linkedin.norbert.javacompat.cluster.JavaNode;
 import com.linkedin.norbert.javacompat.cluster.Node;
+import scala.Option;
 
 import java.util.Set;
 
@@ -33,7 +35,11 @@ public class RoundRobinLoadBalancerFactory implements LoadBalancerFactory {
       return new LoadBalancer() {
         @Override
         public Node nextNode() {
-          return loadBalancer.nextNode().getOrElse(null);
+          Option<com.linkedin.norbert.cluster.Node> node = loadBalancer.nextNode();
+          if(node.isDefined())
+            return JavaNode.apply(node.get());
+          else
+            return null;
         }
       };
     }

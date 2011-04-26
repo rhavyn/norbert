@@ -16,8 +16,10 @@
 package com.linkedin.norbert
 
 import com.linkedin.norbert.network.common.{Endpoint => SEndpoint}
+import com.linkedin.norbert.cluster.{Node => SNode}
+
+import javacompat.javaNodeToScalaNode
 import javacompat.network.{JavaEndpoint, Endpoint => JEndpoint}
-import collection.JavaConversions._
 
 object EndpointConversions {
   implicit def scalaEndpointToJavaEndpoint(endpoint: SEndpoint): JEndpoint = {
@@ -27,15 +29,26 @@ object EndpointConversions {
   implicit def javaEndpointToScalaEndpoint(endpoint: JEndpoint): SEndpoint = {
     if(endpoint == null) null
     else new SEndpoint {
-      def node = endpoint.node
+      def node: SNode = {
+        javaNodeToScalaNode(endpoint.getNode)
+      }
 
       def canServeRequests = endpoint.canServeRequests
     }
   }
 
-  implicit def convertScalaEndpointSet(set: Set[SEndpoint]): java.util.Set[JEndpoint] =
-    set.map(node => scalaEndpointToJavaEndpoint(node))
+  implicit def convertScalaEndpointSet(set: Set[SEndpoint]): java.util.Set[JEndpoint] = {
+    val result = new java.util.HashSet[JEndpoint](set.size)
+    set.foreach(elem => result.add(scalaEndpointToJavaEndpoint(elem)))
+    result
+  }
 
-  implicit def convertJavaEndpointSet(set: java.util.Set[JEndpoint]): Set[SEndpoint] =
-    set.map(javaEndpointToScalaEndpoint(_)).toSet
+  implicit def convertJavaEndpointSet(set: java.util.Set[JEndpoint]): Set[SEndpoint] = {
+    val iterator = set.iterator
+    var sset = Set.empty[SEndpoint]
+    while(iterator.hasNext) {
+      sset += iterator.next
+    }
+    sset
+  }
 }

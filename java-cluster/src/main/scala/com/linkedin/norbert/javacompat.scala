@@ -34,10 +34,21 @@ package object javacompat {
   }
 
   implicit def javaNodeToScalaNode(node: JNode): SNode = {
-    if (node == null) null else SNode(node.getId, node.getUrl, node.isAvailable,
-      node.getPartitionIds.asInstanceOf[java.util.Set[Int]].foldLeft(Set[Int]()) { (set, id) => set + id })
+    if (node == null) null
+    else {
+      val iter = node.getPartitionIds.iterator
+      var partitionIds = Set.empty[Int]
+      while(iter.hasNext) {
+        partitionIds += iter.next.intValue
+      }
+
+      SNode(node.getId, node.getUrl, node.isAvailable, partitionIds)
+    }
   }
 
-  implicit def convertNodeSet(set: Set[SNode]): java.util.Set[JNode] =
-    set.map(node => scalaNodeToJavaNode(node))
+  implicit def convertNodeSet(set: Set[SNode]): java.util.Set[JNode] = {
+    var result = new java.util.HashSet[JNode](set.size)
+    set.foreach(elem => result.add(scalaNodeToJavaNode(elem)))
+    result
+  }
 }
