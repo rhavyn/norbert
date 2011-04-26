@@ -72,8 +72,8 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
         checkinChannel(channel)
 
       case None =>
-        openChannel(request)
         waitingWrites.offer(request)
+        openChannel(request)
     }
   }
 
@@ -158,6 +158,8 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
       }
     })
   }
+
+  def numRequestsSent = requestsSent.get
 }
 
 trait ChannelPoolMBean {

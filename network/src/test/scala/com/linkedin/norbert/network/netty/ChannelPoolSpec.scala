@@ -30,7 +30,7 @@ class ChannelPoolSpec extends Specification with Mockito {
   val channelGroup = mock[ChannelGroup]
   val bootstrap = mock[ClientBootstrap]
   val address = new InetSocketAddress("localhost", 31313)
-  val channelPool = new ChannelPool(address, 1, 1, bootstrap, channelGroup, None)
+  val channelPool = new ChannelPool(address, 1, 100, bootstrap, channelGroup, None)
 
   "ChannelPool" should {
     "close the ChannelGroup when close  is called" in {
@@ -62,6 +62,22 @@ class ChannelPoolSpec extends Specification with Mockito {
       channelPool.sendRequest(mock[Request[_, _]])
 
       there was one(bootstrap).connect(address)
+    }
+
+    "send a request if the pool is empty" in {
+      val channel = mock[Channel]
+      channel.isConnected returns true
+      val future = new TestChannelFuture(channel, true)
+      bootstrap.connect(address) returns future
+      channelGroup.add(channel) returns true
+      channel.write(any[Request[_, _]]) returns mock[ChannelFuture]
+
+      val request = mock[Request[_, _]]
+      request.timestamp returns (System.currentTimeMillis)
+
+      channelPool.sendRequest(request)
+      future.listener.operationComplete(future)
+      channelPool.numRequestsSent must eventually (be_==(1))
     }
 
     "not open a new channel if the max number of channels are already in the pool" in {
