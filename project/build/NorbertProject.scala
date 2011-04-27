@@ -1,3 +1,4 @@
+import java.io.File
 import sbt._
 
 class NorbertProject(info: ProjectInfo) extends ParentProject(info) with IdeaProject {
@@ -24,5 +25,23 @@ class NorbertProject(info: ProjectInfo) extends ParentProject(info) with IdeaPro
     val netty = "org.jboss.netty" % "netty" % "3.2.3.Final"
     val slf4j = "org.slf4j" % "slf4j-api" % "1.5.6"
     val slf4jLog4j = "org.slf4j" % "slf4j-log4j12" % "1.5.6"
+  }
+
+  val oneJarName = artifactID + "-" + version + ".jar"
+
+  lazy val oneJar = oneJarTask() dependsOn(publishLocal)
+
+  def oneJarTask(): Task = task {
+    FileUtilities.doInTemporaryDirectory(log) { temp: File =>
+      projectClosure.dropRight(1).foreach { project =>
+          println(project.outputPath)
+          val files = (project.outputPath ** "*.jar").getFiles
+          val paths = Path.fromFiles(files)
+          paths.foreach(path => FileUtilities.unzip(path, Path.fromFile(temp), log))
+      }
+
+      Right(FileUtilities.zip(((Path.fromFile(temp) ##) ** "*.class").get,
+                        outputPath / oneJarName, true, log))
+    }.right.toOption.flatMap(x => x)
   }
 }
