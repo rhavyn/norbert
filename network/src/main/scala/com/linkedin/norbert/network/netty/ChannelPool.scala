@@ -116,13 +116,13 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
       }
     }
 
-    if (channel == null) None else Some(channel)
+    Option(channel)
   }
 
   private def openChannel(request: Request[_, _]) {
     if (poolSize.incrementAndGet > maxConnections) {
       poolSize.decrementAndGet
-      log.debug("Unable to open channel, pool is full")
+      log.warn("Unable to open channel, pool is full")
     } else {
       log.debug("Opening a channel to: %s".format(address))
 
@@ -130,6 +130,8 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
         def operationComplete(openFuture: ChannelFuture) = {
           if (openFuture.isSuccess) {
             val channel = openFuture.getChannel
+            log.debug("Opened a channel to: %s".format(address))
+
             channelGroup.add(channel)
             checkinChannel(channel)
           } else {
