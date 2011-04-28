@@ -38,7 +38,7 @@ object JMX extends Logging {
   def getUniqueName(name: String): String = synchronized {
     val id = map.getOrElse(name, -1)
     val unique = if(id == -1) name else name + "-" + id
-    map + (name -> id + 1)
+    map + (name -> (id + 1))
     unique
   }
 
@@ -49,7 +49,7 @@ object JMX extends Logging {
 
   def unregister(mbean: ObjectInstance) = try {
     mbeanServer.unregisterMBean(mbean.getObjectName)
-    synchronized { map.remove(mbean.getObjectName) }
+    synchronized { map.remove(mbean.getObjectName.getCanonicalName) }
   } catch {
     case ex: Exception => log.error(ex, "Error while unregistering mbean: %s".format(mbean.getObjectName))
   }
