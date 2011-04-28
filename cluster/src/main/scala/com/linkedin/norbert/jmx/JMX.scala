@@ -24,7 +24,7 @@ object JMX extends Logging {
   private val mbeanServer = ManagementFactory.getPlatformMBeanServer
 
   def register(mbean: AnyRef, name: String): Option[ObjectInstance] = if (System.getProperty("com.linkedin.norbert.disableJMX") == null) try {
-    Some(mbeanServer.registerMBean(mbean, new ObjectName(name)))
+    Some(mbeanServer.registerMBean(mbean, new ObjectName(getUniqueName(name))))
   } catch {
     case ex: Exception =>
       log.error(ex, "Error when registering mbean: %s".format(mbean))
@@ -33,12 +33,23 @@ object JMX extends Logging {
     None
   }
 
+  val map = collection.mutable.Map.empty[String, Int]
+
+  def getUniqueName(name: String): String = synchronized {
+    val id = map.getOrElse(name, -1)
+    val unique = if(id == -1) name else name + "-" + id
+    map + (name -> id + 1)
+    unique
+  }
+
+
   def register(mbean: MBean): Option[ObjectInstance] = register(mbean, mbean.name)
 
   def register(mbean: Option[MBean]): Option[ObjectInstance] = mbean.flatMap(m => register(m, m.name))
 
   def unregister(mbean: ObjectInstance) = try {
     mbeanServer.unregisterMBean(mbean.getObjectName)
+    synchronized { map.remove(mbean.getObjectName) }
   } catch {
     case ex: Exception => log.error(ex, "Error while unregistering mbean: %s".format(mbean.getObjectName))
   }
