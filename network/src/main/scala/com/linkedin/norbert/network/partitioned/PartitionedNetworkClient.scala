@@ -199,6 +199,33 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
     responseAggregator(sendRequest(ids, requestBuilder))
   }
 
+  /**
+   * Sends a <code>Message</code> to one replica of the cluster. This is a broadcast intended for read operations on the cluster.
+   *
+   * @param request the request message to be sent
+   *
+   * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
+   * the message was sent to.
+   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
+   * to send the request to
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
+   */
+  def sendRequestToOneReplica[RequestMsg, ResponseMsg](request: RequestMsg)
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg]  = doIfConnected {
+    if (request == null) throw new NullPointerException
+
+    val nodes = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
+      lb => lb.nodesForOneReplica)
+
+    if (nodes.isEmpty) throw new NoNodesAvailableException("Unable to satisfy request, no node available for request")
+
+    val queue = new ResponseQueue[ResponseMsg]
+    nodes.foreach { node => doSendRequest(node, request, queue.+=) }
+
+    new NorbertResponseIterator(nodes.size, queue)
+  }
+
   protected def updateLoadBalancer(endpoints: Set[Endpoint]) {
     loadBalancer = if (endpoints != null && endpoints.size > 0) {
       try {

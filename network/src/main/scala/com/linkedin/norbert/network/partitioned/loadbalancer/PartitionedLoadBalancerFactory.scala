@@ -34,6 +34,15 @@ trait PartitionedLoadBalancer[PartitionedId] {
    * @return the <code>Node</code> to route the next message to
    */
   def nextNode(id: PartitionedId): Option[Node]
+
+  /**
+   * Returns a list of nodes represents one replica of the cluster, this is used by the PartitionedNetworkClient to handle
+   * broadcast to one replica
+   *
+   * @return the <code>Nodes</code> to broadcast the next message to a replica to
+   */
+  def nodesForOneReplica : Set[Node]
+
 }
 
 /**

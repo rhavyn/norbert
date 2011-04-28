@@ -46,9 +46,13 @@ package object javacompat {
     }
   }
 
-  implicit def convertNodeSet(set: Set[SNode]): java.util.Set[JNode] = {
+  implicit def convertSNodeSet(set: Set[SNode]): java.util.Set[JNode] = {
     var result = new java.util.HashSet[JNode](set.size)
     set.foreach(elem => result.add(scalaNodeToJavaNode(elem)))
     result
+  }
+
+  implicit def convertJNodeSet(set: java.util.Set[JNode]): Set[SNode] = {
+    set.map(node => javaNodeToScalaNode(node))
   }
 }

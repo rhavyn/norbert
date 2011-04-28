@@ -15,6 +15,7 @@
  */
 package com.linkedin.norbert.javacompat.network;
 
+import java.util.Set;
 import com.linkedin.norbert.javacompat.cluster.Node;
 
 /**
@@ -30,4 +31,14 @@ public interface PartitionedLoadBalancer<PartitionedId> {
    * @return the <code>Node</code> to route the next message to
    */
   Node nextNode(PartitionedId id);
+
+
+  /**
+   * Returns a set of nodes represents one replica of the cluster, this is used by the PartitionedNetworkClient to handle
+   * broadcast to one replica
+   *
+   * @return the set of <code>Nodes</code> to broadcast the next message to a replica to
+   */
+  Set<Node> nodesForOneReplica();
+
 }

@@ -18,15 +18,26 @@ package network
 package partitioned
 package loadbalancer
 
-//import cluster.Node
+import cluster.{Node, InvalidClusterException}
 import common.Endpoint
-
 
 abstract class ConsistentHashPartitionedLoadBalancerFactory[PartitionedId](numPartitions: Int, serveRequestsIfPartitionMissing: Boolean = true) extends PartitionedLoadBalancerFactory[PartitionedId] {
   def newLoadBalancer(endpoints: Set[Endpoint]): PartitionedLoadBalancer[PartitionedId] = new PartitionedLoadBalancer[PartitionedId] with ConsistentHashLoadBalancerHelper {
     val partitionToNodeMap = generatePartitionToNodeMap(endpoints, numPartitions, serveRequestsIfPartitionMissing)
 
     def nextNode(id: PartitionedId) = nodeForPartition(partitionForId(id))
+
+    def nodesForOneReplica = partitionToNodeMap.keys.foldLeft(Set.empty[Node]) { (set, partitionId) =>
+      val nodeOption = nodeForPartition(partitionId)
+      if (!nodeOption.isEmpty) set + nodeOption.get
+      else if(serveRequestsIfPartitionMissing) {
+        log.warn("Partitions %s are unavailable, attempting to continue serving requests to other partitions.".format(partitionId))
+        set
+      }
+      else
+        throw new InvalidClusterException("Partitions %s are unavailable, cannot serve requests.".format(partitionId))
+    }
+
   }
 
   /**

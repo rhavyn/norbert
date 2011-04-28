@@ -89,6 +89,12 @@ public class RingHashPartitionedLoadBalancerFactory implements PartitionedLoadBa
         log.debug(partitionedId + " is sent to node " + node.getId());
      return node;
     }
+
+    @Override
+    public Set<Node> nodesForOneReplica()
+    {
+       throw new UnsupportedOperationException("broad cast to entire replica not implemented in RingHashPartitionedLoadBalancerFactory");
+    }
   }
   
   private final static double mean(int[] population)

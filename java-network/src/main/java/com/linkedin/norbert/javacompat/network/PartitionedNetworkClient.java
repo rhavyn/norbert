@@ -76,4 +76,21 @@ public interface PartitionedNetworkClient<PartitionedId> extends BaseNetworkClie
    * @throws Exception any exception thrown by <code>ScatterGatherHandler</code> will be passed through to the client
    */
   <T, RequestMsg, ResponseMsg> T sendRequest(Set<PartitionedId> ids, ScatterGatherHandler<RequestMsg, ResponseMsg, T, PartitionedId> scatterGather, Serializer<RequestMsg, ResponseMsg> serializer) throws Exception;
+
+  /**
+   * Sends a <code>Message</code> to one replica of the cluster. The <code>PartitionedNetworkClient</code>
+   * will interact with the current <code>PartitionedLoadBalancer</code> to calculate which set of <code>Nodes</code>s
+   * the message must be sent to.  This method is asynchronous and will return immediately.
+   *
+   * @param request the message to send
+   *
+   * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
+   * the message was sent to.
+   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
+   * to send the request to
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
+   */
+  <RequestMsg, ResponseMsg> ResponseIterator<ResponseMsg> sendRequestToOneReplica(RequestMsg request, Serializer<RequestMsg, ResponseMsg> serializer) throws InvalidClusterException, NoNodesAvailableException, ClusterDisconnectedException;
+
 }

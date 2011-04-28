@@ -95,6 +95,8 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
       private val lb = loadBalancerFactory.newLoadBalancer(endpoints)
 
       def nextNode(id: PartitionedId) = Option(lb.nextNode(id))
+
+      def nodesForOneReplica = lb.nodesForOneReplica
     }
   }
 
@@ -125,5 +127,7 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
     }, (responseIterator: ResponseIterator[ResponseMsg]) => scatterGather.gatherResponses(responseIterator))(serializer, serializer)
   }
 
-
+  def sendRequestToOneReplica[RequestMsg, ResponseMsg](request: RequestMsg,
+                                                       serializer: Serializer[RequestMsg, ResponseMsg]) =
+    underlying.sendRequestToOneReplica(request)(serializer, serializer)
 }
