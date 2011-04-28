@@ -24,12 +24,13 @@ import cluster.{ClusterClient}
 /**
  * Author: jhartman
  */
-class PartitionedNetworkClientFactory[PartitionedId](serviceName: String,
-           zooKeeperConnectString: String,
-           zooKeeperSessionTimeoutMillis: Int,
-           norbertOutlierMultiplier: Double,
-           norbertOutlierConstant: Double,
-           partitionedLoadBalancerFactory:PartitionedLoadBalancerFactory[PartitionedId])
+class PartitionedNetworkClientFactory[PartitionedId](clientName: String,
+                                                     serviceName: String,
+                                                     zooKeeperConnectString: String,
+                                                     zooKeeperSessionTimeoutMillis: Int,
+                                                     norbertOutlierMultiplier: Double,
+                                                     norbertOutlierConstant: Double,
+                                                     partitionedLoadBalancerFactory: PartitionedLoadBalancerFactory[PartitionedId])
 {
 
   def createPartitionedNetworkClient : PartitionedNetworkClient[PartitionedId] = {
@@ -37,7 +38,7 @@ class PartitionedNetworkClientFactory[PartitionedId](serviceName: String,
 
     config.outlierMuliplier = norbertOutlierMultiplier
     config.outlierConstant = norbertOutlierConstant
-    config.clusterClient = ClusterClient(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+    config.clusterClient = ClusterClient(clientName, serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
     val partitionedNetworkClient = PartitionedNetworkClient(config, partitionedLoadBalancerFactory)
 
     partitionedNetworkClient

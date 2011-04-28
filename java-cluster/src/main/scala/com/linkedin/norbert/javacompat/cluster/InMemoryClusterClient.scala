@@ -16,7 +16,7 @@
 package com.linkedin.norbert.javacompat
 package cluster
 
-class InMemoryClusterClient(serviceName: String) extends BaseClusterClient {
-  val underlying = new com.linkedin.norbert.cluster.memory.InMemoryClusterClient(serviceName)
+class InMemoryClusterClient(clientName: String, serviceName: String) extends BaseClusterClient {
+  val underlying = new com.linkedin.norbert.cluster.memory.InMemoryClusterClient(serviceName, Option(clientName))
   underlying.start
 }

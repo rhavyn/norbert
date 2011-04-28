@@ -3,13 +3,13 @@ package network
 package common
 
 import logging.Logging
-import jmx.{RequestTimeTracker}
 import norbertutils._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import jmx.JMX.MBean
 import cluster.Node
 import java.util.{UUID, Map => JMap}
 import netty.HealthScoreCalculator
+import jmx.{JMX, RequestTimeTracker}
 
 object CachedNetworkStatistics {
   def apply[GroupIdType, RequestIdType](clock: Clock, timeWindow: Long, refreshInterval: Long): CachedNetworkStatistics[GroupIdType, RequestIdType] = {
@@ -177,8 +177,8 @@ trait NetworkClientStatisticsMBean {
   def getQueueSize: Int
 }
 
-class NetworkClientStatisticsMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Node, UUID])
-  extends MBean(classOf[NetworkClientStatisticsMBean], "service=%s".format(serviceName)) with HealthScoreCalculator
+class NetworkClientStatisticsMBeanImpl(clientName: Option[String], serviceName: String, val stats: CachedNetworkStatistics[Node, UUID])
+  extends MBean(classOf[NetworkClientStatisticsMBean], JMX.name(clientName, serviceName)) with HealthScoreCalculator
   with NetworkClientStatisticsMBean {
 
   private def getPendingStats(p: Double) = stats.getStatistics(p).map(_.pending).getOrElse(Map.empty)

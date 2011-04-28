@@ -65,4 +65,6 @@ abstract class BaseClusterClient extends ClusterClient {
   def getNodes = underlying.nodes
 
   def getServiceName = underlying.serviceName
+
+  def getClientName = underlying.clientName.orNull
 }

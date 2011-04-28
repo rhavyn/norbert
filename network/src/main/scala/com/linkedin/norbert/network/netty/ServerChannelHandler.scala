@@ -159,7 +159,7 @@ trait NetworkServerStatisticsMBean {
 }
 
 class NetworkServerStatisticsMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, UUID])
-  extends MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
+  extends MBean(classOf[NetworkServerStatisticsMBean], JMX.name(None, serviceName)) with NetworkServerStatisticsMBean {
 
   def getMedianTime = stats.getStatistics(0.5).map(_.finished.values.map(_.percentile)).flatten.sum
 

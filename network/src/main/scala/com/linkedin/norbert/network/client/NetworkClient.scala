@@ -26,6 +26,7 @@ import netty.NettyNetworkClient
 
 class NetworkClientConfig {
   var clusterClient: ClusterClient = _
+  var clientName: String = _
   var serviceName: String = _
   var zooKeeperConnectString: String = _
   var zooKeeperSessionTimeoutMillis = ClusterDefaults.ZOOKEEPER_SESSION_TIMEOUT_MILLIS

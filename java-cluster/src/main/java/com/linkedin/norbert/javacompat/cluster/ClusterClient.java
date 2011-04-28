@@ -24,6 +24,13 @@ import com.linkedin.norbert.cluster.InvalidNodeException;
 
 public interface ClusterClient {
   /**
+   * Retrieves the name of the client communicating to the cluster. You may want to
+   * name your clients, specifically if they're all talking to the same service in the same JVM.
+   * This can be null for unnamed clients, so beware NullPointerExceptions!
+   */
+  String getClientName();
+
+  /**
    * Retrieves the name of the service running on this cluster
    *
    * @return the name of the service running on this cluster

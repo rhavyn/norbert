@@ -143,7 +143,7 @@ class ThreadPoolMessageExecutor(serviceName: String,
   }
 
   class RequestProcessorMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, Int], queue: ArrayBlockingQueue[Runnable])
-    extends MBean(classOf[RequestProcessorMBean], "service=%s".format(serviceName)) with RequestProcessorMBean {
+    extends MBean(classOf[RequestProcessorMBean], JMX.name(None, serviceName)) with RequestProcessorMBean {
     def getQueueSize = queue.size
 
     def getTotalNumRejected = totalNumRejected.get.abs

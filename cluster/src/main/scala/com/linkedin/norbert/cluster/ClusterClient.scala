@@ -29,8 +29,14 @@ import zookeeper.ZooKeeperClusterClient
  * ClusterClient companion object provides factory methods for creating a <code>ClusterClient</code> instance.
  */
 object ClusterClient {
+  def apply(clientName: String, serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int): ClusterClient = {
+    val cc = new ZooKeeperClusterClient(Some(clientName), serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+    cc.start
+    cc
+  }
+
   def apply(serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int): ClusterClient = {
-    val cc = new ZooKeeperClusterClient(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+    val cc = new ZooKeeperClusterClient(None, serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
     cc.start
     cc
   }
@@ -46,7 +52,8 @@ trait ClusterClient extends Logging {
   private val shutdownSwitch = new AtomicBoolean
   private val startedSwitch = new AtomicBoolean
 
-  private val jmxHandle = JMX.register(new MBean(classOf[ClusterClientMBean], "serviceName=%s".format(serviceName)) with ClusterClientMBean {
+  private val jmxHandle = JMX.register(new MBean(classOf[ClusterClientMBean],
+                                       JMX.name(clientName, serviceName)) with ClusterClientMBean {
     def getNodes = nodes.map(_.toString).toArray
     def isConnected = ClusterClient.this.isConnected
   })
@@ -89,6 +96,12 @@ trait ClusterClient extends Logging {
    * @return the name of the service running on this cluster
    */
   def serviceName: String
+
+  /**
+   * Retrieves the name of the client talking to this cluster. Naming clients is not necessary
+   * @return the name of the client running on the cluster
+   */
+  def clientName: Option[String] = None
 
   /**
    * Retrieves the current list of nodes registered with the cluster.

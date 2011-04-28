@@ -19,7 +19,7 @@ package memory
 
 import common.ClusterNotificationManagerComponent
 
-class InMemoryClusterClient(val serviceName: String) extends ClusterClient with ClusterNotificationManagerComponent
+class InMemoryClusterClient(val serviceName: String, override val clientName: Option[String] = None) extends ClusterClient with ClusterNotificationManagerComponent
     with InMemoryClusterManagerComponent{
   val clusterNotificationManager = new ClusterNotificationManager
   val clusterManager = new InMemoryClusterManager

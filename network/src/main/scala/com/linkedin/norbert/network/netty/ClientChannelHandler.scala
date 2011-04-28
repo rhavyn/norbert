@@ -37,7 +37,8 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import util.ProtoUtils
 
 @ChannelPipelineCoverage("all")
-class ClientChannelHandler(serviceName: String,
+class ClientChannelHandler(clientName: Option[String],
+                           serviceName: String,
                            staleRequestTimeoutMins: Int,
                            staleRequestCleanupFrequencyMins: Int,
                            requestStatisticsWindow: Long,
@@ -88,12 +89,12 @@ class ClientChannelHandler(serviceName: String,
   val clientStatsStrategy = new ClientStatisticsRequestStrategy(stats, outlierMultiplier, outlierConstant, clock)
   val serverErrorStrategy = new SimpleBackoffStrategy(clock)
 
-  val clientStatsStrategyJMX = JMX.register(new ClientStatisticsRequestStrategyMBeanImpl(serviceName, clientStatsStrategy))
-  val serverErrorStrategyJMX = JMX.register(new ServerErrorStrategyMBeanImpl(serviceName, serverErrorStrategy))
+  val clientStatsStrategyJMX = JMX.register(new ClientStatisticsRequestStrategyMBeanImpl(clientName, serviceName, clientStatsStrategy))
+  val serverErrorStrategyJMX = JMX.register(new ServerErrorStrategyMBeanImpl(clientName, serviceName, serverErrorStrategy))
 
   val strategy = CompositeCanServeRequestStrategy(clientStatsStrategy, serverErrorStrategy)
 
-  private val statsJMX = JMX.register(new NetworkClientStatisticsMBeanImpl(serviceName, stats))
+  private val statsJMX = JMX.register(new NetworkClientStatisticsMBeanImpl(clientName, serviceName, stats))
 
   override def writeRequested(ctx: ChannelHandlerContext, e: MessageEvent) = {
     val request = e.getMessage.asInstanceOf[Request[_, _]]
@@ -216,8 +217,8 @@ trait ClientStatisticsRequestStrategyMBean extends CanServeRequestStrategyMBean 
   def getTotalNodesMarkedDown: Int
 }
 
-class ClientStatisticsRequestStrategyMBeanImpl(serviceName: String, strategy: ClientStatisticsRequestStrategy)
-  extends MBean(classOf[ClientStatisticsRequestStrategyMBean], "service=%s".format(serviceName))
+class ClientStatisticsRequestStrategyMBeanImpl(clientName: Option[String], serviceName: String, strategy: ClientStatisticsRequestStrategy)
+  extends MBean(classOf[ClientStatisticsRequestStrategyMBean], JMX.name(clientName, serviceName))
   with ClientStatisticsRequestStrategyMBean {
 
   def getCanServeRequests = toJMap(strategy.canServeRequests.get.getOrElse(Map.empty).map { case (n, a) => (n.id -> a) })

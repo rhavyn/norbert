@@ -30,7 +30,7 @@ public class NorbertJavaNetworkClientMain {
   public static void main(String[] args) {
     InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory());
 
-    ClusterClient cc = new ZooKeeperClusterClient(args[0], args[1], 30000);
+    ClusterClient cc = new ZooKeeperClusterClient(null, args[0], args[1], 30000);
     NetworkClientConfig config = new NetworkClientConfig();
     config.setClusterClient(cc);
     NetworkClient nc = new NettyNetworkClient(config, new RoundRobinLoadBalancerFactory());

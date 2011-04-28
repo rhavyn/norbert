@@ -16,7 +16,10 @@
 package com.linkedin.norbert.javacompat
 package cluster
 
-class ZooKeeperClusterClient(serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends BaseClusterClient {
-  val underlying = com.linkedin.norbert.cluster.ClusterClient(serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+class ZooKeeperClusterClient(clientName: String, serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends BaseClusterClient {
+  def this(serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) =
+    this(null, serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
+
+  val underlying = com.linkedin.norbert.cluster.ClusterClient(clientName, serviceName, zooKeeperConnectString, zooKeeperSessionTimeoutMillis)
   underlying.start
 }

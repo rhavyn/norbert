@@ -36,7 +36,8 @@ trait ResponseHandler {
   def shutdown: Unit
 }
 
-class ThreadPoolResponseHandler(serviceName: String,
+class ThreadPoolResponseHandler(clientName: Option[String],
+                                serviceName: String,
                                 corePoolSize: Int,
                                 maxPoolSize: Int,
                                 keepAliveTime: Int,
@@ -48,7 +49,7 @@ class ThreadPoolResponseHandler(serviceName: String,
   private val threadPool = new ThreadPoolExecutor(corePoolSize, maxPoolSize, keepAliveTime, TimeUnit.SECONDS,
     responseQueue, new NamedPoolThreadFactory("norbert-response-handler"))
 
-  val statsJmx = JMX.register(new ResponseProcessorMBeanImpl(serviceName, responseQueue))
+  val statsJmx = JMX.register(new ResponseProcessorMBeanImpl(clientName, serviceName, responseQueue))
 
   def shutdown {
     threadPool.shutdown
@@ -88,7 +89,7 @@ trait ResponseProcessorMBean {
   def getQueueSize: Int
 }
 
-class ResponseProcessorMBeanImpl(serviceName: String, queue: ArrayBlockingQueue[Runnable])
-  extends MBean(classOf[ResponseProcessorMBean], "service=%s".format(serviceName)) with ResponseProcessorMBean {
+class ResponseProcessorMBeanImpl(clientName: Option[String], serviceName: String, queue: ArrayBlockingQueue[Runnable])
+  extends MBean(classOf[ResponseProcessorMBean], JMX.name(clientName, serviceName)) with ResponseProcessorMBean {
   def getQueueSize = queue.size
 }

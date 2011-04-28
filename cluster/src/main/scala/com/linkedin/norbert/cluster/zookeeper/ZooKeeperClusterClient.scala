@@ -19,7 +19,7 @@ package zookeeper
 
 import common.ClusterNotificationManagerComponent
 
-class ZooKeeperClusterClient(val serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends ClusterClient
+class ZooKeeperClusterClient(override val clientName: Option[String], val serviceName: String, zooKeeperConnectString: String, zooKeeperSessionTimeoutMillis: Int) extends ClusterClient
     with ClusterNotificationManagerComponent with ZooKeeperClusterManagerComponent {
   val clusterNotificationManager = new ClusterNotificationManager
   val clusterManager = new ZooKeeperClusterManager(zooKeeperConnectString, zooKeeperSessionTimeoutMillis, serviceName)

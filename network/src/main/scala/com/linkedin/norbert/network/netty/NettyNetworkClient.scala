@@ -37,7 +37,7 @@ import jmx.JMX.MBean
 import norbertutils._
 
 abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with ResponseHandlerComponent {
-  val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
+  val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.clientName, clientConfig.serviceName, clientConfig.zooKeeperConnectString,
     clientConfig.zooKeeperSessionTimeoutMillis)
 
   private val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
@@ -45,6 +45,7 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
 
   val responseHandler = new ThreadPoolResponseHandler(
+    clientName = clusterClient.clientName,
     serviceName = clusterClient.serviceName,
     corePoolSize = clientConfig.responseHandlerCorePoolSize,
     maxPoolSize = clientConfig.responseHandlerMaxPoolSize,
@@ -53,6 +54,7 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     avoidByteStringCopy = clientConfig.avoidByteStringCopy)
 
   private val handler = new ClientChannelHandler(
+    clientName = clusterClient.clientName,
     serviceName = clusterClient.serviceName,
     staleRequestTimeoutMins = clientConfig.staleRequestTimeoutMins,
     staleRequestCleanupFrequencyMins= clientConfig.staleRequestCleanupFrequenceMins,
@@ -95,7 +97,7 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     def getNumNodesDown: Int
   }
 
-  private val endpointsJMX = JMX.register(new MBean(classOf[EndpointStatusMBean], "service=%s".format(clusterClient.serviceName))
+  private val endpointsJMX = JMX.register(new MBean(classOf[EndpointStatusMBean], JMX.name(clusterClient.clientName, clusterClient.serviceName))
           with EndpointStatusMBean {
     def getEndpoints = {
       toJMap(endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap)

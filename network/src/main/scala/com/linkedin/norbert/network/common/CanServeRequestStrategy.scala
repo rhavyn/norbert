@@ -10,6 +10,7 @@ import com.linkedin.norbert.jmx.JMX.MBean
 import collection.mutable.ConcurrentMap
 import java.util.{Map => JMap}
 import collection.JavaConversions._
+import jmx.JMX
 
 /**
  * Copyright 2009-2010 LinkedIn, Inc
@@ -114,8 +115,8 @@ class SimpleBackoffStrategy(clock: Clock, minBackoffTime: Long = 100L, maxBackof
 
 trait ServerErrorRequestStrategyMBean extends CanServeRequestStrategyMBean
 
-class ServerErrorStrategyMBeanImpl(serviceName: String, ses: SimpleBackoffStrategy)
-  extends MBean(classOf[ServerErrorRequestStrategyMBean], "service=%s".format(serviceName))
+class ServerErrorStrategyMBeanImpl(clientName: Option[String], serviceName: String, ses: SimpleBackoffStrategy)
+  extends MBean(classOf[ServerErrorRequestStrategyMBean], JMX.name(clientName, serviceName))
   with ServerErrorRequestStrategyMBean {
   import norbertutils._
 

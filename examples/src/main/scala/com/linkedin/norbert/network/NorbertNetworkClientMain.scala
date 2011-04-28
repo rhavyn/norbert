@@ -27,7 +27,7 @@ object NorbertNetworkClientMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
 
   def main(args: Array[String]) {
-    val cc = ClusterClient(args(0), args(1), 30000)
+    val cc = ClusterClient( args(0), args(1), 30000)
 
     val config = new NetworkClientConfig
     config.clusterClient = cc

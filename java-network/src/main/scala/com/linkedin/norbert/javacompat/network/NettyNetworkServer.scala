@@ -25,7 +25,7 @@ class NettyNetworkServer(config: NetworkServerConfig) extends NetworkServer {
 
   c.clusterClient = if (config.getClusterClient != null)
     config.getClusterClient.asInstanceOf[BaseClusterClient].underlying
-  else ClusterClient(config.getServiceName, config.getZooKeeperConnectString, config.getZooKeeperSessionTimeoutMillis)
+  else ClusterClient(null, config.getServiceName, config.getZooKeeperConnectString, config.getZooKeeperSessionTimeoutMillis)
   
   c.zooKeeperSessionTimeoutMillis = config.getZooKeeperSessionTimeoutMillis
   c.requestThreadCorePoolSize = config.getRequestThreadCorePoolSize

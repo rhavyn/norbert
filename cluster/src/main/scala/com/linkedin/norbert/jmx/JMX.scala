@@ -43,6 +43,12 @@ object JMX extends Logging {
     case ex: Exception => log.error(ex, "Error while unregistering mbean: %s".format(mbean.getObjectName))
   }
 
+  def name(clientName: Option[String], serviceName: String) =
+    if(clientName.isDefined)
+      "client=%s,service=%s".format(clientName.get, serviceName)
+    else
+      "service=%s".format(serviceName)
+
   class MBean(klass: Class[_], namePropeties: String) extends StandardMBean(klass) {
     def this(klass: Class[_]) = this(klass, null)
 
