@@ -16,12 +16,8 @@
 package com.linkedin.norbert.javacompat.network;
 
 import java.util.Set;
-import java.util.TreeMap;
-
 import org.apache.log4j.Logger;
-
 import com.linkedin.norbert.cluster.InvalidClusterException;
-import com.linkedin.norbert.javacompat.cluster.Node;
 
 /**
  * Consistent hash load balancer factory.
@@ -51,52 +47,9 @@ public class RingHashPartitionedLoadBalancerFactory implements PartitionedLoadBa
   }
   public PartitionedLoadBalancer<Integer> newLoadBalancer(Set<Endpoint> endpoints) throws InvalidClusterException
   {
-    return new RingHashPartitionedLoadBalancer(endpoints);
+    return new RingHashPartitionedLoadBalancer(_numberOfReplicas, endpoints, _hashingStrategy);
   }
 
-  private class RingHashPartitionedLoadBalancer implements PartitionedLoadBalancer<Integer> {
-    private final TreeMap<Long, Node> nodeCircleMap = new TreeMap<Long, Node>();
-
-    private RingHashPartitionedLoadBalancer(Set<Endpoint> nodes)
-    {
-      for (Endpoint endpoint : nodes)
-      {
-        Node node = endpoint.getNode();
-        Set<Integer> partitionedIds = node.getPartitionIds();
-          for (Integer partitionId : partitionedIds)
-        {
-          for (int r = 0; r < _numberOfReplicas; r++)
-          {
-            String distKey = node.getId() + ":" + partitionId + ":" + r + ":" + node.getUrl();
-            nodeCircleMap.put(_hashingStrategy.hash(distKey), node);
-          }
-        }
-      }
-    }
-
-    public Node nextNode(Integer partitionedId)
-    {
-      if (nodeCircleMap.isEmpty())
-        return null;
-      
-      long hash = _hashingStrategy.hash(partitionedId.toString());
-      if (!nodeCircleMap.containsKey(hash)) {
-        Long k = nodeCircleMap.ceilingKey(hash);
-        hash = (k == null) ? nodeCircleMap.firstKey() : k;
-      }
-      Node node = nodeCircleMap.get(hash);
-      if (log.isDebugEnabled())
-        log.debug(partitionedId + " is sent to node " + node.getId());
-     return node;
-    }
-
-    @Override
-    public Set<Node> nodesForOneReplica()
-    {
-       throw new UnsupportedOperationException("broad cast to entire replica not implemented in RingHashPartitionedLoadBalancerFactory");
-    }
-  }
-  
   private final static double mean(int[] population)
   {
     double sum =0;
