@@ -27,17 +27,22 @@ abstract class ConsistentHashPartitionedLoadBalancerFactory[PartitionedId](numPa
 
     def nextNode(id: PartitionedId) = nodeForPartition(partitionForId(id))
 
-    def nodesForOneReplica = partitionToNodeMap.keys.foldLeft(Set.empty[Node]) { (set, partitionId) =>
+    // TODO: Speed up
+    def nodesForOneReplica = endpoints.flatMap(_.node.partitionIds).foldLeft(Map.empty[Node, Set[Int]]) { case (map, partitionId) =>
       val nodeOption = nodeForPartition(partitionId)
-      if (!nodeOption.isEmpty) set + nodeOption.get
+
+      if(nodeOption.isDefined) {
+        val node = nodeOption.get
+        val partitions = map.getOrElse(node, Set.empty[Int]) + partitionId
+        map + (node -> partitions)
+      }
       else if(serveRequestsIfPartitionMissing) {
         log.warn("Partitions %s are unavailable, attempting to continue serving requests to other partitions.".format(partitionId))
-        set
+        map
       }
       else
         throw new InvalidClusterException("Partitions %s are unavailable, cannot serve requests.".format(partitionId))
     }
-
   }
 
   /**

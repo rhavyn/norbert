@@ -84,30 +84,24 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
     future
   }
 
- /**
-  * Sends a <code>Message</code> to the specified <code>PartitionedId</code>s. The <code>PartitionedNetworkClient</code>
-  * will interact with the current <code>PartitionedLoadBalancer</code> to calculate which <code>Node</code>s the message
-  * must be sent to.  This method is asynchronous and will return immediately.
-  *
-  * @param ids the <code>PartitionedId</code>s to which the message is addressed
-  * @param message the message to send
-  *
-  * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
-  * the message was sent to.
-  * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
-  * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
-  * to send the request to
-  * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
-  */
+  /**
+   * Sends a <code>Message</code> to the specified <code>PartitionedId</code>s. The <code>PartitionedNetworkClient</code>
+   * will interact with the current <code>PartitionedLoadBalancer</code> to calculate which <code>Node</code>s the message
+   * must be sent to.  This method is asynchronous and will return immediately.
+   *
+   * @param ids the <code>PartitionedId</code>s to which the message is addressed
+   * @param message the request to send
+   *
+   * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
+   * the message was sent to.
+   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
+   * to send the request to
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
+   */
   def sendRequest[RequestMsg, ResponseMsg](ids: Set[PartitionedId], request: RequestMsg)
   (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = doIfConnected {
-    if (ids == null || request == null) throw new NullPointerException
-
-    val nodes = calculateNodesFromIds(ids)
-    val queue = new ResponseQueue[ResponseMsg]
-    nodes.keySet.foreach { node => doSendRequest(node, request, queue.+=) }
-
-    new NorbertResponseIterator(nodes.size, queue)
+    sendRequest(ids, (node: Node, ids: Set[PartitionedId]) => request)(is, os)
   }
 
   /**
@@ -117,10 +111,8 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    *
    * @param ids the <code>PartitionedId</code>s to which the message is addressed
    * @param message the message to send
-   * @param messageCustomizer a callback method which allows the user to customize the <code>Message</code>
-   * before it is sent to the <code>Node</code>. The callback will receive the original message passed to <code>sendRequest</code>
-   * the <code>Node</code> the request is being sent to and the <code>Id</code>s which reside on that
-   * <code>Node</code>. The callback should return a <code>Message</code> which has been customized.
+   * @param requestBuilder A method which allows the user to generate a specialized request for a set of partitions
+   * before it is sent to the <code>Node</code>.
    *
    * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
    * the message was sent to.
@@ -153,6 +145,8 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    *
    * @param ids the <code>PartitionedId</code>s to which the message is addressed
    * @param message the message to send
+   * @param requestBuilder A method which allows the user to generate a specialized request for a set of partitions
+   * before it is sent to the <code>Node</code>.
    * @param responseAggregator a callback method which allows the user to aggregate all the responses
    * and return a single object to the caller.  The callback will receive the original message passed to
    * <code>sendRequest</code> and the <code>ResponseIterator</code> for the request.
@@ -164,43 +158,16 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
    */
-  def sendRequest[RequestMsg, ResponseMsg, Result](ids: Set[PartitionedId], request: RequestMsg, responseAggregator: (RequestMsg, ResponseIterator[ResponseMsg]) => Result)
-  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Result = doIfConnected{
-    if (responseAggregator == null) throw new NullPointerException
-    responseAggregator(request, sendRequest(ids, request))
-  }
-
-  /**
-   * Sends a <code>Message</code> to the specified <code>PartitionedId</code>s. The <code>PartitionedNetworkClient</code>
-   * will interact with the current <code>PartitionedLoadBalancer</code> to calculate which <code>Node</code>s the message
-   * must be sent to.  This method is synchronous and will return once the responseAggregator has returned a value.
-   *
-   * @param ids the <code>PartitionedId</code>s to which the message is addressed
-   * @param message the message to send
-   * @param messageCustomizer a callback method which allows the user to customize the <code>Message</code>
-   * before it is sent to the <code>Node</code>. The callback will receive the original message passed to <code>sendRequest</code>
-   * the <code>Node</code> the request is being sent to and the <code>Id</code>s which reside on that
-   * <code>Node</code>. The callback should return a <code>Message</code> which has been customized.
-   * @param responseAggregator a callback method which allows the user to aggregate all the responses
-   * and return a single object to the caller.  The callback will receive the original message passed to
-   * <code>sendRequest</code> and the <code>ResponseIterator</code> for the request.
-   *
-   * @return the return value of the <code>responseAggregator</code>
-   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
-   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
-   * to send the request to
-   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
-   * @throws Exception any exception thrown by <code>responseAggregator</code> will be passed through to the client
-   */
-  def sendRequest[RequestMsg, ResponseMsg, Result](ids: Set[PartitionedId], requestBuilder: (Node, Set[PartitionedId]) => RequestMsg,
-              responseAggregator: (ResponseIterator[ResponseMsg]) => Result)
+  def sendRequest[RequestMsg, ResponseMsg, Result](ids: Set[PartitionedId],
+                                                   requestBuilder: (Node, Set[PartitionedId]) => RequestMsg,
+                                                   responseAggregator: (ResponseIterator[ResponseMsg]) => Result)
   (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Result = doIfConnected {
     if (responseAggregator == null) throw new NullPointerException
     responseAggregator(sendRequest(ids, requestBuilder))
   }
 
   /**
-   * Sends a <code>Message</code> to one replica of the cluster. This is a broadcast intended for read operations on the cluster.
+   * Sends a <code>RequestMessage</code> to one replica of the cluster. This is a broadcast intended for read operations on the cluster, like searching every partition for some data.
    *
    * @param request the request message to be sent
    *
@@ -213,15 +180,33 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
    */
   def sendRequestToOneReplica[RequestMsg, ResponseMsg](request: RequestMsg)
   (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg]  = doIfConnected {
-    if (request == null) throw new NullPointerException
+    sendRequestToOneReplica((node: Node, partitions: Set[Int]) => request)(is, os)
+  }
 
+  /**
+   * Sends a <code>RequestMessage</code> to one replica of the cluster. This is a broadcast intended for read operations on the cluster, like searching every partition for some data.
+   *
+   * @param requestBuilder A function to generate a request for the chosen node/partitions to send the request to
+   *
+   * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
+   * the message was sent to.
+   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
+   * to send the request to
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
+   */
+  def sendRequestToOneReplica[RequestMsg, ResponseMsg](requestBuilder: (Node, Set[Int]) => RequestMsg)
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg]  = doIfConnected {
     val nodes = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
       lb => lb.nodesForOneReplica)
 
     if (nodes.isEmpty) throw new NoNodesAvailableException("Unable to satisfy request, no node available for request")
 
     val queue = new ResponseQueue[ResponseMsg]
-    nodes.foreach { node => doSendRequest(node, request, queue.+=) }
+
+    nodes.foreach { case (node, ids) =>
+      doSendRequest(node, requestBuilder(node, ids), queue.+=)
+    }
 
     new NorbertResponseIterator(nodes.size, queue)
   }

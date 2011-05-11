@@ -20,6 +20,7 @@ import java.util.concurrent.Future;
 
 import com.linkedin.norbert.cluster.ClusterDisconnectedException;
 import com.linkedin.norbert.cluster.InvalidClusterException;
+import com.linkedin.norbert.javacompat.cluster.Node;
 import com.linkedin.norbert.network.NoNodesAvailableException;
 import com.linkedin.norbert.network.ResponseIterator;
 import com.linkedin.norbert.network.Serializer;
@@ -65,6 +66,28 @@ public interface PartitionedNetworkClient<PartitionedId> extends BaseNetworkClie
    * has returned a value.
    *
    * @param ids the <code>PartitionedId</code>s to which the message is addressed
+   * and responses.
+   * @param requestBuilder the RequestBuilder to build a request based on the (ids, node) a request would be sent to
+   *
+   * @return the return value of the <code>ScatterGatherHandler</code>
+   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
+   * to send the request to
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
+   * @throws Exception any exception thrown by <code>ScatterGatherHandler</code> will be passed through to the client
+   */
+  <RequestMsg, ResponseMsg> ResponseIterator<ResponseMsg> sendRequest(Set<PartitionedId> ids,
+                                                                      RequestBuilder<PartitionedId, RequestMsg> requestBuilder,
+                                                                      Serializer<RequestMsg, ResponseMsg> serializer) throws Exception;
+
+  /**
+   * Sends a <code>Message</code> to the specified <code>PartitionedId</code>s. The <code>PartitionedNetworkClient</code>
+   * will interact with the current <code>PartitionedLoadBalancer</code> to calculate which <code>Node</code>s the message
+   * must be sent to.  This method is synchronous and will return once the <code>ScatterGatherHandler</code>
+   * has returned a value.
+   *
+   * @param ids the <code>PartitionedId</code>s to which the message is addressed
+   * @param requestBuilder the RequestBuilder to build a request based on the (ids, node) a request would be sent to
    * @param scatterGather the <code>ScatterGatherHandler</code> that should be used to process the request
    * and responses.
    *
@@ -75,14 +98,29 @@ public interface PartitionedNetworkClient<PartitionedId> extends BaseNetworkClie
    * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
    * @throws Exception any exception thrown by <code>ScatterGatherHandler</code> will be passed through to the client
    */
-  <T, RequestMsg, ResponseMsg> T sendRequest(Set<PartitionedId> ids, ScatterGatherHandler<RequestMsg, ResponseMsg, T, PartitionedId> scatterGather, Serializer<RequestMsg, ResponseMsg> serializer) throws Exception;
+  <RequestMsg, ResponseMsg, T> T sendRequest(Set<PartitionedId> ids,
+                                             RequestBuilder<PartitionedId, RequestMsg> requestBuilder,
+                                             ScatterGatherHandler<RequestMsg, ResponseMsg, T, PartitionedId> scatterGather,
+                                             Serializer<RequestMsg, ResponseMsg> serializer) throws Exception;
 
   /**
    * Sends a <code>Message</code> to one replica of the cluster. The <code>PartitionedNetworkClient</code>
    * will interact with the current <code>PartitionedLoadBalancer</code> to calculate which set of <code>Nodes</code>s
    * the message must be sent to.  This method is asynchronous and will return immediately.
    *
-   * @param request the message to send
+   * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
+   * the message was sent to.
+   * @throws InvalidClusterException thrown if the cluster is currently in an invalid state
+   * @throws NoNodesAvailableException thrown if the <code>PartitionedLoadBalancer</code> was unable to provide a <code>Node</code>
+   * to send the request to
+   * @throws ClusterDisconnectedException thrown if the <code>PartitionedNetworkClient</code> is not connected to the cluster
+   */
+  <RequestMsg, ResponseMsg> ResponseIterator<ResponseMsg> sendRequestToOneReplica(RequestBuilder<Integer, RequestMsg> requestBuilder, Serializer<RequestMsg, ResponseMsg> serializer) throws InvalidClusterException, NoNodesAvailableException, ClusterDisconnectedException;
+
+  /**
+   * Sends a <code>Message</code> to one replica of the cluster. The <code>PartitionedNetworkClient</code>
+   * will interact with the current <code>PartitionedLoadBalancer</code> to calculate which set of <code>Nodes</code>s
+   * the message must be sent to.  This method is asynchronous and will return immediately.
    *
    * @return a <code>ResponseIterator</code>. One response will be returned by each <code>Node</code>
    * the message was sent to.

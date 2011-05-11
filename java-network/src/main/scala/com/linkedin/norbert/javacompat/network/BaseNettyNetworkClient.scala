@@ -18,12 +18,13 @@ package javacompat
 package network
 
 import cluster.{Node, BaseClusterClient}
+import com.linkedin.norbert.cluster.{Node => SNode}
 import com.linkedin.norbert.network.{ResponseIterator, Serializer}
 import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactory => SLoadBalancerFactory, LoadBalancer => SLoadBalancer}
 import com.linkedin.norbert.network.partitioned.loadbalancer.{PartitionedLoadBalancerFactory => SPartitionedLoadBalancerFactory, PartitionedLoadBalancer => SPartitionedLoadBalancer}
 import com.linkedin.norbert.network.common.{Endpoint => SEndpoint}
-import EndpointConversions._
 
+import EndpointConversions._
 
 abstract class BaseNettyNetworkClient extends BaseNetworkClient {
   val underlying: com.linkedin.norbert.network.common.BaseNetworkClient
@@ -96,7 +97,20 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
 
       def nextNode(id: PartitionedId) = Option(lb.nextNode(id))
 
-      def nodesForOneReplica = lb.nodesForOneReplica
+      def nodesForOneReplica = {
+        val jMap = lb.nodesForOneReplica
+        var sMap = Map.empty[com.linkedin.norbert.cluster.Node, Set[Int]]
+
+        val entries = jMap.entrySet.iterator
+        while(entries.hasNext) {
+          val entry = entries.next
+          val node = javaNodeToScalaNode(entry.getKey)
+          val set = entry.getValue.foldLeft(Set.empty[Int]) { (s, elem) => s + elem.intValue}
+
+          sMap += (node -> set)
+        }
+        sMap
+      }
     }
   }
 
@@ -112,22 +126,32 @@ class NettyPartitionedNetworkClient[PartitionedId](config: NetworkClientConfig, 
   def sendRequest[RequestMsg, ResponseMsg](id: PartitionedId, request: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
     underlying.sendRequest(id, request)(serializer, serializer)
 
-
   def sendRequest[RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId], request: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
-    underlying.sendRequest(ids, request)(serializer, serializer)
+    underlying.sendRequest(ids: Set[PartitionedId], request)(serializer, serializer)
 
-
-  def sendRequest[T, RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId],
-                                              scatterGather: ScatterGatherHandler[RequestMsg, ResponseMsg, T, PartitionedId],
-                                              serializer: Serializer[RequestMsg, ResponseMsg]) = {
-    underlying.sendRequest(ids, (node: com.linkedin.norbert.cluster.Node, ids: Set[PartitionedId]) => {
-      val i = new java.util.HashSet[PartitionedId]
-      ids.foreach { id => i.add(id) }
-      scatterGather.buildMessage(node, i)
-    }, (responseIterator: ResponseIterator[ResponseMsg]) => scatterGather.gatherResponses(responseIterator))(serializer, serializer)
+  def sendRequest[RequestMsg, ResponseMsg](ids: java.util.Set[PartitionedId], requestBuilder: RequestBuilder[PartitionedId, RequestMsg], serializer: Serializer[RequestMsg, ResponseMsg]): ResponseIterator[ResponseMsg] = {
+    import collection.JavaConversions._
+    underlying.sendRequest(ids: java.util.Set[PartitionedId], (node: SNode, ids: Set[PartitionedId]) => requestBuilder(node, ids))(serializer, serializer)
   }
 
-  def sendRequestToOneReplica[RequestMsg, ResponseMsg](request: RequestMsg,
-                                                       serializer: Serializer[RequestMsg, ResponseMsg]) =
+  def sendRequest[RequestMsg, ResponseMsg, T](ids: java.util.Set[PartitionedId],
+                                              requestBuilder: RequestBuilder[PartitionedId, RequestMsg],
+                                              scatterGather: ScatterGatherHandler[RequestMsg, ResponseMsg, T, PartitionedId],
+                                              serializer: Serializer[RequestMsg, ResponseMsg]) = {
+    import collection.JavaConversions._
+    underlying.sendRequest(ids,
+                           (node: SNode, ids: Set[PartitionedId]) => requestBuilder(node, ids),
+                           (responseIterator: ResponseIterator[ResponseMsg]) => scatterGather.gatherResponses(responseIterator))(serializer, serializer)
+  }
+
+
+  def sendRequestToOneReplica[RequestMsg, ResponseMsg](request: RequestMsg, serializer: Serializer[RequestMsg, ResponseMsg]) =
     underlying.sendRequestToOneReplica(request)(serializer, serializer)
+
+  def sendRequestToOneReplica[RequestMsg, ResponseMsg](requestBuilder: RequestBuilder[java.lang.Integer, RequestMsg], serializer: Serializer[RequestMsg, ResponseMsg]) =
+    underlying.sendRequestToOneReplica((node: SNode, ids: Set[Int]) => {
+      val set = new java.util.HashSet[java.lang.Integer]
+      ids.foreach(set.add(_))
+      requestBuilder(node, set)
+    })(serializer, serializer)
 }

@@ -15,6 +15,7 @@
  */
 package com.linkedin.norbert.javacompat.network;
 
+import java.util.Map;
 import java.util.Set;
 import com.linkedin.norbert.javacompat.cluster.Node;
 
@@ -39,6 +40,6 @@ public interface PartitionedLoadBalancer<PartitionedId> {
    *
    * @return the set of <code>Nodes</code> to broadcast the next message to a replica to
    */
-  Set<Node> nodesForOneReplica();
+  Map<Node, Set<Integer>> nodesForOneReplica();
 
 }

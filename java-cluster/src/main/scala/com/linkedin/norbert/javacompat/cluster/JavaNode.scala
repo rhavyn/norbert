@@ -32,7 +32,6 @@ object JavaNode {
   }
 }
 
-case class JavaNode(@BeanProperty id: Int, @BeanProperty url: String, @BeanProperty available: Boolean,
-        @BeanProperty partitionIds: java.util.Set[java.lang.Integer]) extends Node {
+case class JavaNode(@BeanProperty id: Int, @BeanProperty url: String, @BeanProperty available: Boolean, @BeanProperty partitionIds: java.util.Set[java.lang.Integer]) extends Node {
   def isAvailable = available
 }

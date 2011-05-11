@@ -41,7 +41,7 @@ trait PartitionedLoadBalancer[PartitionedId] {
    *
    * @return the <code>Nodes</code> to broadcast the next message to a replica to
    */
-  def nodesForOneReplica : Set[Node]
+  def nodesForOneReplica : Map[Node, Set[Int]]
 
 }
 
