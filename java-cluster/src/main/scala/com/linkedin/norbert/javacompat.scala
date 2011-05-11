@@ -53,6 +53,10 @@ package object javacompat {
   }
 
   implicit def convertJNodeSet(set: java.util.Set[JNode]): Set[SNode] = {
-    set.map(node => javaNodeToScalaNode(node))
+    val iter = set.iterator
+    var result = Set.empty[SNode]
+    while(iter.hasNext)
+      result += javaNodeToScalaNode(iter.next)
+    result
   }
 }
