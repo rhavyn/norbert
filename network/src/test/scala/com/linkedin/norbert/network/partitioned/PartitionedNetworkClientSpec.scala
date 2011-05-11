@@ -255,7 +255,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
     "when sendRequest is called with a response aggregator" in {
       "it calls the response aggregator" in {
         var callCount = 0
-        def ag(message: Ping, ri: ResponseIterator[Ping]) = {
+        def ag(ri: ResponseIterator[Ping]) = {
           callCount += 1
           123454321
         }
@@ -267,13 +267,13 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         List(1, 2).foreach(networkClient.lb.nextNode(_) returns Some(nodes(0)))
 
         networkClient.start
-        networkClient.sendRequest(Set(1, 2), request, ag _) must be_==(123454321)
+        networkClient.sendRequest(Set(1, 2), (node: Node, ids: Set[Int]) => request, ag _) must be_==(123454321)
 
         callCount must be_==(1)
       }
 
       "it rethrows exceptions thrown by the response aggregator" in {
-        def ag(message: Ping, ri: ResponseIterator[Ping]): Int = {
+        def ag(ri: ResponseIterator[Ping]): Int = {
           throw new Exception
         }
 
@@ -284,7 +284,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
         List(1, 2).foreach(networkClient.lb.nextNode(_) returns Some(nodes(0)))
 
         networkClient.start
-        networkClient.sendRequest(Set(1, 2), request, ag _) must throwA[Exception]
+        networkClient.sendRequest(Set(1, 2), (node: Node, ids: Set[Int]) => request, ag _) must throwA[Exception]
       }
     }
   }
