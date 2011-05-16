@@ -26,10 +26,9 @@ import client.loadbalancer.LoadBalancerHelpers
 import logging.Logging
 
 /**
- * A mixin trait that provides functionality to help implement a consistent hash based <code>Router</code>.
+ * A mixin trait that provides functionality to help implement a hash based <code>Router</code>.
  */
-trait ConsistentHashLoadBalancerHelper extends LoadBalancerHelpers with Logging {
-
+trait DefaultLoadBalancerHelper extends LoadBalancerHelpers with Logging {
   /**
    * A mapping from partition id to the <code>Node</code>s which can service that partition.
    */
@@ -75,14 +74,24 @@ trait ConsistentHashLoadBalancerHelper extends LoadBalancerHelpers with Logging 
    * if there are no available <code>Node</code>s for the partition requested
    */
   protected def nodeForPartition(partitionId: Int): Option[Node] = {
-    partitionToNodeMap.get(partitionId).map { case (endpoints, counter) =>
-      val activeEndpoints = endpoints.filter(_.canServeRequests)
-      if(activeEndpoints.isEmpty) {
-        chooseNext(endpoints, counter).node
-      } else {
-        chooseNext(activeEndpoints, counter).node
-      }
+    partitionToNodeMap.get(partitionId) match {
+      case None =>
+        return None
+      case Some((endpoints, counter)) =>
+        val idx = counter.getAndIncrement
+        var i = idx
+        do {
+          val endpoint = endpoints(i % endpoints.size)
+          if(endpoint.canServeRequests)
+            return Some(endpoint.node)
+
+          i = i + 1
+        } while(i != idx)
+
+        return Some(endpoints(idx).node)
     }
   }
+
+
 
 }

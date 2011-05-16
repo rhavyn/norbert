@@ -1,3 +1,9 @@
+package com.linkedin.norbert.network.partitioned.loadbalancer
+
+import org.specs.Specification
+import com.linkedin.norbert.network.common.Endpoint
+import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
+
 /*
  * Copyright 2009-2010 LinkedIn, Inc
  *
@@ -13,36 +19,23 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert
-package network
-package partitioned
-package loadbalancer
 
-import org.specs.Specification
-import cluster.{InvalidClusterException, Node}
-import common.Endpoint
-
-class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
-  case class EId(id: Int)
-  implicit def eId2ByteArray(eId: EId): Array[Byte] = BigInt(eId.id).toByteArray
-
-  class EIdDefaultLoadBalancerFactory(numPartitions: Int, serveRequestsIfPartitionMissing: Boolean) extends DefaultPartitionedLoadBalancerFactory[EId](numPartitions, serveRequestsIfPartitionMissing) {
-    protected def calculateHash(id: EId) = HashFunctions.fnv(id)
-  }
-
+class PartitionedConsistentHashedLoadBalancerSpec extends Specification {
+  class TestLBF(numPartitions: Int, csr: Boolean = true)
+          extends PartitionedConsistentHashedLoadBalancerFactory[Int](numPartitions, 10, (id: Int) => HashFunctions.fnv(BigInt(id).toByteArray), csr)
   def toEndpoints(nodes: Set[Node]) = nodes.map(n => new Endpoint {
       def node = n
 
       def canServeRequests = true
     })
 
-  val loadBalancerFactory = new EIdDefaultLoadBalancerFactory(5, true)
+  val loadBalancerFactory = new TestLBF(5)
 
-  "DefaultPartitionedLoadBalancerFactory" should {
-    "return the correct partition id" in {
-      loadBalancerFactory.partitionForId(EId(1210)) must be_==(0)
-    }
-  }
+//  "DefaultPartitionedLoadBalancerFactory" should {
+//    "return the correct partition id" in {
+//      loadBalancerFactory.partitionForId(EId(1210)) must be_==(0)
+//    }
+//  }
 
   "ConsistentHashPartitionedLoadBalancer" should {
     "nextNode returns the correct node for 1210" in {
@@ -54,7 +47,7 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
         Node(4, "localhost:31313", true, Set(0, 4)))
 
       val lb = loadBalancerFactory.newLoadBalancer(toEndpoints(nodes))
-      lb.nextNode(EId(1210)) must beSome[Node].which(List(Node(0, "localhost:31313", true, Set(0, 1)),
+      lb.nextNode(1210) must beSome[Node].which(List(Node(0, "localhost:31313", true, Set(0, 1)),
         Node(4, "localhost:31313", true, Set(0, 4))) must contain(_))
     }
 
@@ -64,7 +57,7 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
         Node(0, "localhost:31313", true, Set()),
         Node(1, "localhost:31313", true, Set()))
 
-      new EIdDefaultLoadBalancerFactory(2, false).newLoadBalancer(toEndpoints(nodes)) must throwA[InvalidClusterException]
+      new TestLBF(2, false).newLoadBalancer(toEndpoints(nodes)) must throwA[InvalidClusterException]
     }
 
     "throw InvalidClusterException if one partition is unavailable, and the LBF cannot serve requests in that state, " in {
@@ -72,8 +65,9 @@ class ConsistentHashPartitionedLoadBalancerFactorySpec extends Specification {
         Node(0, "localhost:31313", true, Set(1)),
         Node(1, "localhost:31313", true, Set()))
 
-      new EIdDefaultLoadBalancerFactory(2, true).newLoadBalancer(toEndpoints(nodes)) must not (throwA[InvalidClusterException])
-      new EIdDefaultLoadBalancerFactory(2, false).newLoadBalancer(toEndpoints(nodes)) must throwA[InvalidClusterException]
+      new TestLBF(2, true).newLoadBalancer(toEndpoints(nodes)) must not (throwA[InvalidClusterException])
+      new TestLBF(2, false).newLoadBalancer(toEndpoints(nodes)) must throwA[InvalidClusterException]
     }
   }
+
 }

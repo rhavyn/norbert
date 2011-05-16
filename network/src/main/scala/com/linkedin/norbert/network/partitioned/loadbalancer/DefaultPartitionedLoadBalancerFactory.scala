@@ -21,27 +21,28 @@ package loadbalancer
 import cluster.{Node, InvalidClusterException}
 import common.Endpoint
 
-abstract class ConsistentHashPartitionedLoadBalancerFactory[PartitionedId](numPartitions: Int, serveRequestsIfPartitionMissing: Boolean = true) extends PartitionedLoadBalancerFactory[PartitionedId] {
-  def newLoadBalancer(endpoints: Set[Endpoint]): PartitionedLoadBalancer[PartitionedId] = new PartitionedLoadBalancer[PartitionedId] with ConsistentHashLoadBalancerHelper {
+/**
+ * This class is intended for applications where there is a mapping from partitions -> servers able to respond to those requests. Requests are round-robined
+ * between the partitions
+ */
+abstract class DefaultPartitionedLoadBalancerFactory[PartitionedId](numPartitions: Int, serveRequestsIfPartitionMissing: Boolean = true) extends PartitionedLoadBalancerFactory[PartitionedId] {
+  def newLoadBalancer(endpoints: Set[Endpoint]): PartitionedLoadBalancer[PartitionedId] = new PartitionedLoadBalancer[PartitionedId] with DefaultLoadBalancerHelper {
     val partitionToNodeMap = generatePartitionToNodeMap(endpoints, numPartitions, serveRequestsIfPartitionMissing)
 
     def nextNode(id: PartitionedId) = nodeForPartition(partitionForId(id))
 
-    // TODO: Speed up
-    def nodesForOneReplica = endpoints.flatMap(_.node.partitionIds).foldLeft(Map.empty[Node, Set[Int]]) { case (map, partitionId) =>
-      val nodeOption = nodeForPartition(partitionId)
-
-      if(nodeOption.isDefined) {
-        val node = nodeOption.get
-        val partitions = map.getOrElse(node, Set.empty[Int]) + partitionId
-        map + (node -> partitions)
+    def nodesForOneReplica = {
+      partitionToNodeMap.keys.foldLeft(Map.empty[Node, Set[Int]]) { (map, partition) =>
+        val nodeOption = nodeForPartition(partition)
+        if(nodeOption.isDefined) {
+          val n = nodeOption.get
+          map + (n -> (map.getOrElse(n, Set.empty[Int]) + partition))
+        } else if(serveRequestsIfPartitionMissing) {
+          log.warn("Partition %s is unavailable, attempting to continue serving requests to other partitions.".format(partition))
+          map
+        } else
+          throw new InvalidClusterException("Partition %s is unavailable, cannot serve requests.".format(partition))
       }
-      else if(serveRequestsIfPartitionMissing) {
-        log.warn("Partitions %s are unavailable, attempting to continue serving requests to other partitions.".format(partitionId))
-        map
-      }
-      else
-        throw new InvalidClusterException("Partitions %s are unavailable, cannot serve requests.".format(partitionId))
     }
   }
 

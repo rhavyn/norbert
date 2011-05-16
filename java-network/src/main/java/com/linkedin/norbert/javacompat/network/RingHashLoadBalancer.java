@@ -25,7 +25,7 @@
 //  private static Logger logger = Logger.getLogger(RingHashLoadBalancer.class);
 //
 //  private final TreeMap<Long, int[]> nodeCircleMap;
-//  private final HashFunction<String> hashStrategy;
+//  private final HashFunction<Integer> hashStrategy;
 //  private final Set<Endpoint> endpoints;
 //  private final Random random = new java.util.Random();
 //
@@ -50,7 +50,7 @@
 //    return size;
 //  }
 //
-//  public static RingHashLoadBalancer build(HashFunction<String> hashStrategy, int numReplicas, Set<Endpoint> endpoints) {
+//  public static RingHashLoadBalancer build(HashFunction<Integer> hashStrategy, int numReplicas, Set<Endpoint> endpoints) {
 //    Map<Integer, Set<Endpoint>> pMap = invert(endpoints);
 //    TreeMap<Long, int[]> nodeCircleMap = new TreeMap<Long, int[]>();
 //
@@ -71,7 +71,7 @@
 //    return new RingHashLoadBalancer(hashStrategy, endpoints, nodeCircleMap);
 //  }
 //
-//  private RingHashLoadBalancer(HashFunction<String> hashStrategy, Set<Endpoint> endpoints, TreeMap<Long, int[]> nodeCircleMap) {
+//  private RingHashLoadBalancer(HashFunction<Integer> hashStrategy, Set<Endpoint> endpoints, TreeMap<Long, int[]> nodeCircleMap) {
 //    this.hashStrategy = hashStrategy;
 //    this.endpoints = endpoints;
 //    this.nodeCircleMap = nodeCircleMap;
@@ -89,15 +89,13 @@
 //    if (nodeCircleMap.isEmpty())
 //      return null;
 //
-//    long hash = hashStrategy.hash("" + id);
-//    if (!nodeCircleMap.containsKey(hash)) {
-//      Long k = nodeCircleMap.ceilingKey(hash);
-//      hash = (k == null) ? nodeCircleMap.firstKey() : k;
-//    }
+//    Long hash = hashStrategy.hash(id.hashCode());
+//    hash = nodeCircleMap.ceilingKey(hash);
+//    hash = (hash == null) ? nodeCircleMap.firstKey() : hash;
 //
 //    int[] nodegroup = nodeCircleMap.get(hash);
 //    if (logger.isDebugEnabled()) {
-//      logger.debug(id + " is sent to node group " + Arrays.toString(nodegroup) + " for partitions: " + Arrays.toString(getPartitions()));
+//      logger.debug(id + " is sent to node group " + Arrays.toString(nodegroup));
 //    }
 //    return nodegroup;
 //  }
@@ -111,6 +109,6 @@
 //
 //  @Override
 //  public Map<Node, Set<Integer>> nodesForOneReplica() {
-//    throw new IllegalArgumentException();
+//
 //  }
 //}

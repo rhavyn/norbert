@@ -18,7 +18,7 @@ package com.linkedin.norbert
 package javacompat
 package network
 
-import com.linkedin.norbert.network.partitioned.loadbalancer.{ConsistentHashPartitionedLoadBalancerFactory => SConsistentHashPartitionedLoadBalancerFactory}
+import com.linkedin.norbert.network.partitioned.loadbalancer.{DefaultPartitionedLoadBalancerFactory => SConsistentHashPartitionedLoadBalancerFactory}
 import java.util.Set
 import EndpointConversions._
 import cluster.Node
