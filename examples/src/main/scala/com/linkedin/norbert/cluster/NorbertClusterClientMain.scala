@@ -21,6 +21,7 @@ object NorbertClusterClientMain {
 
   def main(args: Array[String]) {
     cluster = ClusterClient(args(0), args(1), 30000)
+    cluster.awaitConnectionUninterruptibly
     loop
   }
 
