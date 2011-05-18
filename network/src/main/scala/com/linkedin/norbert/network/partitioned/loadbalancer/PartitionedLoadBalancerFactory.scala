@@ -35,6 +35,8 @@ trait PartitionedLoadBalancer[PartitionedId] {
    */
   def nextNode(id: PartitionedId): Option[Node]
 
+//  def nodesForPartitions(partitions: Iterable[Int]): Set[Node]
+
   /**
    * Returns a list of nodes represents one replica of the cluster, this is used by the PartitionedNetworkClient to handle
    * broadcast to one replica

@@ -26,9 +26,18 @@ import com.linkedin.norbert.cluster.{Node, InvalidClusterException}
  * the replicas will also use consistent hashing. This can be useful for a distributed database like system where you'd like
  * to shard the data by key, but you'd also like to maximize cache utilization for the replicas.
  */
-class PartitionedConsistentHashedLoadBalancerFactory[PartitionedId](numPartitions: Int, slicesPerEndpoint: Int, hashFn: PartitionedId => Int, serveRequestsIfPartitionMissing: Boolean = true) extends PartitionedLoadBalancerFactory[PartitionedId] {
+class PartitionedConsistentHashedLoadBalancerFactory[PartitionedId](numPartitions: Int,
+                                                                    numReplicas: Int,
+                                                                    hashFn: PartitionedId => Int,
+                                                                    endpointHashFn: String => Int,
+                                                                    serveRequestsIfPartitionMissing: Boolean) extends PartitionedLoadBalancerFactory[PartitionedId] {
+  def this(slicesPerEndpoint: Int, hashFn: PartitionedId => Int, endpointHashFn: String => Int, serveRequestsIfPartitionMissing: Boolean) = {
+    this(-1, slicesPerEndpoint, hashFn, endpointHashFn, serveRequestsIfPartitionMissing)
+  }
+
   @throws(classOf[InvalidClusterException])
   def newLoadBalancer(endpoints: Set[Endpoint]): PartitionedConsistentHashedLoadBalancer[PartitionedId] = {
+
     val partitions = endpoints.foldLeft(Map.empty[Int, Set[Endpoint]]) { (map, endpoint) =>
       endpoint.node.partitionIds.foldLeft(map) { (map, partition) =>
         map + (partition -> (map.getOrElse(partition, Set.empty[Endpoint]) + endpoint))
@@ -36,27 +45,21 @@ class PartitionedConsistentHashedLoadBalancerFactory[PartitionedId](numPartition
     }
 
     val wheels = partitions.map { case (partition, endpointsForPartition) =>
-      val indexedEndpoints = endpointsForPartition.toSeq
-      val numSlices = endpointsForPartition.size * slicesPerEndpoint
       val wheel = new TreeMap[Int, Endpoint]
-
-      var slice = 0
-      var idx = 0
-      var bottom = Int.MinValue
-
-      // loop around the wheel, portioning off slices to the endpoints
-      while(slice < numSlices) {
-        wheel.put(bottom, indexedEndpoints(idx))
-        idx = (idx + 1) % indexedEndpoints.size
-        bottom = bottom + ((Int.MaxValue.toLong - bottom.toLong) / (numSlices - slice)).asInstanceOf[Int]
-        slice += 1
+      endpointsForPartition.foreach { endpoint =>
+        endpoint.node.partitionIds.foreach { partitionId =>
+          (0 until numReplicas).foreach { r =>
+            val node = endpoint.node
+            var distKey = node.id + ":" + partitionId + ":" + node.url
+            wheel.put(endpointHashFn(distKey), endpoint)
+          }
+        }
       }
-
-
       (partition, wheel)
     }
 
-    new PartitionedConsistentHashedLoadBalancer(numPartitions, wheels, hashFn, serveRequestsIfPartitionMissing)
+    val nPartitions = if(this.numPartitions == -1) endpoints.flatMap(_.node.partitionIds).size else numPartitions
+    new PartitionedConsistentHashedLoadBalancer(nPartitions, wheels, hashFn, serveRequestsIfPartitionMissing)
   }
 }
 
