@@ -22,7 +22,11 @@ import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
 
 class PartitionedConsistentHashedLoadBalancerSpec extends Specification {
   class TestLBF(numPartitions: Int, csr: Boolean = true)
-          extends PartitionedConsistentHashedLoadBalancerFactory[Int](numPartitions, 10, (id: Int) => HashFunctions.fnv(BigInt(id).toByteArray), csr)
+          extends PartitionedConsistentHashedLoadBalancerFactory[Int](numPartitions,
+            10,
+            (id: Int) => HashFunctions.fnv(BigInt(id).toByteArray),
+            (str: String) => str.hashCode(),
+            csr)
   def toEndpoints(nodes: Set[Node]) = nodes.map(n => new Endpoint {
       def node = n
 

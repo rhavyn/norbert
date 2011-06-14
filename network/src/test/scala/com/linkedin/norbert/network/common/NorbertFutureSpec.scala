@@ -20,6 +20,7 @@ package common
 import org.specs.Specification
 import org.specs.mock.Mockito
 import java.util.concurrent.{TimeoutException, ExecutionException, TimeUnit}
+import scala.Right
 
 class NorbertFutureSpec extends Specification with Mockito with SampleMessage {
   val future = new FutureAdapter[Ping]
@@ -50,41 +51,6 @@ class NorbertFutureSpec extends Specification with Mockito with SampleMessage {
       future.apply(Left(ex))
       future.get must throwA[ExecutionException]
       future.get(1, TimeUnit.MILLISECONDS) must throwA[ExecutionException]
-    }
-  }
-}
-
-class NorbertResponseIteratorSpec extends Specification with Mockito with SampleMessage {
-  val responseQueue = new ResponseQueue[Ping]
-  val it = new NorbertResponseIterator[Ping](2, responseQueue)
-
-  "NorbertResponseIterator" should {
-    "return true for next until all responses have been consumed" in {
-      it.hasNext must beTrue
-
-      responseQueue += (Right(new Ping))
-      responseQueue += (Right(new Ping))
-      it.next must notBeNull
-      it.hasNext must beTrue
-
-      it.next must notBeNull
-      it.hasNext must beFalse
-    }
-
-    "return true for nextAvailable if any responses are available" in {
-      it.nextAvailable must beFalse
-      responseQueue += (Right(new Ping))
-      it.nextAvailable must beTrue
-    }
-
-    "throw a TimeoutException if no response is available" in {
-      it.next(1, TimeUnit.MILLISECONDS) must throwA[TimeoutException]
-    }
-
-    "throw an ExecutionException for an error" in {
-      val ex = new Exception
-      responseQueue += (Left(ex))
-      it.next must throwA[ExecutionException]
     }
   }
 }

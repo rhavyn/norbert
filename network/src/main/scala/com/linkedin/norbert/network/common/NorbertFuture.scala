@@ -62,7 +62,9 @@ class NorbertResponseIterator[ResponseMsg](numResponses: Int, queue: ResponseQue
   }
 
   def next(timeout: Long, unit: TimeUnit) = queue.poll(timeout, unit) match {
-    case null => throw new TimeoutException("Timed out waiting for response")
+    case null =>
+      remaining.decrementAndGet
+      throw new TimeoutException("Timed out waiting for response")
 
     case e =>
       remaining.decrementAndGet
@@ -78,22 +80,30 @@ class NorbertResponseIterator[ResponseMsg](numResponses: Int, queue: ResponseQue
  * An iterator that will timeout after a set amount of time spent waiting on remote data
  */
 case class TimeoutIterator[ResponseMsg](inner: ResponseIterator[ResponseMsg], timeout: Long = 5000L) extends ResponseIterator[ResponseMsg] {
-  @volatile private var timeLeft = timeout
+  private val timeLeft = new AtomicInteger(timeout.asInstanceOf[Int])
 
-  def hasNext = inner.hasNext
+  def hasNext = inner.hasNext && timeLeft.get() > 0
 
   def nextAvailable = inner.nextAvailable
 
   def next: ResponseMsg = {
     val before = System.currentTimeMillis
-    val res = next(timeLeft, TimeUnit.MILLISECONDS)
-    val time = System.currentTimeMillis - before
+    val res = inner.next(timeLeft.get, TimeUnit.MILLISECONDS)
+    val time = (System.currentTimeMillis - before).asInstanceOf[Int]
 
-    timeLeft -= time
+    timeLeft.addAndGet(-time)
     res
   }
 
-  def next(t: Long, unit: TimeUnit): ResponseMsg = inner.next(t, unit)
+  def next(t: Long, unit: TimeUnit): ResponseMsg = {
+    val before = System.currentTimeMillis
+    val methodTimeout = unit.toMillis(t)
+    val res = inner.next(math.min(methodTimeout, timeLeft.get), TimeUnit.MILLISECONDS)
+    val time = (System.currentTimeMillis - before).asInstanceOf[Int]
+
+    timeLeft.addAndGet(-time)
+    res
+  }
 }
 
 /**
@@ -123,29 +133,31 @@ case class ExceptionIterator[ResponseMsg](inner: ResponseIterator[ResponseMsg]) 
 }
 
 /**
- * A "partial iterator" If there's an exception during one of the computations, the iterator will simply either ignore
- * that exception (if it's somewhere in the middle) or return some default value if it happens as the last result remaining.
+ * A "partial iterator" If there's an exception during one of the computations, the iterator will simply ignore
+ * that exception
  * This is useful for scatter-gather algorithms that may be able to temporarily tolerate partial results for
  * stability, such as in the case of search.
  */
-case class PartialIterator[ResponseMsg](inner: ExceptionIterator[ResponseMsg], default: ResponseMsg) extends ResponseIterator[ResponseMsg] {
+case class PartialIterator[ResponseMsg](inner: ExceptionIterator[ResponseMsg]) extends ResponseIterator[ResponseMsg] {
   var nextElem: Either[Exception, ResponseMsg] = null
 
   def hasNext: Boolean = hasNext0
 
-  private final def hasNext0: Boolean = {
-    if(inner.hasNext) {
-      if(nextElem == null)
-        nextElem = inner.next
-      if(nextElem.isRight)
-        true
+  @tailrec private final def hasNext0: Boolean = {
+    if(nextElem != null) {
+      if (nextElem.isRight) true
       else {
         nextElem = null
         hasNext0
       }
+    } else {
+      if (inner.hasNext) {
+        nextElem = inner.next
+        hasNext0
+      } else {
+        false
+      }
     }
-    else
-      nextElem != null && nextElem.isRight
   }
 
   def nextAvailable = inner.nextAvailable
@@ -157,19 +169,12 @@ case class PartialIterator[ResponseMsg](inner: ExceptionIterator[ResponseMsg], d
       nextElem = null
       result
     } else {
-      default
+      throw new NoSuchElementException()
     }
   }
 
   def next(timeout: Long, unit: TimeUnit) = {
-    val hn = hasNext
-    if(hn) {
-      val result = nextElem.right.get
-      nextElem = null
-      result
-    } else {
-      default
-    }
+    next // ignore the timeout since we already must "prime the pump" by calling hasNext. You really should use a timeout iterator underneath the exception iterator.
   }
 }
 
