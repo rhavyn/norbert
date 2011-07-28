@@ -50,7 +50,7 @@ class PartitionedConsistentHashedLoadBalancerFactory[PartitionedId](numPartition
         endpoint.node.partitionIds.foreach { partitionId =>
           (0 until numReplicas).foreach { r =>
             val node = endpoint.node
-            var distKey = node.id + ":" + partitionId + ":" + node.url
+            var distKey = node.id + ":" + partitionId + ":" + r + ":" + node.url
             wheel.put(endpointHashFn(distKey), endpoint)
           }
         }
