@@ -30,14 +30,17 @@ class PartitionedConsistentHashedLoadBalancerFactory[PartitionedId](numPartition
                                                                     numReplicas: Int,
                                                                     hashFn: PartitionedId => Int,
                                                                     endpointHashFn: String => Int,
-                                                                    serveRequestsIfPartitionMissing: Boolean) extends PartitionedLoadBalancerFactory[PartitionedId] {
+                                                                    serveRequestsIfPartitionMissing: Boolean)
+  extends DefaultPartitionedLoadBalancerFactory[PartitionedId](numPartitions, serveRequestsIfPartitionMissing) {
+
   def this(slicesPerEndpoint: Int, hashFn: PartitionedId => Int, endpointHashFn: String => Int, serveRequestsIfPartitionMissing: Boolean) = {
     this(-1, slicesPerEndpoint, hashFn, endpointHashFn, serveRequestsIfPartitionMissing)
   }
 
-  @throws(classOf[InvalidClusterException])
-  def newLoadBalancer(endpoints: Set[Endpoint]): PartitionedConsistentHashedLoadBalancer[PartitionedId] = {
+  protected def calculateHash(id: PartitionedId) = hashFn(id)
 
+  @throws(classOf[InvalidClusterException])
+  override def newLoadBalancer(endpoints: Set[Endpoint]): PartitionedConsistentHashedLoadBalancer[PartitionedId] = {
     val partitions = endpoints.foldLeft(Map.empty[Int, Set[Endpoint]]) { (map, endpoint) =>
       endpoint.node.partitionIds.foldLeft(map) { (map, partition) =>
         map + (partition -> (map.getOrElse(partition, Set.empty[Endpoint]) + endpoint))
@@ -47,14 +50,15 @@ class PartitionedConsistentHashedLoadBalancerFactory[PartitionedId](numPartition
     val wheels = partitions.map { case (partition, endpointsForPartition) =>
       val wheel = new TreeMap[Int, Endpoint]
       endpointsForPartition.foreach { endpoint =>
-        endpoint.node.partitionIds.foreach { partitionId =>
-          (0 until numReplicas).foreach { r =>
-            val node = endpoint.node
-            var distKey = node.id + ":" + partitionId + ":" + r + ":" + node.url
-            wheel.put(endpointHashFn(distKey), endpoint)
-          }
+        var r = 0
+        while (r < numReplicas) {
+          val node = endpoint.node
+          var distKey = node.id + ":" + partition + ":" + r + ":" + node.url
+          wheel.put(endpointHashFn(distKey), endpoint)
+          r += 1
         }
       }
+
       (partition, wheel)
     }
 
