@@ -18,8 +18,9 @@ package network
 package client
 
 import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryComponent}
-import cluster.{InvalidClusterException, ClusterDisconnectedException, ClusterClientComponent}
-import common.{Endpoint, ClusterIoClientComponent, BaseNetworkClientSpecification}
+import network.common.{Endpoint, ClusterIoClientComponent, BaseNetworkClientSpecification}
+import cluster._
+import cluster.ClusterListenerKey._
 
 class NetworkClientSpec extends BaseNetworkClientSpecification {
   val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
@@ -42,6 +43,12 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
       networkClient.broadcastMessage(request) must throwA[ClusterDisconnectedException]
       networkClient.sendRequestToNode(request, nodes(1)) must throwA[ClusterDisconnectedException]
       networkClient.sendRequest(request) must throwA[ClusterDisconnectedException]
+    }
+
+    "continue to operating with the last known router configuration if the cluster is disconnected" in {
+      clusterClient.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
+      cc.nodes returns nodeSet
+
     }
 
     "throw ClusterShutdownException if the cluster is shut down when a method is called" in {
