@@ -47,7 +47,7 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
 
     "continue to operating with the last known router configuration if the cluster is disconnected" in {
       clusterClient.addListener(any[ClusterListener]) returns ClusterListenerKey(1)
-      cc.nodes returns nodeSet
+      clusterClient.nodes returns nodeSet
 
     }
 
