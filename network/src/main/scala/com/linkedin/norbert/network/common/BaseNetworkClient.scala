@@ -29,7 +29,9 @@ trait BaseNetworkClient extends Logging {
   @volatile protected var currentNodes: Set[Node] = Set()
   @volatile protected var endpoints: Set[Endpoint] = Set()
 
-  @volatile protected var connected = false
+  @volatile protected var currentlyConnected = false
+  @volatile protected var previouslyConnected = false
+
   protected val startedSwitch = new AtomicBoolean
   protected val shutdownSwitch = new AtomicBoolean
 
@@ -41,19 +43,21 @@ trait BaseNetworkClient extends Logging {
       clusterClient.start
       clusterClient.awaitConnectionUninterruptibly
       updateCurrentState(clusterClient.nodes)
-      connected = clusterClient.isConnected
+      currentlyConnected = clusterClient.isConnected
+      previouslyConnected = currentlyConnected
 
       listenerKey = clusterClient.addListener(new ClusterListener {
         def handleClusterEvent(event: ClusterEvent) = event match {
           case ClusterEvents.Connected(nodes) =>
             updateCurrentState(nodes)
-            connected = true
+            previouslyConnected = true
+            currentlyConnected = true
 
           case ClusterEvents.NodesChanged(nodes) => updateCurrentState(nodes)
 
           case ClusterEvents.Disconnected =>
-            connected = false
-            updateCurrentState(Set())
+            currentlyConnected = false
+            log.warn("Disconnected from the cluster. We will continue to operate with the previous set of nodes. %s".format(currentNodes))
 
           case ClusterEvents.Shutdown => doShutdown(true)
         }
@@ -148,7 +152,7 @@ trait BaseNetworkClient extends Logging {
   protected def doIfConnected[T](block: => T): T = {
     if (shutdownSwitch.get) throw new NetworkShutdownException
     else if (!startedSwitch.get) throw new NetworkNotStartedException
-    else if (!connected) throw new ClusterDisconnectedException
+    else if (!previouslyConnected) throw new ClusterDisconnectedException
     else block
   }
 
