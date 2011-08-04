@@ -95,7 +95,7 @@ trait NetworkClient extends BaseNetworkClient {
     val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
       lb => lb.nextNode.getOrElse(throw new NoNodesAvailableException("No node available that can handle the request: %s".format(request))))
 
-    doSendRequest(node, request, callback)
+    doSendRequest(Request(request, node, is, os, callback))
   }
 
   /**

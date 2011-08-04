@@ -91,7 +91,7 @@ trait BaseNetworkClient extends Logging {
     val candidate = currentNodes.filter(_ == node)
     if (candidate.size == 0) throw new InvalidNodeException("Unable to send message, %s is not available".format(node))
 
-    doSendRequest(node, request, callback)
+    doSendRequest(Request(request, node, is, os, callback))
   }
 
 
@@ -128,7 +128,7 @@ trait BaseNetworkClient extends Logging {
     val nodes = currentNodes
     val queue = new ResponseQueue[ResponseMsg]
 
-    currentNodes.foreach(doSendRequest(_, request, queue +=))
+    currentNodes.foreach { node: Node => (Request(request, node, is, os, queue +=)) }
 
     new NorbertResponseIterator(nodes.size, queue)
   }
@@ -140,9 +140,9 @@ trait BaseNetworkClient extends Logging {
 
   protected def updateLoadBalancer(nodes: Set[Endpoint]): Unit
 
-  protected def doSendRequest[RequestMsg, ResponseMsg](node: Node, request: RequestMsg, callback: Either[Throwable, ResponseMsg] => Unit)
+  protected def doSendRequest[RequestMsg, ResponseMsg](requestCtx: Request[RequestMsg, ResponseMsg])
   (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]): Unit = {
-    clusterIoClient.sendMessage(node, Request(request, node, is, os, callback))
+    clusterIoClient.sendMessage(requestCtx.node, requestCtx)
   }
 
   protected def doIfConnected[T](block: => T): T = {

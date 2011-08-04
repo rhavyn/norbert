@@ -18,9 +18,17 @@ package com.linkedin.norbert.network
 import java.util.UUID
 import com.linkedin.norbert.cluster.{ClusterException, Node}
 
-case class Request[RequestMsg, ResponseMsg](message: RequestMsg, node: Node,
-                                            inputSerializer: InputSerializer[RequestMsg, ResponseMsg], outputSerializer: OutputSerializer[RequestMsg, ResponseMsg],
-                                            callback: Either[Throwable, ResponseMsg] => Unit) {
+object Request {
+  def apply[RequestMsg, ResponseMsg](message: RequestMsg, node: Node,
+                                     inputSerializer: InputSerializer[RequestMsg, ResponseMsg], outputSerializer: OutputSerializer[RequestMsg, ResponseMsg],
+                                     callback: Either[Throwable, ResponseMsg] => Unit): Request[RequestMsg, ResponseMsg] = {
+    new Request(message, node, inputSerializer, outputSerializer, callback)
+  }
+}
+
+class Request[RequestMsg, ResponseMsg](val message: RequestMsg, val node: Node,
+                                       val inputSerializer: InputSerializer[RequestMsg, ResponseMsg], val outputSerializer: OutputSerializer[RequestMsg, ResponseMsg],
+                                       val callback: Either[Throwable, ResponseMsg] => Unit) {
   val id = UUID.randomUUID
   val timestamp = System.currentTimeMillis
 
@@ -43,4 +51,26 @@ case class Request[RequestMsg, ResponseMsg](message: RequestMsg, node: Node,
   }
 
   // TODO: Use the id for overriding equals and hashcode
+}
+
+object PartitionedRequest {
+
+  def apply[PartitionedId, RequestMsg, ResponseMsg](message: RequestMsg, node: Node, ids: Set[PartitionedId], requestBuilder: (Node, Set[PartitionedId]) => RequestMsg,
+                                                    inputSerializer: InputSerializer[RequestMsg, ResponseMsg], outputSerializer: OutputSerializer[RequestMsg, ResponseMsg],
+                                                    callback: Either[Throwable, ResponseMsg] => Unit): PartitionedRequest[PartitionedId, RequestMsg, ResponseMsg] = {
+    new PartitionedRequest(message, node, ids, requestBuilder, inputSerializer, outputSerializer, callback)
+  }
+
+}
+
+class PartitionedRequest[PartitionedId, RequestMsg, ResponseMsg](override val message: RequestMsg, override val node: Node, val partitionedIds: Set[PartitionedId], val requestBuilder: (Node, Set[PartitionedId]) => RequestMsg,
+                                                                 override val inputSerializer: InputSerializer[RequestMsg, ResponseMsg], override val outputSerializer: OutputSerializer[RequestMsg, ResponseMsg],
+                                                                 override val callback: Either[Throwable, ResponseMsg] => Unit)
+  extends Request[RequestMsg, ResponseMsg](message, node, inputSerializer, outputSerializer, callback)
+
+/**
+ * Provides access to Request Context
+ */
+trait RequestAccess[Request] {
+  def request: Request
 }

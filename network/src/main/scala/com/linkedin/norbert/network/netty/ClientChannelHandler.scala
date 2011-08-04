@@ -134,8 +134,10 @@ class ClientChannelHandler(clientName: Option[String],
         }
     }
 
-    def processException[RequestMsg, ResponseMsg](request: Request[RequestMsg, ResponseMsg], errorMessage: String) {
-      responseHandler.onFailure(request, new RemoteException(request.name, errorMessage))
+    def processException[RequestMsg, ResponseMsg](requestCtx: Request[RequestMsg, ResponseMsg], errorMessage: String) {
+      responseHandler.onFailure(requestCtx, new RemoteException(requestCtx.name, errorMessage) with RequestAccess[Request[RequestMsg, ResponseMsg]] {
+        def request: Request[RequestMsg, ResponseMsg] = requestCtx
+      })
     }
   }
 

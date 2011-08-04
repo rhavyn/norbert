@@ -59,7 +59,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
     val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex,
       lb => lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id))))
 
-    doSendRequest(node, request, callback)
+    doSendRequest(PartitionedRequest(request, node, Set(id), (node: Node, ids: Set[PartitionedId]) => request, is, os, callback))
   }
 
 
@@ -129,7 +129,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
     val queue = new ResponseQueue[ResponseMsg]
     nodes.foreach { case (node, idsForNode) =>
       try {
-        doSendRequest(node, requestBuilder(node, idsForNode), queue.+=)
+        doSendRequest(PartitionedRequest(requestBuilder(node, idsForNode), node, idsForNode, requestBuilder, is, os, queue.+=))
       } catch {
         case ex: Exception => queue += Left(ex)
       }
@@ -205,7 +205,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
     val queue = new ResponseQueue[ResponseMsg]
 
     nodes.foreach { case (node, ids) =>
-      doSendRequest(node, requestBuilder(node, ids), queue.+=)
+      doSendRequest(PartitionedRequest(requestBuilder(node, ids), node, ids, requestBuilder, is, os, queue.+=))
     }
 
     new NorbertResponseIterator(nodes.size, queue)
