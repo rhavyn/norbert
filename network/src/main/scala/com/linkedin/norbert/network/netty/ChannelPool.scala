@@ -33,11 +33,17 @@ import common.{BackoffStrategy, SimpleBackoffStrategy}
 
 class ChannelPoolClosedException extends Exception
 
-class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap, errorStrategy: Option[BackoffStrategy]) {
+class ChannelPoolFactory(maxConnections: Int, openTimeoutMillis: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap, errorStrategy: Option[BackoffStrategy]) {
 
   def newChannelPool(address: InetSocketAddress): ChannelPool = {
     val group = new DefaultChannelGroup("norbert-client [%s]".format(address))
-    new ChannelPool(address, maxConnections, writeTimeoutMillis, bootstrap, group, errorStrategy)
+    new ChannelPool(address = address,
+      maxConnections = maxConnections,
+      openTimeoutMillis = openTimeoutMillis,
+      writeTimeoutMillis = writeTimeoutMillis,
+      bootstrap = bootstrap,
+      channelGroup = group,
+      errorStrategy = errorStrategy)
   }
 
   def shutdown: Unit = {
@@ -45,7 +51,7 @@ class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap
   }
 }
 
-class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap,
+class ChannelPool(address: InetSocketAddress, maxConnections: Int, openTimeoutMillis: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap,
     channelGroup: ChannelGroup, val errorStrategy: Option[BackoffStrategy]) extends Logging {
   private val pool = new ArrayBlockingQueue[Channel](maxConnections)
   private val waitingWrites = new LinkedBlockingQueue[Request[_, _]]
@@ -84,14 +90,17 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     }
   }
 
-  private def checkinChannel(channel: Channel) {
+  private def checkinChannel(channel: Channel, isFirstWriteToChannel: Boolean = false) {
     while (!waitingWrites.isEmpty) {
       waitingWrites.poll match {
         case null => // do nothing
 
         case request =>
-          if((System.currentTimeMillis - request.timestamp) < writeTimeoutMillis) writeRequestToChannel(request, channel)
-          else request.onFailure(new TimeoutException("Timed out while waiting to write"))
+          val timeout = if (isFirstWriteToChannel) writeTimeoutMillis + openTimeoutMillis else writeTimeoutMillis
+          if((System.currentTimeMillis - request.timestamp) < timeout)
+            writeRequestToChannel(request, channel)
+          else
+            request.onFailure(new TimeoutException("Timed out while waiting to write"))
       }
     }
 
@@ -133,7 +142,7 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
             log.debug("Opened a channel to: %s".format(address))
 
             channelGroup.add(channel)
-            checkinChannel(channel)
+            checkinChannel(channel, isFirstWriteToChannel = true)
           } else {
             log.error(openFuture.getCause, "Error when opening channel to: %s, marking offline".format(address))
             errorStrategy.foreach(_.notifyFailure(request.node))

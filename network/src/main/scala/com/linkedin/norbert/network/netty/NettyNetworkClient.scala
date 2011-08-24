@@ -106,13 +106,17 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     def getNumNodesDown = endpoints.filter(e => !e.canServeRequests).size
   })
 
-
   val channelPoolStrategy = new SimpleBackoffStrategy(SystemClock)
   val clientChannelStrategy = handler.strategy // TODO: Carefully consider making this strategy a constructor for the ClientChannelHandler
 
   val strategy = CompositeCanServeRequestStrategy(channelPoolStrategy, clientChannelStrategy)
 
-  val channelPoolFactory = new ChannelPoolFactory(clientConfig.maxConnectionsPerNode, clientConfig.writeTimeoutMillis, bootstrap, Some(channelPoolStrategy))
+  val channelPoolFactory = new ChannelPoolFactory(maxConnections = clientConfig.maxConnectionsPerNode,
+    openTimeoutMillis = clientConfig.connectTimeoutMillis,
+    writeTimeoutMillis = clientConfig.writeTimeoutMillis,
+    bootstrap = bootstrap,
+    errorStrategy = Some(channelPoolStrategy))
+
   val clusterIoClient = new NettyClusterIoClient(channelPoolFactory, strategy)
 
   override def shutdown = {

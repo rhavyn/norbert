@@ -30,7 +30,7 @@ class ChannelPoolSpec extends Specification with Mockito {
   val channelGroup = mock[ChannelGroup]
   val bootstrap = mock[ClientBootstrap]
   val address = new InetSocketAddress("localhost", 31313)
-  val channelPool = new ChannelPool(address, 1, 100, bootstrap, channelGroup, None)
+  val channelPool = new ChannelPool(address, 1, 100, 100, bootstrap, channelGroup, None)
 
   "ChannelPool" should {
     "close the ChannelGroup when close  is called" in {
