@@ -252,6 +252,180 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
       }
     }
 
+    "when sendRequest(ids, message, messageCustomizer, maxRetry) is called" in {
+
+      val MAX_RETRY = 3
+
+      "send the provided message to the node specified by the load balancer" in {
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
+        List(1, 2, 3).foreach(networkClient.lb.nextNode(_) returns Some(Node(1, "localhost:31313", true)))
+
+        networkClient.start
+        networkClient.sendRequest(Set(1, 2, 3), messageCustomizer _, MAX_RETRY)
+
+        List(1, 2, 3).foreach(there was one(networkClient.lb).nextNode(_))
+      }
+
+      "call the message customizer" in {
+        var callCount = 0
+        var nodeMap = Map[Node, Set[Int]]()
+
+        def mc(node: Node, ids: Set[Int]): Ping = {
+          callCount += 1
+          nodeMap = nodeMap + (node -> ids)
+          new Ping
+        }
+
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
+        List(1, 2).foreach(networkClient.lb.nextNode(_) returns Some(nodes(0)))
+        List(3, 4).foreach(networkClient.lb.nextNode(_) returns Some(nodes(1)))
+
+        networkClient.start
+        networkClient.sendRequest(Set(1, 2, 3, 4), mc _, MAX_RETRY)
+
+        callCount must be_==(2)
+        nodeMap.size must be_==(2)
+        nodeMap(nodes(0)) must haveTheSameElementsAs(Array(1, 2))
+        nodeMap(nodes(1)) must haveTheSameElementsAs(Array(3, 4))
+      }
+
+      "treats an exception from the message customizer as a failed response" in {
+        def mc(node: Node, ids: Set[Int]): Ping = {
+          throw new Exception
+        }
+
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
+        List(1, 2).foreach(networkClient.lb.nextNode(_) returns Some(nodes(0)))
+
+        networkClient.start
+        val ri = networkClient.sendRequest(Set(1, 2), mc _, MAX_RETRY)
+        ri.hasNext must beTrue
+        ri.next must throwA[ExecutionException]
+      }
+
+      "throw InvalidClusterException if there is no load balancer instance when sendRequest is called" in {
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) throws new InvalidClusterException("")
+
+        networkClient.start
+        networkClient.sendRequest(Set(1, 2, 3), messageCustomizer _, MAX_RETRY)  must throwA[InvalidClusterException]
+      }
+
+      "throw NoSuchNodeException if load balancer returns None when sendRequest is called" in {
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
+        networkClient.lb.nextNode(1) returns None
+
+        networkClient.start
+        networkClient.sendRequest(Set(1, 2, 3), messageCustomizer _, MAX_RETRY) must throwA[NoNodesAvailableException]
+
+        there was one(networkClient.lb).nextNode(1)
+      }
+    }
+
+    "retryCallback should propagate server exception to underlying when" in {
+
+      val MAX_RETRY = 3
+      var either: Either[Throwable, Ping] = null
+      val callback = (e: Either[Throwable, Ping]) => either = e
+
+      "exception does not provide RequestAccess" in {
+        networkClient.retryCallback[Ping, Ping](callback, 0)(Left(new Exception)) // fallback to underlying
+        either must notBeNull
+        either.isLeft must beTrue
+      }
+
+      "request.retryAttempt >= maxRetry" in {
+        val req: Request[Ping, Ping] = spy(PartitionedRequest[Int, Ping, Ping](null, null, null, null, null, null, callback, MAX_RETRY))
+        val ra: Exception with RequestAccess[Request[Ping, Ping]] = new Exception with RequestAccess[Request[Ping, Ping]] {
+          def request = req
+        }
+        networkClient.retryCallback[Ping, Ping](callback, MAX_RETRY)(Left(ra))
+        either must notBeNull
+        either.isLeft must beTrue
+        either.left.get mustEq ra
+      }
+
+      "cannot locate next available node" in {
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
+        networkClient.lb.nextNode(1) returns None
+        networkClient.start
+
+        networkClient.retryCallback[Ping, Ping](callback, MAX_RETRY)(Left(new RemoteException("FooClass", "ServerError")))
+        either must notBeNull
+        either.isLeft must beTrue
+        either.left.get must haveClass[RemoteException]
+      }
+
+      "next node is same as failing node" in {
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
+        networkClient.lb.nextNode(1) returns Some(nodes(1)) // node(1) -> node(1) -> node(1)
+
+        networkClient.start
+
+        var req: Request[Ping, Ping] = spy(PartitionedRequest[Int, Ping, Ping](null, nodes(1), null, null, null, null, callback, 0))
+        val ra: Exception with RequestAccess[Request[Ping, Ping]] = new Exception with RequestAccess[Request[Ping, Ping]] {
+          def request = req
+        }
+
+        networkClient.retryCallback[Ping, Ping](callback, MAX_RETRY)(Left(ra))
+        either must notBeNull
+        either.isLeft must beTrue
+        either.left.get mustEq ra
+      }
+
+      "sendMessage: MAX_RETRY reached" in {
+        val networkClient2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
+          val lb = new PartitionedLoadBalancer[Int] {
+            val iter = PartitionedNetworkClientSpec.this.nodes.iterator
+            def nextNode(id: Int) = Some(iter.next)
+            def nodesForOneReplica = null
+          }
+          val loadBalancerFactory = mock[PartitionedLoadBalancerFactory[Int]]
+          val clusterIoClient = new ClusterIoClient {
+            var invocationCount: Int = 0
+            def sendMessage[RequestMsg, ResponseMsg](node: Node, requestCtx: Request[RequestMsg, ResponseMsg]) {
+              invocationCount += 1
+              requestCtx.onFailure(new Exception with RequestAccess[Request[RequestMsg, ResponseMsg]] {
+                def request = requestCtx
+              })
+            }
+            def nodesChanged(nodes: Set[Node]) = {PartitionedNetworkClientSpec.this.endpoints}
+            def shutdown {}
+          }
+          val clusterClient = PartitionedNetworkClientSpec.this.clusterClient
+        }
+        networkClient2.clusterClient.nodes returns nodeSet
+        networkClient2.clusterClient.isConnected returns true
+        networkClient2.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient2.lb
+        networkClient2.start
+        val resIter = networkClient2.sendRequest(Set(1,2,3), messageCustomizer _, MAX_RETRY)
+        networkClient2.clusterIoClient.invocationCount mustEqual MAX_RETRY
+        while (resIter.hasNext) {
+          resIter.next must throwAnException
+        }
+      }
+    }
+
     "when sendRequest is called with a response aggregator" in {
       "it calls the response aggregator" in {
         var callCount = 0

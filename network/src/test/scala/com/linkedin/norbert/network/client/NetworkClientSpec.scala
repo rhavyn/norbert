@@ -21,6 +21,7 @@ import loadbalancer.{LoadBalancerFactory, LoadBalancer, LoadBalancerFactoryCompo
 import network.common.{Endpoint, ClusterIoClientComponent, BaseNetworkClientSpecification}
 import cluster._
 import cluster.ClusterListenerKey._
+import network.NoNodesAvailableException
 
 class NetworkClientSpec extends BaseNetworkClientSpecification {
   val networkClient = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
@@ -74,6 +75,97 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
 //      clusterIoClient.sendMessage(node, message, null) was called
     }
 
+    "retryCallback should propagate server exception to underlying when" in {
+
+      val MAX_RETRY = 3
+      var either: Either[Throwable, Ping] = null
+      val callback = (e: Either[Throwable, Ping]) => either = e
+
+      "exception does not provide RequestAccess" in {
+        networkClient.retryCallback[Ping, Ping](callback, 0)(Left(new Exception))
+        either must notBeNull
+        either.isLeft must beTrue
+      }
+
+      "request.retryAttempt >= maxRetry" in {
+        val req: Request[Ping, Ping] = spy(Request[Ping, Ping](null, null, null, null, callback, MAX_RETRY))
+        val ra: Exception with RequestAccess[Request[Ping, Ping]] = new Exception with RequestAccess[Request[Ping, Ping]] {
+          def request = req
+        }
+        networkClient.retryCallback[Ping, Ping](callback, MAX_RETRY)(Left(ra))
+        either must notBeNull
+        either.isLeft must beTrue
+        either.left.get mustEq ra
+      }
+
+      "cannot locate next available node" in {
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
+        networkClient.lb.nextNode returns None
+        networkClient.start
+
+        networkClient.retryCallback[Ping, Ping](callback, MAX_RETRY)(Left(new RemoteException("FooClass", "ServerError")))
+        either must notBeNull
+        either.isLeft must beTrue
+        either.left.get must haveClass[RemoteException]
+      }
+
+      "next node is same as failing node" in {
+        clusterClient.nodes returns nodeSet
+        clusterClient.isConnected returns true
+        networkClient.clusterIoClient.nodesChanged(nodeSet) returns endpoints
+        networkClient.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient.lb
+        networkClient.lb.nextNode returns Some(nodes(1))
+
+        networkClient.start
+
+        var req: Request[Ping, Ping] = spy(Request[Ping, Ping](null, nodes(1), null, null, callback))
+        val ra: Exception with RequestAccess[Request[Ping, Ping]] = new Exception with RequestAccess[Request[Ping, Ping]] {
+          def request = req
+        }
+
+        networkClient.retryCallback[Ping, Ping](callback, MAX_RETRY)(Left(ra))
+        either must notBeNull
+        either.isLeft must beTrue
+        either.left.get mustEq ra
+      }
+
+      "sendMessage: MAX_RETRY reached" in {
+        var either: Either[Throwable, Ping] = null
+        val callback = (e: Either[Throwable, Ping]) => either = e
+        val networkClient2 = new NetworkClient with ClusterClientComponent with ClusterIoClientComponent with LoadBalancerFactoryComponent {
+          val lb = new LoadBalancer {
+            val iter = NetworkClientSpec.this.nodes.iterator
+
+            def nextNode = Some(iter.next)
+          }
+          val loadBalancerFactory = mock[LoadBalancerFactory]
+          val clusterIoClient = new ClusterIoClient {
+            var invocationCount: Int = 0
+            def sendMessage[RequestMsg, ResponseMsg](node: Node, requestCtx: Request[RequestMsg, ResponseMsg]) {
+              invocationCount += 1
+              requestCtx.onFailure(new Exception with RequestAccess[Request[RequestMsg, ResponseMsg]] {
+                def request = requestCtx
+              })
+            }
+            def nodesChanged(nodes: Set[Node]) = {NetworkClientSpec.this.endpoints}
+            def shutdown {}
+          }
+          val clusterClient = NetworkClientSpec.this.clusterClient
+        }
+        networkClient2.clusterClient.nodes returns nodeSet
+        networkClient2.clusterClient.isConnected returns true
+        networkClient2.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient2.lb
+        networkClient2.start
+        networkClient2.sendRequest(request, callback, MAX_RETRY)
+        networkClient2.clusterIoClient.invocationCount mustEqual MAX_RETRY
+        either mustNotBe null
+        either.isLeft must beTrue
+      }
+    }
+
     "throw InvalidClusterException if there is no load balancer instance when sendMessage is called" in {
       clusterClient.nodes returns nodeSet
       clusterClient.isConnected returns true
@@ -101,5 +193,6 @@ class NetworkClientSpec extends BaseNetworkClientSpecification {
       there was one(networkClient.lb).nextNode
 //      clusterIoClient.sendMessage(node, message, null) wasnt called
     }
+
   }
 }
