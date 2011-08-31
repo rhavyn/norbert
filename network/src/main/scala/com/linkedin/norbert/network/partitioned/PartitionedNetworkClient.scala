@@ -253,15 +253,6 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
     }
   }
 
-  private def calculateNodesFromIds(ids: Set[PartitionedId]) = {
-    val lb = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex, lb => lb)
-
-    ids.foldLeft(Map[Node, Set[PartitionedId]]().withDefaultValue(Set())) { (map, id) =>
-      val node = lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id)))
-      map.updated(node, map(node) + id)
-    }
-  }
-
   /**
    * Internal callback wrapper to handle partial failures via RequestAccess
    */
@@ -304,27 +295,41 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
       res.fold(t => handleFailure(t), result => underlying(Right(result)))
   }
 
-  /**
-   * For retry attempts. Failing nodes excluded
-   */
-  private[partitioned] def calculateNodesFromIds(ids: Set[PartitionedId], excludedNodes: Set[Node], maxTries: Int) = {
+  private def calculateNodesFromIds(ids: Set[PartitionedId]) = {
     val lb = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex, lb => lb)
 
     ids.foldLeft(Map[Node, Set[PartitionedId]]().withDefaultValue(Set())) { (map, id) =>
-      val optNode: Option[Node] = lb.nextNode(id)
-      if (optNode.isEmpty)
-        throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id))
-      var node = optNode.get
-      if (excludedNodes.contains(node)) {
-        var tries = 0
-        do {
-          node = lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id)))
-          log.info("try#%d: excluded=%s, nextNode(%d)=%s".format(tries, excludedNodes, id, node))
-          tries += 1
-        } while (excludedNodes.contains(node) && tries <= maxTries)
-      }
+      val node = lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id)))
       map.updated(node, map(node) + id)
     }
+  }
+
+  /**
+   * For retry attempts. Failing nodes excluded
+   */
+  private[partitioned] def calculateNodesFromIds(ids: Set[PartitionedId], excludedNodes: Set[Node], maxAttempts: Int) = {
+    if (maxAttempts <= 0)
+      throw new IllegalArgumentException
+    val lb = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex, lb => lb)
+    val map = collection.mutable.Map[Node, Set[PartitionedId]]()
+    ids.foreach { id =>
+      var foundIt = false
+      var i = 0
+      var node: Node = null
+      while (i < maxAttempts && !foundIt) {
+        node = lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id)))
+        if (!excludedNodes.contains(node)) {
+          foundIt = true
+        }
+        i += 1
+      }
+      if (foundIt) {
+        if (map contains node) map.updated(node, map(node) + id) else map.put(node, Set(id))
+      } else {
+        throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id))
+      }
+    }
+    map
   }
 
 }
