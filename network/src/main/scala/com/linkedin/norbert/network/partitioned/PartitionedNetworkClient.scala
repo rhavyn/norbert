@@ -278,18 +278,18 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
             try {
               val nodes = calculateNodesFromIds(prequest.partitionedIds, Set(prequest.node), 3)
               if (nodes.keySet.size > 1) {
-                log.info("Adjust responseIterator size by: %d".format(nodes.keySet.size - 1))
+                log.debug("Adjust responseIterator size by: %d".format(nodes.keySet.size - 1))
                 prequest.responseIterator.get.asInstanceOf[DynamicResponseIterator[ResponseMsg]].addAndGet(nodes.keySet.size - 1)
               }
               nodes.foreach {
                 case (node, idsForNode) =>
                   val request1 = PartitionedRequest(requestBuilder(node, idsForNode), node, idsForNode, requestBuilder, is, os, retryCallback[RequestMsg, ResponseMsg](underlying, maxRetry), prequest.retryAttempt + 1, prequest.responseIterator)
-                  log.info("Resend request: %s".format(request1))
+                  log.debug("Resend request: %s".format(request1))
                   doSendRequest(request1)
               }
             } catch {
               case t1: Throwable =>
-                log.info("Exception(%s) caught during retry".format(t1))
+                log.debug("Exception(%s) caught during retry".format(t1))
                 propagate(t)
             }
           } else propagate(t)
@@ -321,7 +321,7 @@ trait PartitionedNetworkClient[PartitionedId] extends BaseNetworkClient {
           node = lb.nextNode(id).getOrElse(throw new NoNodesAvailableException("Unable to satisfy request, no node available for id %s".format(id)))
           log.info("try#%d: excluded=%s, nextNode(%d)=%s".format(tries, excludedNodes, id, node))
           tries += 1
-        } while (excludedNodes.contains(node) && tries < maxTries)
+        } while (excludedNodes.contains(node) && tries <= maxTries)
       }
       map.updated(node, map(node) + id)
     }

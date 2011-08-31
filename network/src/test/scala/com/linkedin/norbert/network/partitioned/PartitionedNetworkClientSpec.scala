@@ -394,7 +394,7 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
       }
 
       "sendMessage: MAX_RETRY reached" in {
-        val networkClient2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
+        val nc2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
           val lb = new PartitionedLoadBalancer[Int] {
             val iter = PartitionedNetworkClientSpec.this.nodes.iterator
             def nextNode(id: Int) = Some(iter.next)
@@ -414,16 +414,111 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
           }
           val clusterClient = PartitionedNetworkClientSpec.this.clusterClient
         }
-        networkClient2.clusterClient.nodes returns nodeSet
-        networkClient2.clusterClient.isConnected returns true
-        networkClient2.loadBalancerFactory.newLoadBalancer(endpoints) returns networkClient2.lb
-        networkClient2.start
-        val resIter = networkClient2.sendRequest(Set(1,2,3), messageCustomizer _, MAX_RETRY)
-        networkClient2.clusterIoClient.invocationCount mustEqual MAX_RETRY
+        nc2.clusterClient.nodes returns nodeSet
+        nc2.clusterClient.isConnected returns true
+        nc2.loadBalancerFactory.newLoadBalancer(endpoints) returns nc2.lb
+        nc2.start
+        val resIter = nc2.sendRequest(Set(1,2,3), messageCustomizer _, MAX_RETRY)
+        nc2.clusterIoClient.invocationCount mustEqual MAX_RETRY
         while (resIter.hasNext) {
           resIter.next must throwAnException
         }
       }
+    }
+
+    "calculateNodesFromIds should properly exclude failing node" in {
+      val nc2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
+        val lb = new PartitionedLoadBalancer[Int] {
+          val iter = PartitionedNetworkClientSpec.this.nodes.iterator
+          def nextNode(id: Int) = Some(iter.next)
+          def nodesForOneReplica = null
+        }
+        val loadBalancerFactory = mock[PartitionedLoadBalancerFactory[Int]]
+        val clusterIoClient = new ClusterIoClient {
+          var invocationCount: Int = 0
+          def sendMessage[RequestMsg, ResponseMsg](node: Node, requestCtx: Request[RequestMsg, ResponseMsg]) {
+            invocationCount += 1
+            requestCtx.onFailure(new Exception with RequestAccess[Request[RequestMsg, ResponseMsg]] {
+              def request = requestCtx
+            })
+          }
+          def nodesChanged(nodes: Set[Node]) = {PartitionedNetworkClientSpec.this.endpoints}
+          def shutdown {}
+        }
+        val clusterClient = PartitionedNetworkClientSpec.this.clusterClient
+      }
+      nc2.clusterClient.nodes returns nodeSet
+      nc2.clusterClient.isConnected returns true
+      nc2.loadBalancerFactory.newLoadBalancer(endpoints) returns nc2.lb
+      nc2.start
+
+      val failingNode = nodes(0)
+      val failingNodes = Set(failingNode)
+      var nodes2Ids = nc2.calculateNodesFromIds(Set(1), failingNodes, 3)
+      nodes2Ids must notBeNull
+      nodes2Ids.keys must notHave(failingNodes)
+    }
+
+    "calculateNodesFromIds should properly exclude failing nodes in excluded set" in {
+      val nc2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
+        val lb = new PartitionedLoadBalancer[Int] {
+          val iter = PartitionedNetworkClientSpec.this.nodes.iterator
+          def nextNode(id: Int) = Some(iter.next)
+          def nodesForOneReplica = null
+        }
+        val loadBalancerFactory = mock[PartitionedLoadBalancerFactory[Int]]
+        val clusterIoClient = new ClusterIoClient {
+          var invocationCount: Int = 0
+          def sendMessage[RequestMsg, ResponseMsg](node: Node, requestCtx: Request[RequestMsg, ResponseMsg]) {
+            invocationCount += 1
+            requestCtx.onFailure(new Exception with RequestAccess[Request[RequestMsg, ResponseMsg]] {
+              def request = requestCtx
+            })
+          }
+          def nodesChanged(nodes: Set[Node]) = {PartitionedNetworkClientSpec.this.endpoints}
+          def shutdown {}
+        }
+        val clusterClient = PartitionedNetworkClientSpec.this.clusterClient
+      }
+      nc2.clusterClient.nodes returns nodeSet
+      nc2.clusterClient.isConnected returns true
+      nc2.loadBalancerFactory.newLoadBalancer(endpoints) returns nc2.lb
+      nc2.start
+
+      val failingNodes = Set(nodes(0), nodes(1))
+      var nodes2Ids = nc2.calculateNodesFromIds(Set(1), failingNodes, 3)
+      nodes2Ids must notBeNull
+      nodes2Ids.keys must notHave(failingNodes)
+    }
+
+    "calculateNodesFromIds should throw NoNodesAvailableException if non-failing nodes not found" in {
+      val nc2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
+        val lb = new PartitionedLoadBalancer[Int] {
+          val iter = PartitionedNetworkClientSpec.this.nodes.iterator
+          def nextNode(id: Int) = if (iter.hasNext) Some(iter.next) else None
+          def nodesForOneReplica = null
+        }
+        val loadBalancerFactory = mock[PartitionedLoadBalancerFactory[Int]]
+        val clusterIoClient = new ClusterIoClient {
+          var invocationCount: Int = 0
+          def sendMessage[RequestMsg, ResponseMsg](node: Node, requestCtx: Request[RequestMsg, ResponseMsg]) {
+            invocationCount += 1
+            requestCtx.onFailure(new Exception with RequestAccess[Request[RequestMsg, ResponseMsg]] {
+              def request = requestCtx
+            })
+          }
+          def nodesChanged(nodes: Set[Node]) = {PartitionedNetworkClientSpec.this.endpoints}
+          def shutdown {}
+        }
+        val clusterClient = PartitionedNetworkClientSpec.this.clusterClient
+      }
+      nc2.clusterClient.nodes returns nodeSet
+      nc2.clusterClient.isConnected returns true
+      nc2.loadBalancerFactory.newLoadBalancer(endpoints) returns nc2.lb
+      nc2.start
+
+      val failingNodes = Set(nodes(0), nodes(1), nodes(2))
+      nc2.calculateNodesFromIds(Set(1), failingNodes, 3) must throwA[NoNodesAvailableException]
     }
 
     "when sendRequest is called with a response aggregator" in {

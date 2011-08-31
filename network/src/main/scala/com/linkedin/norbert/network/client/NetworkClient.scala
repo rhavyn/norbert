@@ -149,7 +149,7 @@ trait NetworkClient extends BaseNetworkClient {
               val node = loadBalancer.getOrElse(throw new ClusterDisconnectedException).fold(ex => throw ex, lb => lb.nextNode.getOrElse(throw new NoNodesAvailableException("No node available that can handle the request: %s".format(request.message))))
               if (!node.equals(request.node)) { // simple check; partitioned version does retry here as well
                 val request1 = Request(request.message, node, is, os, retryCallback[RequestMsg, ResponseMsg](underlying, maxRetry), request.retryAttempt + 1)
-                log.info("Resend %s".format(request1))
+                log.debug("Resend %s".format(request1))
                 doSendRequest(request1)
               } else propagate(t)
             } catch {
