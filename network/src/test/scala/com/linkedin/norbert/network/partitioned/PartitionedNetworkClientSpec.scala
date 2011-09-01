@@ -468,6 +468,55 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
       }
     }
 
+    "sendMessage should automatically handle partial failures and adjust response size dynamically" in {
+      val MAX_RETRY = 3
+      val nc2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
+        val lb = new PartitionedLoadBalancer[Int] {
+          val nodeIS = PartitionedNetworkClientSpec.this.nodes.toIndexedSeq
+          var count = 0
+          def nextNode(id: Int) = {
+            var ret: Node = null
+            if (count < 2)
+              ret = nodes(0)
+            else
+              ret = nodes(id + 1)
+            count += 1
+            Some(ret)
+          }
+          def nodesForOneReplica = null
+        }
+        val loadBalancerFactory = mock[PartitionedLoadBalancerFactory[Int]]
+        val clusterIoClient = new ClusterIoClient {
+          var failOnce: Boolean = true
+          def sendMessage[RequestMsg, ResponseMsg](node: Node, requestCtx: Request[RequestMsg, ResponseMsg]) {
+            if (failOnce) {
+              failOnce = false
+              requestCtx.onFailure(new RemoteException("FooBar", "ServerError") with RequestAccess[Request[RequestMsg, ResponseMsg]] {
+                def request = requestCtx
+              })
+            } else {
+              requestCtx.onSuccess(requestCtx.outputSerializer.requestToBytes(requestCtx.message))
+            }
+          }
+          def nodesChanged(nodes: Set[Node]) = {PartitionedNetworkClientSpec.this.endpoints}
+          def shutdown {}
+        }
+        val clusterClient = PartitionedNetworkClientSpec.this.clusterClient
+      }
+      nc2.clusterClient.nodes returns nodeSet
+      nc2.clusterClient.isConnected returns true
+      nc2.loadBalancerFactory.newLoadBalancer(endpoints) returns nc2.lb
+      nc2.start
+      val resIter = nc2.sendRequest[Ping, Ping](Set(0,1), messageCustomizer _, MAX_RETRY)
+      var num = 0
+      while (resIter.hasNext) {
+        num += 1
+        resIter.next mustNot throwAnException
+      }
+      num mustEq 2
+    }
+
+
     "calculateNodesFromIds should properly exclude failing node" in {
       val nc2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
         val lb = new PartitionedLoadBalancer[Int] {
