@@ -424,6 +424,48 @@ class PartitionedNetworkClientSpec extends BaseNetworkClientSpecification {
           resIter.next must throwAnException
         }
       }
+
+    }
+
+    "sendMessage should automatically handle partial failures" in {
+      val MAX_RETRY = 3
+      val nc2 = new PartitionedNetworkClient[Int] with ClusterClientComponent with ClusterIoClientComponent with PartitionedLoadBalancerFactoryComponent[Int] {
+        val lb = new PartitionedLoadBalancer[Int] {
+          val nodeIS = PartitionedNetworkClientSpec.this.nodes.toIndexedSeq
+          var idx = 0
+          def nextNode(id: Int) = {
+            idx = (idx + 1) % nodeIS.size
+            Some(nodeIS(idx))
+          }
+          def nodesForOneReplica = null
+        }
+        val loadBalancerFactory = mock[PartitionedLoadBalancerFactory[Int]]
+        val clusterIoClient = new ClusterIoClient {
+          var succ: Boolean = false
+          def sendMessage[RequestMsg, ResponseMsg](node: Node, requestCtx: Request[RequestMsg, ResponseMsg]) {
+            if (!succ) {
+              succ = true
+              requestCtx.onFailure(new RemoteException("FooBar", "ServerError") with RequestAccess[Request[RequestMsg, ResponseMsg]] {
+                def request = requestCtx
+              })
+            } else {
+              succ = false
+              requestCtx.onSuccess(requestCtx.outputSerializer.requestToBytes(requestCtx.message))
+            }
+          }
+          def nodesChanged(nodes: Set[Node]) = {PartitionedNetworkClientSpec.this.endpoints}
+          def shutdown {}
+        }
+        val clusterClient = PartitionedNetworkClientSpec.this.clusterClient
+      }
+      nc2.clusterClient.nodes returns nodeSet
+      nc2.clusterClient.isConnected returns true
+      nc2.loadBalancerFactory.newLoadBalancer(endpoints) returns nc2.lb
+      nc2.start
+      val resIter = nc2.sendRequest[Ping, Ping](Set(1,2), messageCustomizer _, MAX_RETRY)
+      while (resIter.hasNext) {
+        resIter.next mustNot throwAnException
+      }
     }
 
     "calculateNodesFromIds should properly exclude failing node" in {
