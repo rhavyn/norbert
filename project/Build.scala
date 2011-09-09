@@ -69,22 +69,29 @@ object NorbertBuild extends Build {
 
   lazy val examples = Project("examples", file("examples"), settings = buildSettings) dependsOn(network, javaNetwork)
 
-  lazy val root = Project("norbert", file("."), settings = buildSettings) aggregate(cluster, network, javaCluster, javaNetwork)
+  lazy val root = Project("root", file("."), settings = buildSettings) aggregate(cluster, network, javaCluster, javaNetwork)
+
+  lazy val full = {
+    // The projects that are packaged in the full distribution.
+    val projects = Seq(cluster, network, javaCluster, javaNetwork)
+
+    val myManagedSources = TaskKey[Seq[Seq[File]]]("my-managed-sources")
+    val myUnmanagedSources = TaskKey[Seq[Seq[File]]]("my-unmanaged-sources")
+
+    Project(
+      id           = "norbert",
+      base         = file("full"),
+      settings     = buildSettings ++ Seq(
+        myManagedSources  <<= projects.map(managedSources in Compile in _).join,
+        myUnmanagedSources <<= projects.map(unmanagedSources in Compile in _).join,
+
+        (unmanagedSources in Compile) <<= (myUnmanagedSources).map(_.flatten),
+        (managedSources in Compile) <<= (myManagedSources).map(_.flatten),
+        (unmanagedSourceDirectories in Compile) <<= (projects.map(unmanagedSourceDirectories in Compile in _).join).map(_.flatten),
+
+        libraryDependencies ++= ClusterDependencies.deps ++ NetworkDependencies.deps
+      )
+    )
+  }
+
 }
-
-//  def oneJarTask(): Task = task {
-//    FileUtilities.doInTemporaryDirectory(log) { temp: File =>
-//      projectClosure.dropRight(1).foreach { project =>
-//          println(project.outputPath)
-//          val files = (project.outputPath ** "*.jar").getFiles
-//          val paths = Path.fromFiles(files)
-//          paths.foreach(path => FileUtilities.unzip(path, Path.fromFile(temp), log))
-//      }
-//
-//      Right(FileUtilities.zip(((Path.fromFile(temp) ##) ** "*.class").get,
-//                        outputPath / oneJarName, true, log))
-//    }.right.toOption.flatMap(x => x)
-//  }
-//}
-
-
