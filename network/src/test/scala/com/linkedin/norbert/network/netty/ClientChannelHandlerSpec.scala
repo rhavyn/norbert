@@ -7,16 +7,15 @@ import org.specs.mock.Mockito
 import client.ResponseHandler
 import org.jboss.netty.channel._
 import protos.NorbertProtos.NorbertMessage.Status
-import protos.{NorbertExampleProtos, NorbertProtos}
+import protos.NorbertProtos
 import cluster.Node
-import com.linkedin.norbert.network.Serializer
-import netty.Ping.PingSerializer
 import java.net.{SocketAddress}
+import common.SampleMessage
 
 /**
  * Test to cover association of RequestAccess with remote exception
  */
-class ClientChannelHandlerSpec extends Specification with Mockito {
+class ClientChannelHandlerSpec extends Specification with Mockito with SampleMessage {
 
   val responseHandler = mock[ResponseHandler]
   val clientChannelHandler = new ClientChannelHandler(clientName = Some("booClient"),
@@ -44,7 +43,7 @@ class ClientChannelHandlerSpec extends Specification with Mockito {
       channel.getRemoteAddress returns mock[SocketAddress]
       val ctx = mock[ChannelHandlerContext]
       ctx.getChannel returns channel
-      val request = Request[Ping, Ping](Ping(System.currentTimeMillis), Node(1, "localhost:1234", true), PingSerializer, PingSerializer, { e => e })
+      val request = Request[Ping, Ping](Ping(System.currentTimeMillis), Node(1, "localhost:1234", true), Ping.PingSerializer, Ping.PingSerializer, { e => e })
       sendMockRequest(ctx, request)
 
       val readEvent = mock[MessageEvent]
@@ -63,7 +62,7 @@ class ClientChannelHandlerSpec extends Specification with Mockito {
       channel.getRemoteAddress returns mock[SocketAddress]
       val ctx = mock[ChannelHandlerContext]
       ctx.getChannel returns channel
-      val request = Request[Ping, Ping](Ping(System.currentTimeMillis), Node(1, "localhost:1234", true), PingSerializer, PingSerializer, { e => e })
+      val request = Request[Ping, Ping](Ping(System.currentTimeMillis), Node(1, "localhost:1234", true), Ping.PingSerializer, Ping.PingSerializer, { e => e })
       sendMockRequest(ctx, request)
 
       val norbertMessage = NorbertProtos.NorbertMessage.newBuilder().setStatus(Status.ERROR)
@@ -80,26 +79,3 @@ class ClientChannelHandlerSpec extends Specification with Mockito {
   }
 
 }
-
-// temp workaround to quiet writeRequested
-private object Ping {
-  implicit case object PingSerializer extends Serializer[Ping, Ping] {
-    def requestName = "ping"
-    def responseName = "pong"
-
-    def requestToBytes(message: Ping) =
-      NorbertExampleProtos.Ping.newBuilder.setTimestamp(message.timestamp).build.toByteArray
-
-    def requestFromBytes(bytes: Array[Byte]) = {
-      Ping(NorbertExampleProtos.Ping.newBuilder.mergeFrom(bytes).build.getTimestamp)
-    }
-
-    def responseToBytes(message: Ping) =
-      requestToBytes(message)
-
-    def responseFromBytes(bytes: Array[Byte]) =
-      requestFromBytes(bytes)
-  }
-}
-
-private case class Ping(timestamp: Long)

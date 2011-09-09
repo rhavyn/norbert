@@ -54,7 +54,7 @@ class FutureAdapter[ResponseMsg] extends Future[ResponseMsg] with Function1[Eith
 }
 
 class NorbertResponseIterator[ResponseMsg](numResponses: Int, queue: ResponseQueue[ResponseMsg]) extends ResponseIterator[ResponseMsg] with ResponseHelper {
-  private val remaining = new AtomicInteger(numResponses)
+  protected val remaining = new AtomicInteger(numResponses)
 
   def next = {
     remaining.decrementAndGet
@@ -77,7 +77,18 @@ class NorbertResponseIterator[ResponseMsg](numResponses: Int, queue: ResponseQue
 }
 
 /**
- * An iterator that will timeout after a set amount of time spent waiting on remote data
+ * Internal use only
+ */
+class NorbertDynamicResponseIterator[ResponseMsg](initialNumResponses: Int, queue: ResponseQueue[ResponseMsg]) extends NorbertResponseIterator[ResponseMsg](initialNumResponses, queue) with DynamicResponseIterator[ResponseMsg] {
+
+  def addAndGet(delta: Int) = {
+    remaining.addAndGet(delta)
+  }
+
+}
+
+/**
+ * An iterator that will timeout a'fter a set amount of time spent waiting on remote data
  */
 case class TimeoutIterator[ResponseMsg](inner: ResponseIterator[ResponseMsg], timeout: Long = 5000L) extends ResponseIterator[ResponseMsg] {
   private val timeLeft = new AtomicInteger(timeout.asInstanceOf[Int])

@@ -163,6 +163,26 @@ class ChannelPoolSpec extends Specification with Mockito {
       either.isLeft must beTrue
     }
 
+    "invoke callback when remote exception encountered" in {
+      val channel = mock[Channel]
+      var either: Either[Throwable, Any] = null
+      val request = spy(Request(null, null, null, null, (e: Either[Throwable, Any]) => either = e))
+      request.timestamp returns System.currentTimeMillis
+      channel.isConnected returns true
+      val openFuture = new TestChannelFuture(channel, true)
+      val writeFuture = new TestChannelFuture(channel, false)
+      bootstrap.connect(address) returns openFuture
+      channelGroup.add(channel) returns true
+      channel.write(request) returns writeFuture
+
+      channelPool.sendRequest(request)
+      openFuture.listener.operationComplete(openFuture)
+      writeFuture.listener.operationComplete(writeFuture)
+
+      either must notBeNull
+      either.isLeft must beTrue
+    }
+
     "not write queued requests if the request timed out" in {
       val channel = mock[Channel]
       val goodRequest = spy(new Request(null, null, null, null, (e: Either[Throwable, Any]) => null))

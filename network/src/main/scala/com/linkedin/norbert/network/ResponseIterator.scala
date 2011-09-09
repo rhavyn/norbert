@@ -64,3 +64,16 @@ trait ResponseIterator[ResponseMsg] extends Iterator[ResponseMsg] {
   @throws(classOf[InterruptedException])
   def next(timeout: Long, unit: TimeUnit): ResponseMsg
 }
+
+
+/**
+ * Internal-use only
+ */
+trait DynamicResponseIterator[ResponseMsg] extends ResponseIterator[ResponseMsg] {
+
+  /**
+   * Adjust # of remaining items.
+   */
+  def addAndGet(delta:Int) : Int
+
+}
