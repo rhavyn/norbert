@@ -8,7 +8,7 @@ object BuildSettings {
 
   val buildSettings = Defaults.defaultSettings ++ Seq (
     organization := "com.linkedin",
-    version      := "0.6.9",
+    version      := "0.6.10",
     scalaVersion := "2.8.1",
     publishArtifact in (Compile, packageDoc) := false, // For some reason, Scaladoc fails on the Protobuf classes we use,
     publishTo := Some("oss.sonatype.org" at sonatypeRepo),
