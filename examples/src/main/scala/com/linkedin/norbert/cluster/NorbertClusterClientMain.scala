@@ -46,8 +46,9 @@ object NorbertClusterClientMain {
     command match {
       case "nodes" =>
         val ts = System.currentTimeMillis
-        val nodes = cluster.nodes
-        if (nodes.size > 0) println(nodes.mkString("\n")) else println("The cluster has no nodes")
+        val nodes = cluster.nodes.toArray
+        val sortedNodes = nodes.sortWith((node1, node2) => node1.id < node2.id)
+        if (nodes.size > 0) println(sortedNodes.mkString("\n")) else println("The cluster has no nodes")
 
       case "join" =>
         args match {
