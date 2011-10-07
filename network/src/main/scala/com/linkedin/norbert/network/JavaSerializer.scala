@@ -19,16 +19,40 @@ import java.io._
 import com.google.protobuf.Message
 
 object JavaSerializer {
-  def build[RequestMsg, ResponseMsg]
+  def apply[RequestMsg, ResponseMsg]
+		(requestClass: Class[RequestMsg], responseClass: Class[ResponseMsg]): JavaSerializer[RequestMsg, ResponseMsg] =
+	  apply(
+		  requestClass.getName,
+	    responseClass.getName,
+		  requestClass,
+	    responseClass)
+
+	def apply[RequestMsg, ResponseMsg]
+	(requestName: String, responseName: String, requestClass: Class[RequestMsg], responseClass: Class[ResponseMsg]): JavaSerializer[RequestMsg, ResponseMsg] =
+  new JavaSerializer(
+	  requestName,
+    responseName,
+	  requestClass,
+    responseClass)
+
+	def apply[RequestMsg, ResponseMsg]
+	(requestName: String, requestClass: Class[RequestMsg], responseClass: Class[ResponseMsg]): JavaSerializer[RequestMsg, ResponseMsg] =
+  apply(
+	  requestName,
+    responseClass.getName,
+	  requestClass,
+    responseClass)
+
+	def apply[RequestMsg, ResponseMsg]
   (implicit requestManifest: ClassManifest[RequestMsg], responseManifest: ClassManifest[ResponseMsg]): JavaSerializer[RequestMsg, ResponseMsg] =
-    new JavaSerializer[RequestMsg, ResponseMsg](requestManifest.erasure.asInstanceOf[Class[RequestMsg]],
-                                                responseManifest.erasure.asInstanceOf[Class[ResponseMsg]])
+    apply(requestManifest.erasure.asInstanceOf[Class[RequestMsg]], responseManifest.erasure.asInstanceOf[Class[ResponseMsg]])
 }
 
-class JavaSerializer[RequestMsg, ResponseMsg](requestClass: Class[RequestMsg], responseClass: Class[ResponseMsg])
+class JavaSerializer[RequestMsg, ResponseMsg](reqName: String, resName: String,
+                                              requestClass: Class[RequestMsg], responseClass: Class[ResponseMsg])
   extends Serializer[RequestMsg, ResponseMsg] {
-  def requestName = requestClass.getName
-  def responseName = responseClass.getName
+  def requestName = reqName
+  def responseName = resName
 
   private def toBytes[T](message: T): Array[Byte] = {
     val baos = new ByteArrayOutputStream
@@ -43,13 +67,13 @@ class JavaSerializer[RequestMsg, ResponseMsg](requestClass: Class[RequestMsg], r
     ois.readObject.asInstanceOf[T]
   }
 
-  def requestToBytes(message: RequestMsg) = toBytes(message)
+  def requestToBytes(message: RequestMsg): Array[Byte] = toBytes(message)
 
-  def requestFromBytes(bytes: Array[Byte]) = fromBytes(bytes)
+  def requestFromBytes(bytes: Array[Byte]): RequestMsg = fromBytes(bytes)
 
-  def responseToBytes(message: ResponseMsg) = toBytes(message)
+  def responseToBytes(message: ResponseMsg): Array[Byte] = toBytes(message)
 
-  def responseFromBytes(bytes: Array[Byte]) = fromBytes(bytes)
+  def responseFromBytes(bytes: Array[Byte]): ResponseMsg = fromBytes(bytes)
 }
 
 object ProtobufSerializer {
