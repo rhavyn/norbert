@@ -20,34 +20,43 @@ package netty
 import java.util.UUID
 import org.jboss.netty.channel._
 import com.google.protobuf.InvalidProtocolBufferException
-import java.util.concurrent.{TimeUnit, ConcurrentHashMap}
 import common.MessageRegistry
 import protos.NorbertProtos
 import logging.Logging
 import jmx.JMX.MBean
 import jmx.JMX
+import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit, ConcurrentHashMap}
 
 @ChannelPipelineCoverage("all")
 class ClientChannelHandler(serviceName: String, messageRegistry: MessageRegistry, staleRequestTimeoutMins: Int,
         staleRequestCleanupFrequencyMins: Int) extends SimpleChannelHandler with Logging {
   private val requestMap = new ConcurrentHashMap[UUID, Request]
 
-  private val cleanupThread = new Thread("stale-request-cleanup-thread") {
+  val cleanupTask = new Runnable() {
     val staleRequestTimeoutMillis = TimeUnit.MILLISECONDS.convert(staleRequestTimeoutMins, TimeUnit.MINUTES)
 
     override def run = {
-      while (true) {
-        TimeUnit.MINUTES.sleep(staleRequestCleanupFrequencyMins)
-
+      try {
         import collection.JavaConversions._
+        var expiredEntryCount = 0
+
         requestMap.keySet.foreach { uuid =>
           val request = requestMap.get(uuid)
-          if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) requestMap.remove(uuid)
+          if ((System.currentTimeMillis - request.timestamp) > staleRequestTimeoutMillis) {
+            requestMap.remove(uuid)
+            expiredEntryCount += 1
+          }
         }
+
+        log.info("Expired %d stale entries from the request map".format(expiredEntryCount))
+      } catch {
+        case e: Exception => log.error("Exception caught in cleanup task, ignoring " + e)
       }
     }
   }
-  cleanupThread.setDaemon(true)
+
+  val cleanupExecutor = new ScheduledThreadPoolExecutor(1)
+  cleanupExecutor.scheduleAtFixedRate(cleanupTask, staleRequestCleanupFrequencyMins, staleRequestCleanupFrequencyMins, TimeUnit.MINUTES)
 
   private val statsActor = new NetworkStatisticsActor(100)
   statsActor.start

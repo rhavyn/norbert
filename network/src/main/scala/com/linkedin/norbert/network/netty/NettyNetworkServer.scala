@@ -90,6 +90,7 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   override def shutdown = {
     if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
+    messageExecutor.shutdown
     requestContextEncoder.shutdown
   }
 }
