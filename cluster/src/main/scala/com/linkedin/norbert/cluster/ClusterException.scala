@@ -13,9 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
-
-import com.linkedin.norbert.NorbertException
+package com.linkedin.norbert
+package cluster
 
 /**
  * Base class for exceptions thrown by the <code>ClusterClient</code>.

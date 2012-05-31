@@ -13,7 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.logging
+package com.linkedin.norbert
+package logging
 
 import org.apache.log4j.{Level, Logger => l4jLogger}
 import Level._
@@ -22,75 +23,11 @@ import Level._
  * A wrapper around a Log4j <code>Logger</code> which provides higher level methods to reduce boilerplate.
  */
 class Logger(wrapped: l4jLogger) {
-  val fqcn = this.getClass.getName
+  private val fqcn = this.getClass.getName
 
-  /**
-   * Logs a message at info level.
-   *
-   * @param message a printf style message to log
-   * @param items the substitution values for the printf placeholders
-   */
-  def info(message: String, items: Any*) = logDirect(INFO, message, items: _*)
-
-  /**
-   * Logs an exception and message at info level.
-   *
-   * @param exception the exception to log
-   * @param message a printf style message to log
-   * @param items the substitution values for the printf placeholders
-   */
-  def info(cause: Throwable, message: String, items: Any*) = logDirect(INFO, cause, message, items: _*)
-
-  /**
-   * Logs a message at warn level.
-   *
-   * @param message a printf style message to log
-   * @param items the substitution values for the printf placeholders
-   */
-  def warn(message: String, items: Any*) = logDirect(WARN, message, items: _*)
-
-  /**
-   * Logs an exception and message at warn level.
-   *
-   * @param exception the exception to log
-   * @param message a printf style message to log
-   * @param items the substitution values for the printf placeholders
-   */
-  def warn(cause: Throwable, message: String, items: Any*) = logDirect(WARN, cause, message, items: _*)
-
-  /**
-   * Logs a message at error level.
-   *
-   * @param message a printf style message to log
-   * @param items the substitution values for the printf placeholders
-   */
-  def error(message: String, items: Any*) = logDirect(ERROR, message, items: _*)
-
-  /**
-   * Logs an exception and message at error level.
-   *
-   * @param exception the exception to log
-   * @param message a printf style message to log
-   * @param items the substitution values for the printf placeholders
-   */
-  def error(cause: Throwable, message: String, items: Any*) = logDirect(ERROR, cause, message, items: _*)
-
-  /**
-   * Logs a message at fatal level.
-   *
-   * @param message a printf style message to log
-   * @param items the substitution values for the printf placeholders
-   */
-  def fatal(message: String, items: Any*) = logDirect(FATAL, message, items: _*)
-
-  /**
-   * Logs an exception and message at fatal level.
-   *
-   * @param exception the exception to log
-   * @param message a printf style message to log
-   * @param items the substitution values for the printf placeholders
-   */
-  def fatal(cause: Throwable, message: String, items: Any*) = logDirect(FATAL, cause, message, items: _*)
+  def traceEnabled: Boolean = wrapped.isTraceEnabled
+  def debugEnabled: Boolean = wrapped.isDebugEnabled
+  def infoEnabled: Boolean = wrapped.isInfoEnabled
 
   /**
    * Logs a message at trace level if that level is enabled.
@@ -98,7 +35,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifTrace(message: String, items: Any*) = log(TRACE, message, items: _*)
+  def trace(msg: => String) = log(TRACE, msg)
 
   /**
    * Logs an exception and message at trace level if that level is enabled.
@@ -107,7 +44,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifTrace(cause: Throwable, message: String, items: Any*) = log(TRACE, cause, message, items: _*)
+  def trace(cause: Throwable, msg: => String) = log(TRACE, msg, cause)
 
   /**
    * Logs a message at debug level if that level is enabled.
@@ -115,7 +52,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifDebug(message: String, items: Any*) = log(DEBUG, message, items: _*)
+  def debug(msg: => String) = log(DEBUG, msg)
 
   /**
    * Logs an exception and message at debug level if that level is enabled.
@@ -124,7 +61,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifDebug(cause: Throwable, message: String, items: Any*) = log(DEBUG, cause, message, items: _*)
+  def debug(cause: Throwable, msg: => String) = log(DEBUG, msg, cause)
 
   /**
    * Logs a message at info level if that level is enabled.
@@ -132,7 +69,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifInfo(message: String, items: Any*) = log(INFO, message, items: _*)
+  def info(msg: => String) = log(INFO, msg)
 
   /**
    * Logs an exception and message at info level if that level is enabled.
@@ -141,7 +78,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifInfo(cause: Throwable, message: String, items: Any*) = log(INFO, cause, message, items: _*)
+  def info(cause: Throwable, msg: => String) = log(INFO, msg, cause)
 
   /**
    * Logs a message at warn level if that level is enabled.
@@ -149,7 +86,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifWarn(message: String, items: Any*) = log(WARN, message, items: _*)
+  def warn(msg: => String) = log(WARN, msg)
 
   /**
    * Logs an exception and message at warn level if that level is enabled.
@@ -158,7 +95,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifWarn(cause: Throwable, message: String, items: Any*) = log(WARN, cause, message, items: _*)
+  def warn(cause: Throwable, msg: => String) = log(WARN, msg, cause)
 
   /**
    * Logs a message at error level if that level is enabled.
@@ -166,7 +103,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifError(message: String, items: Any*) = log(ERROR, message, items: _*)
+  def error(msg: => String) = log(ERROR, msg)
 
   /**
    * Logs an exception and message at error level if that level is enabled.
@@ -175,7 +112,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifError(cause: Throwable, message: String, items: Any*) = log(ERROR, cause, message, items: _*)
+  def error(cause: Throwable, msg: => String) = log(ERROR, msg, cause)
 
   /**
    * Logs a message at fatal level if that level is enabled.
@@ -183,7 +120,7 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifFatal(message: String, items: Any*) = log(FATAL, message, items: _*)
+  def fatal(msg: => String) = log(FATAL, msg)
 
   /**
    * Logs an exception and message at fatal level if that level is enabled.
@@ -192,22 +129,10 @@ class Logger(wrapped: l4jLogger) {
    * @param message a printf style message to log
    * @param items the substitution values for the printf placeholders
    */
-  def ifFatal(cause: Throwable, message: String, items: Any*) = log(FATAL, cause, message, items: _*)
+  def fatal(cause: Throwable, msg: => String) = log(FATAL, msg, cause)
 
-  private def logDirect(level: Level, message: String, items: Any*) = {
-    wrapped.log(fqcn, level, message.format(items: _*), null)
-  }
-
-  private def logDirect(level: Level, cause: Throwable, message: String, items: Any*) = {
-    wrapped.log(fqcn, level, message.format(items: _*), cause)
-  }
-
-  private def log(level: Level, message: String, items: Any*) = {
-    if (wrapped.isEnabledFor(level)) wrapped.log(fqcn, level, message.format(items: _*), null)
-  }
-
-  private def log(level: Level, cause: Throwable, message: String, items: Any*) = {
-    if (wrapped.isEnabledFor(level)) wrapped.log(fqcn, level, message.format(items: _*), cause)
+  private def log(level: Level, msg: => String, cause: Throwable = null) = {
+    if (wrapped.isEnabledFor(level)) wrapped.log(fqcn, level, msg, cause)
   }
 }
 

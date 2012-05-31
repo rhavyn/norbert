@@ -13,9 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned.loadbalancer
+package com.linkedin.norbert
+package network
+package partitioned
+package loadbalancer
 
-import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
+import cluster.{InvalidClusterException, Node}
+import common.Endpoint
 
 /**
  * A <code>PartitionedLoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to
@@ -30,6 +34,17 @@ trait PartitionedLoadBalancer[PartitionedId] {
    * @return the <code>Node</code> to route the next message to
    */
   def nextNode(id: PartitionedId): Option[Node]
+
+//  def nodesForPartitions(partitions: Iterable[Int]): Set[Node]
+
+  /**
+   * Returns a list of nodes represents one replica of the cluster, this is used by the PartitionedNetworkClient to handle
+   * broadcast to one replica
+   *
+   * @return the <code>Nodes</code> to broadcast the next message to a replica to
+   */
+  def nodesForOneReplica : Map[Node, Set[Int]]
+
 }
 
 /**
@@ -46,7 +61,7 @@ trait PartitionedLoadBalancerFactory[PartitionedId] {
    * it is impossible to create a <code>LoadBalancer</code>
    */
   @throws(classOf[InvalidClusterException])
-  def newLoadBalancer(nodes: Set[Node]): PartitionedLoadBalancer[PartitionedId]
+  def newLoadBalancer(nodes: Set[Endpoint]): PartitionedLoadBalancer[PartitionedId]
 }
 
 /**

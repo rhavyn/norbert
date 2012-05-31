@@ -13,59 +13,70 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
-import com.google.protobuf.Message
-import com.linkedin.norbert.cluster.Node
 import java.net.InetSocketAddress
 import java.util.concurrent.{ConcurrentHashMap}
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.network.common.{MessageRegistryComponent, ClusterIoClientComponent}
-import org.jboss.netty.channel.{Channels, ChannelFactory, ChannelPipelineFactory}
+import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
+import cluster.Node
+import logging.Logging
+import common._
+import norbertutils.SystemClock
 
 /**
  * A <code>ClusterIoClientComponent</code> implementation that uses Netty for network communication.
  */
 trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
-  this: MessageRegistryComponent =>
 
-  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory) extends ClusterIoClient with UrlParser with Logging {
+  class NettyClusterIoClient(channelPoolFactory: ChannelPoolFactory, strategy: CanServeRequestStrategy) extends ClusterIoClient with UrlParser with Logging {
     private val channelPools = new ConcurrentHashMap[Node, ChannelPool]
 
-    def sendMessage(node: Node, message: Message, responseCallback: (Either[Throwable, Message]) => Unit) = {
-      if (node == null || message == null || responseCallback == null) throw new NullPointerException
+    def sendMessage[RequestMsg, ResponseMsg](node: Node, request: Request[RequestMsg, ResponseMsg]) {
+      if (node == null || request == null) throw new NullPointerException
 
-      var pool = channelPools.get(node)
-      if (pool == null) {
-        val (address, port) = parseUrl(node.url)
-
-        pool = channelPoolFactory.newChannelPool(new InetSocketAddress(address, port))
-        channelPools.putIfAbsent(node, pool)
-        pool = channelPools.get(node)
-      }
-
+      val pool = getChannelPool(node)
       try {
-        pool.sendRequest(Request(message, responseCallback))
+        pool.sendRequest(request)
       } catch {
         case ex: ChannelPoolClosedException =>
           // ChannelPool was closed, try again
-          sendMessage(node, message, responseCallback)
+          sendMessage(node, request)
       }
     }
 
-    def nodesChanged(nodes: Set[Node]) = {
-      import scala.collection.jcl.Conversions._
+    def getChannelPool(node: Node): ChannelPool = {
+      // TODO: Theoretically, we might be able to get a null reference instead of a channel pool here
+      import norbertutils._
+      atomicCreateIfAbsent(channelPools, node) { n: Node =>
+        val (address, port) = parseUrl(n.url)
+        channelPoolFactory.newChannelPool(new InetSocketAddress(address, port))
+      }
+    }
+
+    def nodesChanged(nodes: Set[Node]): Set[Endpoint] = {
+      import scala.collection.JavaConversions._
       channelPools.keySet.foreach { node =>
         if (!nodes.contains(node)) {
           val pool = channelPools.remove(node)
           pool.close
-          log.ifDebug("Closing pool for unavailable node: %s", node)
+          log.info("Closing pool for unavailable node: %s".format(node))
+        }
+      }
+
+      nodes.map { n =>
+        val requestStrategy = strategy
+
+        new Endpoint {
+          def node = n
+          def canServeRequests = requestStrategy.canServeRequest(node)
         }
       }
     }
 
     def shutdown = {
-      import scala.collection.jcl.Conversions._
+      import scala.collection.JavaConversions._
 
       channelPools.keySet.foreach { key =>
         channelPools.get(key) match {
@@ -78,7 +89,7 @@ trait NettyClusterIoClientComponent extends ClusterIoClientComponent {
 
       channelPoolFactory.shutdown
 
-      log.ifDebug("NettyClusterIoClient shut down")
+      log.debug("NettyClusterIoClient shut down")
     }
   }
 

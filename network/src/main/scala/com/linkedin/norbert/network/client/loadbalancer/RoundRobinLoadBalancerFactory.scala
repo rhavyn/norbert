@@ -13,15 +13,31 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client.loadbalancer
+package com.linkedin.norbert
+package network
+package client
+package loadbalancer
 
-import com.linkedin.norbert.cluster.Node
+import common.Endpoint
+import cluster.Node
+import java.util.concurrent.atomic.AtomicInteger
+import annotation.tailrec
 
-class RoundRobinLoadBalancerFactory extends LoadBalancerFactory {
-  def newLoadBalancer(nodes: Set[Node]) = new LoadBalancer {
-    private val random = new scala.util.Random
-    private val myNodes = nodes.toArray
+class RoundRobinLoadBalancerFactory extends LoadBalancerFactory with LoadBalancerHelpers {
+  def newLoadBalancer(endpointSet: Set[Endpoint]): LoadBalancer = new LoadBalancer {
 
-    def nextNode = Some(myNodes(random.nextInt(myNodes.length)))
+    val counter = new AtomicInteger(0)
+    val endpoints = endpointSet.toArray
+
+    def nextNode = {
+      val activeEndpoints = endpoints.filter(_.canServeRequests)
+
+      if(activeEndpoints.isEmpty)
+        Some(chooseNext(endpoints, counter).node)
+      else if(endpoints.isEmpty)
+        None
+      else
+        Some(chooseNext(activeEndpoints, counter).node)
+    }
   }
 }

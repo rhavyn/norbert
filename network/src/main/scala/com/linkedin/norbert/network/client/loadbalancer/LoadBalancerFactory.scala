@@ -13,9 +13,13 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client.loadbalancer
+package com.linkedin.norbert
+package network
+package client
+package loadbalancer
 
-import com.linkedin.norbert.cluster.{InvalidClusterException, Node}
+import cluster.{InvalidClusterException, Node}
+import common.Endpoint
 
 /**
  * A <code>LoadBalancer</code> handles calculating the next <code>Node</code> a message should be routed to.
@@ -44,7 +48,7 @@ trait LoadBalancerFactory {
    * it is impossible to create a <code>LoadBalancer</code>
    */
   @throws(classOf[InvalidClusterException])
-  def newLoadBalancer(nodes: Set[Node]): LoadBalancer
+  def newLoadBalancer(nodes: Set[Endpoint]): LoadBalancer
 }
 
 /**
@@ -52,5 +56,14 @@ trait LoadBalancerFactory {
  */
 trait LoadBalancerFactoryComponent {
   val loadBalancerFactory: LoadBalancerFactory
+
+}
+
+trait LoadBalancerHelpers {
+  import java.util.concurrent.atomic.AtomicInteger
+  import math._
+
+  def chooseNext[T](items: Seq[T], counter: AtomicInteger): T =
+    items(abs(counter.getAndIncrement) % items.size)
 
 }

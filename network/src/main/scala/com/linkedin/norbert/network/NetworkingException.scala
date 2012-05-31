@@ -13,9 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
-
-import com.linkedin.norbert.NorbertException
+package com.linkedin.norbert
+package network
 
 /**
  * Base class from which Norbert's networking related exceptions inherit.
@@ -42,7 +41,7 @@ class RemoteException(className: String, errorMsg: String) extends NetworkingExc
 class InvalidMessageException(errorMsg: String) extends NetworkingException(errorMsg)
 
 /**
- * Exception that indicates that a malformed response was received. 
+ * Exception that indicates that a malformed response was received.
  */
 class InvalidResponseException(errorMsg: String) extends NetworkingException(errorMsg)
 
@@ -60,3 +59,8 @@ class NoNodesAvailableException(errorMsg: String) extends NetworkingException(er
  * Exception that indicates that a method has been called before the network server has been bound.
  */
 class NetworkServerNotBoundException extends NetworkingException
+
+/**
+ * Exception that indicates that the  message was rejected because the waiting queue is full.
+ */
+class HeavyLoadException extends NetworkingException

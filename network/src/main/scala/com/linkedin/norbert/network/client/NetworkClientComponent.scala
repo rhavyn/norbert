@@ -13,7 +13,9 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client
+package com.linkedin.norbert
+package network
+package client
 
 /**
  * A component which provides a network client for interacting with nodes in a cluster.

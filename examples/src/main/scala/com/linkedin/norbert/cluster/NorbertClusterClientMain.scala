@@ -13,13 +13,15 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster
+package com.linkedin.norbert
+package cluster
 
 object NorbertClusterClientMain {
   private var cluster: ClusterClient = _
 
   def main(args: Array[String]) {
     cluster = ClusterClient(args(0), args(1), 30000)
+    cluster.awaitConnectionUninterruptibly
     loop
   }
 
@@ -44,8 +46,9 @@ object NorbertClusterClientMain {
     command match {
       case "nodes" =>
         val ts = System.currentTimeMillis
-        val nodes = cluster.nodes
-        if (nodes.size > 0) println(nodes.mkString("\n")) else println("The cluster has no nodes")
+        val nodes = cluster.nodes.toArray
+        val sortedNodes = nodes.sortWith((node1, node2) => node1.id < node2.id)
+        if (nodes.size > 0) println(sortedNodes.mkString("\n")) else println("The cluster has no nodes")
 
       case "join" =>
         args match {
@@ -53,7 +56,7 @@ object NorbertClusterClientMain {
             cluster.addNode(nodeId.toInt, url)
             println("Joined Norbert cluster")
 
-          case nodeId :: url :: partitions => 
+          case nodeId :: url :: partitions =>
             cluster.addNode(nodeId.toInt, url, Set() ++ partitions.map(_.toInt))
             println("Joined Norbert cluster")
 
@@ -67,6 +70,22 @@ object NorbertClusterClientMain {
         } else {
           cluster.removeNode(args.head.toInt)
           println("Left Norbert cluster")
+        }
+
+      case "down" =>
+        if (args.length < 1) {
+          println("Invalid syntax: join nodeId")
+        } else {
+          cluster.markNodeUnavailable(args.head.toInt)
+          println("Marked node offline")
+        }
+
+      case "up" =>
+        if (args.length < 1) {
+          println("Invalid syntax: join nodeId")
+        } else {
+          cluster.markNodeAvailable(args.head.toInt)
+          println("Marked node online")
         }
 
       case "exit" => exit

@@ -13,9 +13,11 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.group.{ChannelGroupFuture, ChannelGroup}
 import org.specs.mock.Mockito
@@ -24,11 +26,11 @@ import com.google.protobuf.Message
 import java.util.concurrent.{TimeoutException, TimeUnit}
 import java.net.InetSocketAddress
 
-class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
+class ChannelPoolSpec extends Specification with Mockito {
   val channelGroup = mock[ChannelGroup]
   val bootstrap = mock[ClientBootstrap]
   val address = new InetSocketAddress("localhost", 31313)
-  val channelPool = new ChannelPool(address, 1, 1, bootstrap, channelGroup)
+  val channelPool = new ChannelPool(address, 1, 100, 100, bootstrap, channelGroup, None)
 
   "ChannelPool" should {
     "close the ChannelGroup when close  is called" in {
@@ -38,8 +40,10 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
 
       channelPool.close
 
-      channelGroup.close was called
-      future.awaitUninterruptibly was called
+      got {
+        one(channelGroup).close
+        one(future).awaitUninterruptibly
+      }
     }
 
     "throw a ChannelPoolClosedException if sendRequest is called after close is called" in {
@@ -48,16 +52,32 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       future.awaitUninterruptibly returns future
 
       channelPool.close
-      channelPool.sendRequest(mock[Request]) must throwA[ChannelPoolClosedException]
+      channelPool.sendRequest(mock[Request[_, _]]) must throwA[ChannelPoolClosedException]
     }
 
     "open a new channel if no channels are open" in {
       val future = mock[ChannelFuture]
       bootstrap.connect(address) returns future
 
-      channelPool.sendRequest(mock[Request])
+      channelPool.sendRequest(mock[Request[_, _]])
 
-      bootstrap.connect(address) was called
+      there was one(bootstrap).connect(address)
+    }
+
+    "send a request if the pool is empty" in {
+      val channel = mock[Channel]
+      channel.isConnected returns true
+      val future = new TestChannelFuture(channel, true)
+      bootstrap.connect(address) returns future
+      channelGroup.add(channel) returns true
+      channel.write(any[Request[_, _]]) returns mock[ChannelFuture]
+
+      val request = mock[Request[_, _]]
+      request.timestamp returns (System.currentTimeMillis)
+
+      channelPool.sendRequest(request)
+      future.listener.operationComplete(future)
+      channelPool.numRequestsSent must eventually (be_==(1))
     }
 
     "not open a new channel if the max number of channels are already in the pool" in {
@@ -66,16 +86,18 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       val future = new TestChannelFuture(channel, true)
       bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
-      channel.write(any[Request]) returns future
+      channel.write(any[Request[_, _]]) returns future
 
-      val request = Request(mock[Message], (e) => null)
+      val request = mock[Request[_, _]]
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      channelPool.sendRequest(mock[Request])
+      channelPool.sendRequest(mock[Request[_, _]])
 
-      channelGroup.add(channel) was called.once
-      bootstrap.connect(address) was called.once
+      got {
+        one(channelGroup).add(channel)
+        one(bootstrap).connect(address)
+      }
     }
 
     "open a new channel if the max number of channels are already in the pool but a channel is closed" in {
@@ -84,22 +106,25 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       val future = new TestChannelFuture(channel, true)
       bootstrap.connect(address) returns future
       channelGroup.add(channel) returns true
-      channel.write(any[Request]) returns future
+      channel.write(any[Request[_, _]]) returns future
 
-      val request = Request(mock[Message], (e) => null)
+//      val request = Request(mock[Request], (e) => null)
+      val request = mock[Request[_, _]]
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      channelGroup.add(channel) was called.twice
-      bootstrap.connect(address) was called.twice
+      got {
+        two(channelGroup).add(channel)
+        two(bootstrap).connect(address)
+      }
     }
 
     "write all queued requests" in {
       val channel = mock[Channel]
-      val request = mock[Request]
+      val request = mock[Request[_, _]]
       request.timestamp returns System.currentTimeMillis + 10000
       channel.isConnected returns true
       val future = new TestChannelFuture(channel, true)
@@ -112,15 +137,37 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      channel.write(any[Request]) was called.times(3)
-      bootstrap.connect(address) was called.once
+      got {
+        three(channel).write(any[Request[_, _]])
+        one(bootstrap).connect(address)
+      }
     }
 
     "properly handle a failed write" in {
       val channel = mock[Channel]
-      var either: Either[Throwable, Message] = null
-      val request = spy(Request(mock[Message], (e) => either = e))
+      var either: Either[Throwable, Any] = null
+      val request = spy(Request(null, null, null, null, (e: Either[Throwable, Any]) => either = e))
       request.timestamp returns System.currentTimeMillis + 10000
+      channel.isConnected returns true
+      val openFuture = new TestChannelFuture(channel, true)
+      val writeFuture = new TestChannelFuture(channel, false)
+      bootstrap.connect(address) returns openFuture
+      channelGroup.add(channel) returns true
+      channel.write(request) returns writeFuture
+
+      channelPool.sendRequest(request)
+      openFuture.listener.operationComplete(openFuture)
+      writeFuture.listener.operationComplete(writeFuture)
+
+      either must notBeNull
+      either.isLeft must beTrue
+    }
+
+    "invoke callback when remote exception encountered" in {
+      val channel = mock[Channel]
+      var either: Either[Throwable, Any] = null
+      val request = spy(Request(null, null, null, null, (e: Either[Throwable, Any]) => either = e))
+      request.timestamp returns System.currentTimeMillis
       channel.isConnected returns true
       val openFuture = new TestChannelFuture(channel, true)
       val writeFuture = new TestChannelFuture(channel, false)
@@ -138,9 +185,11 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
 
     "not write queued requests if the request timed out" in {
       val channel = mock[Channel]
-      val goodRequest = spy(Request(mock[Message], (e) => null))
-      var either: Either[Throwable, Message] = null
-      val badRequest = spy(Request(mock[Message], (e) => either = e))
+      val goodRequest = spy(new Request(null, null, null, null, (e: Either[Throwable, Any]) => null))
+
+      var either: Either[Throwable, Any] = null
+      val badRequest = spy(new Request(null, null, null, null, (e: Either[Throwable, Any]) => either = e))
+
       goodRequest.timestamp returns System.currentTimeMillis + 10000
       badRequest.timestamp returns System.currentTimeMillis - 10000
       channel.isConnected returns true
@@ -155,9 +204,11 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       channelPool.sendRequest(goodRequest)
       future.listener.operationComplete(future)
 
-      channel.write(goodRequest) was called.times(2)
-      channel.write(badRequest) wasnt called
-      bootstrap.connect(address) was called.once
+      got {
+        two(channel).write(goodRequest)
+        one(bootstrap).connect(address)
+      }
+      there was no(channel).write(badRequest)
       either must notBeNull
       either.isLeft must beTrue
       either.left.get must haveClass[TimeoutException]
@@ -165,7 +216,7 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
 
     "not write queued requests if the open failed" in {
       val channel = mock[Channel]
-      val request = mock[Request]
+      val request = mock[Request[_, _]]
       request.timestamp returns System.currentTimeMillis + 10000
       channel.isConnected returns true
       val future = new TestChannelFuture(channel, false)
@@ -178,8 +229,8 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
       channelPool.sendRequest(request)
       future.listener.operationComplete(future)
 
-      channel.write(any[Request]) wasnt called
-      bootstrap.connect(address) was called.once
+      there was no(channel).write(any[Request[_, _]])
+      there was one(bootstrap).connect(address)
     }
   }
 
@@ -217,5 +268,7 @@ class ChannelPoolSpec extends SpecificationWithJUnit with Mockito {
     def cancel = false
 
     def setSuccess = false
+
+    def setProgress(p1: Long, p2: Long, p3: Long) = false
   }
 }

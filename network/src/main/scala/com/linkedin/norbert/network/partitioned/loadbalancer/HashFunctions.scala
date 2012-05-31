@@ -13,7 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.partitioned.loadbalancer
+package com.linkedin.norbert
+package network
+package partitioned
+package loadbalancer
 
 /**
  * Object which provides hash function implementations.
@@ -34,7 +37,7 @@ object HashFunctions {
 
     def fnv(key: Array[Byte], hash: Long): Int = {
       if (key.length == 0) hash.toInt
-      else fnv(key.drop(1), (hash ^ (0xFF & key.first)) * FNV_PRIME)
+      else fnv(key.drop(1), (hash ^ (0xFF & key.head)) * FNV_PRIME)
     }
 
     fnv(bytes, FNV_BASIS)

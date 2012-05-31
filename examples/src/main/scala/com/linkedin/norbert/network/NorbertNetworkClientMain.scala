@@ -13,26 +13,27 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert
+package network
 
 import client._
 import client.loadbalancer.RoundRobinLoadBalancerFactory
 import org.jboss.netty.logging.{Log4JLoggerFactory, InternalLoggerFactory}
 import java.util.concurrent.{ExecutionException, TimeoutException, TimeUnit}
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterShutdownException, Node}
-import com.linkedin.norbert.protos.NorbertExampleProtos
+import cluster.{ClusterShutdownException, ClusterClient}
+import protos.NorbertExampleProtos
 
 object NorbertNetworkClientMain {
   InternalLoggerFactory.setDefaultFactory(new Log4JLoggerFactory)
 
   def main(args: Array[String]) {
-    val cc = ClusterClient(args(0), args(1), 30000)
+    val cc = ClusterClient( args(0), args(1), 30000)
 
     val config = new NetworkClientConfig
     config.clusterClient = cc
 
     val nc = NetworkClient(config, new RoundRobinLoadBalancerFactory)
-    nc.registerRequest(NorbertExampleProtos.Ping.getDefaultInstance, NorbertExampleProtos.PingResponse.getDefaultInstance)
+//    nc.registerRequest(NorbertExampleProtos.Ping.getDefaultInstance, NorbertExampleProtos.PingResponse.getDefaultInstance)
 
     Runtime.getRuntime.addShutdownHook(new Thread {
       override def run = {
@@ -96,7 +97,7 @@ object NorbertNetworkClientMain {
           val node = cc.nodeWithId(args.head.toInt)
           node match {
             case Some(n) =>
-              val future = nc.sendMessageToNode(NorbertExampleProtos.Ping.newBuilder.setTimestamp(System.currentTimeMillis).build, n)
+              val future = nc.sendRequestToNode(Ping(System.currentTimeMillis), n)
               try {
                 val response = future.get(500, TimeUnit.MILLISECONDS).asInstanceOf[NorbertExampleProtos.PingResponse]
                 println("Ping took %dms".format(System.currentTimeMillis - response.getTimestamp))
