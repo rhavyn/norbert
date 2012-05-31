@@ -5,7 +5,20 @@
     <groupId>com.linkedin.norbert</groupId>
     <artifactId>norbert</artifactId>
     <packaging>pom</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>${objenesis.version}-SNAPSHOT</version>
+
+    <properties>
+        <zookeeper.version>3.3.0</zookeeper.version>
+        <protobuf.version>2.4.0a</protobuf.version>
+        <log4j.version>1.2.16</log4j.version>
+        <mockito.version>1.8.4</mockito.version>
+        <cglib.version>2.1_3</cglib.version>
+        <objenesis.version>1.0</objenesis.version>
+        <netty.version>3.2.3.Final</netty.version>
+        <slf4j.version>1.5.6</slf4j.version>
+        <scala.version>2.8.1</scala.version>
+        <specs.version>1.6.7</specs.version>
+    </properties>
 
     <modules>
         <module>cluster</module>
@@ -20,32 +33,32 @@
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
-                <version>2.3.0</version>
+                <version>${protobuf.version}</version>
             </dependency>
             <dependency>
                 <groupId>log4j</groupId>
                 <artifactId>log4j</artifactId>
-                <version>1.2.14</version>
+                <version>${log4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.hadoop</groupId>
                 <artifactId>zookeeper</artifactId>
-                <version>3.3.0</version>
+                <version>${zookeeper.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.jboss.netty</groupId>
                 <artifactId>netty</artifactId>
-                <version>3.1.5.GA</version>
+                <version>${netty.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.5.6</version>
+                <version>${slf4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-log4j12</artifactId>
-                <version>1.5.6</version>
+                <version>${slf4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -54,20 +67,20 @@
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>2.7.7</version>
+            <version>${scala.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-compiler</artifactId>
-            <version>2.7.7</version>
+            <version>${scala.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.scala-tools.testing</groupId>
-            <artifactId>specs</artifactId>
-            <version>1.6.2</version>
+            <artifactId>specs_${scala.version}</artifactId>
+            <version>${specs.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -79,30 +92,23 @@
         </dependency>
 
         <dependency>
-            <groupId>org.jmock</groupId>
-            <artifactId>jmock</artifactId>
-            <version>2.4.0</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>1.8.0</version>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>cglib</groupId>
             <artifactId>cglib</artifactId>
-            <version>2.1_3</version>
+            <version>${cglib.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.objenesis</groupId>
             <artifactId>objenesis</artifactId>
-            <version>1.0</version>
+            <version>${objenesis.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -116,8 +122,8 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <configuration>
-                        <source>1.5</source>
-                        <target>1.5</target>
+                        <source>1.6</source>
+                        <target>1.6</target>
                     </configuration>
                 </plugin>
 
@@ -140,6 +146,7 @@
             <plugin>
                 <groupId>org.scala-tools</groupId>
                 <artifactId>maven-scala-plugin</artifactId>
+                <version>2.15.2</version>
                 <executions>
                     <execution>
                         <id>scala-compile-first</id>
@@ -157,15 +164,17 @@
                         </goals>
                     </execution>
                 </executions>
+<!--
                 <configuration>
                     <args>
                         <arg>-deprecation</arg>
-                        <!--<arg>-Xprint:typer</arg>-->
+                        &lt;!&ndash;<arg>-Xprint:typer</arg>&ndash;&gt;
                     </args>
                     <jvmArgs>
                         <jvmArg>-Xmx1024m</jvmArg>
                     </jvmArgs>
                 </configuration>
+-->
             </plugin>
 
             <!--attach source-->
@@ -188,7 +197,7 @@
         <repository>
             <id>jboss.com</id>
             <name>JBoss Maven 2 Repository</name>
-            <url>http://repository.jboss.com/maven2</url>
+            <url>http://repository.jboss.org/nexus/content/groups/public/</url>
         </repository>
 
         <repository>
