@@ -13,47 +13,52 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.server
-
-import com.google.protobuf.Message
-import com.linkedin.norbert.network.InvalidMessageException
+package com.linkedin.norbert
+package network
+package server
 
 trait MessageHandlerRegistryComponent {
   val messageHandlerRegistry: MessageHandlerRegistry
 }
 
+private case class MessageHandlerEntry[RequestMsg, ResponseMsg]
+(is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg], handler: RequestMsg => ResponseMsg)
+
 class MessageHandlerRegistry {
-  private var handlerMap = Map[String, (Message, Message, (Message) => Message)]()
+  @volatile private var handlerMap =
+    Map.empty[String, MessageHandlerEntry[_ <: Any, _ <: Any]]
 
-  def registerHandler(requestMessage: Message, responseMessage: Message, handler: (Message) => Message) {
-    if (requestMessage == null || handler == null) throw new NullPointerException
-    val response = if (responseMessage == null) null else responseMessage.getDefaultInstanceForType
+  def registerHandler[RequestMsg, ResponseMsg](handler: RequestMsg => ResponseMsg)
+                                              (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]) {
+    if(handler == null) throw new NullPointerException
 
-    handlerMap += (requestMessage.getDescriptorForType.getFullName -> (requestMessage, responseMessage, handler))
+    handlerMap += (is.requestName -> MessageHandlerEntry(is, os, handler))
   }
 
   @throws(classOf[InvalidMessageException])
-  def handlerFor(requestMessage: Message): (Message) => Message = {
-    if (requestMessage == null) throw new NullPointerException
-
-    getHandlerTuple(requestMessage)._3
+  def inputSerializerFor[RequestMsg, ResponseMsg](messageName: String): InputSerializer[RequestMsg, ResponseMsg] = {
+    handlerMap.get(messageName).map(_.is)
+      .getOrElse(throw new InvalidMessageException("%s is not a registered method".format(messageName)))
+      .asInstanceOf[InputSerializer[RequestMsg, ResponseMsg]]
   }
 
-  def requestMessageDefaultInstanceFor(name: String): Option[Message] = {
-    handlerMap.get(name).map(_._1)
-  }
-  
-  def validResponseFor(requestMessage: Message, responseMessage: Message): Boolean = {
-    if (requestMessage == null) throw new NullPointerException
-    val (_, r, _) = getHandlerTuple(requestMessage)
-
-    if (r == null && responseMessage == null) true
-    else if (r != null && responseMessage == null) false
-    else responseMessage.getClass == r.getClass
+  @throws(classOf[InvalidMessageException])
+  def outputSerializerFor[RequestMsg, ResponseMsg](messageName: String): OutputSerializer[RequestMsg, ResponseMsg] = {
+    handlerMap.get(messageName).map(_.os)
+      .getOrElse(throw new InvalidMessageException("%s is not a registered method".format(messageName)))
+      .asInstanceOf[OutputSerializer[RequestMsg, ResponseMsg]]
   }
 
-  def getHandlerTuple(requestMessage: Message) = {
-    val name = requestMessage.getDescriptorForType.getFullName
-    handlerMap.get(name).getOrElse(throw new InvalidMessageException("No such message of type %s registered".format(name)))
+  @throws(classOf[InvalidMessageException])
+  def handlerFor[RequestMsg, ResponseMsg](request: RequestMsg)
+                                         (implicit is: InputSerializer[RequestMsg, ResponseMsg]): RequestMsg => ResponseMsg = {
+    handlerFor[RequestMsg, ResponseMsg](is.requestName)
+  }
+
+  @throws(classOf[InvalidMessageException])
+  def handlerFor[RequestMsg, ResponseMsg](messageName: String): RequestMsg => ResponseMsg = {
+    handlerMap.get(messageName).map(_.handler)
+      .getOrElse(throw new InvalidMessageException("%s is not a registered method".format(messageName)))
+      .asInstanceOf[RequestMsg => ResponseMsg]
   }
 }

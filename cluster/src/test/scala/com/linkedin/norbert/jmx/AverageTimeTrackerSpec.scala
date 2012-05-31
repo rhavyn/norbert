@@ -13,18 +13,37 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.jmx
+package com.linkedin.norbert
+package jmx
 
-import org.specs.SpecificationWithJUnit
+import org.specs.Specification
+import norbertutils.{SystemClock, MockClock, Clock, ClockComponent}
 
-class AverageTimeTrackerSpec extends SpecificationWithJUnit {
-  "AverageTimeTracker" should {
+class AverageTimeTrackerSpec extends Specification {
+  "RequestTimeTracker" should {
     "correctly average the times provided" in {
-      val a = new AverageTimeTracker(100)
-      (1 to 100).foreach(a.addTime(_))
-      a.average must be_==(50)
+      val a = new FinishedRequestTimeTracker(MockClock, 100)
+      (1 to 100).foreach{ t =>
+        a.addTime(t)
+        MockClock.currentTime = t
+      }
+      a.total must be_==(5050)
+
       a.addTime(101)
-      a.average must be_==(51)
+      MockClock.currentTime = 101
+
+      a.total must be_==(5150) // first one gets knocked out
     }
+
+    "Correctly calculate unfinished times" in {
+       val tracker = new PendingRequestTimeTracker[Int](MockClock)
+
+       (0 until 10).foreach { i =>
+         MockClock.currentTime = 1000L * i
+         tracker.beginRequest(i)
+         (tracker.total / (i + 1)) must be_==(1000L * i / 2)
+       }
+    }
+
   }
 }

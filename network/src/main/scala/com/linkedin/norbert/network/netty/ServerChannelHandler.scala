@@ -13,25 +13,26 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import org.jboss.netty.channel.group.ChannelGroup
-import com.linkedin.norbert.logging.Logging
-import com.linkedin.norbert.protos.NorbertProtos
-import com.linkedin.norbert.network.InvalidMessageException
 import org.jboss.netty.channel._
-import com.google.protobuf.{InvalidProtocolBufferException, Message}
-import com.linkedin.norbert.network.server.{MessageHandlerRegistry, MessageExecutor}
-import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
-import com.linkedin.norbert.jmx.{AverageTimeTracker, JMX}
-import com.linkedin.norbert.jmx.JMX.MBean
+import server.{MessageExecutor, MessageHandlerRegistry}
+import protos.NorbertProtos
+import logging.Logging
 import java.util.UUID
+import jmx.JMX.MBean
+import org.jboss.netty.handler.codec.oneone.{OneToOneEncoder, OneToOneDecoder}
+import jmx.{FinishedRequestTimeTracker, JMX}
+import java.lang.String
+import com.google.protobuf.{ByteString}
+import norbertutils._
+import common.CachedNetworkStatistics
+import util.ProtoUtils
 
-object RequestContext {
-  def apply(requestId: UUID): RequestContext = RequestContext(requestId, System.currentTimeMillis)
-}
-
-case class RequestContext(requestId: UUID, receivedAt: Long)
+case class RequestContext(requestId: UUID, receivedAt: Long = System.currentTimeMillis)
 
 @ChannelPipelineCoverage("all")
 class RequestContextDecoder extends OneToOneDecoder {
@@ -50,80 +51,90 @@ class RequestContextDecoder extends OneToOneDecoder {
 }
 
 @ChannelPipelineCoverage("all")
-class RequestContextEncoder(serviceName: String) extends OneToOneEncoder with Logging {
-  private val statsActor = new NetworkStatisticsActor(100)
-  statsActor.start
-
-  private val requestProcessingTime = new AverageTimeTracker(100)
-
-  private val jmxHandle = JMX.register(new MBean(classOf[NetworkServerStatisticsMBean], "service=%s".format(serviceName)) with NetworkServerStatisticsMBean {
-    import statsActor.Stats._
-
-    def getRequestsPerSecond = statsActor !? GetRequestsPerSecond match {
-      case RequestsPerSecond(rps) => rps
-    }
-
-    def getAverageRequestProcessingTime = statsActor !? GetAverageProcessingTime match {
-      case AverageProcessingTime(time) => time
-    }
-  })
-
+class RequestContextEncoder extends OneToOneEncoder with Logging {
   def encode(ctx: ChannelHandlerContext, channel: Channel, msg: Any) = {
     val (context, norbertMessage) = msg.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
 
-    statsActor ! statsActor.Stats.NewProcessingTime((System.currentTimeMillis - context.receivedAt).toInt)
-
     norbertMessage
-  }
-
-  def shutdown {
-    statsActor ! 'quit
-    jmxHandle.foreach { JMX.unregister(_) }
   }
 }
 
 @ChannelPipelineCoverage("all")
-class ServerChannelHandler(channelGroup: ChannelGroup, messageHandlerRegistry: MessageHandlerRegistry, messageExecutor: MessageExecutor) extends SimpleChannelHandler with Logging {
+class ServerChannelHandler(serviceName: String,
+                           channelGroup: ChannelGroup,
+                           messageHandlerRegistry: MessageHandlerRegistry,
+                           messageExecutor: MessageExecutor,
+                           requestStatisticsWindow: Long,
+                           avoidByteStringCopy: Boolean) extends SimpleChannelHandler with Logging {
+  private val statsActor = CachedNetworkStatistics[Int, UUID](SystemClock, requestStatisticsWindow, 200L)
+
+  val statsJmx = JMX.register(new NetworkServerStatisticsMBeanImpl(serviceName, statsActor))
+
+  def shutdown: Unit = {
+    statsJmx.foreach { JMX.unregister(_) }
+  }
+
   override def channelOpen(ctx: ChannelHandlerContext, e: ChannelStateEvent) {
     val channel = e.getChannel
-    log.ifTrace("channelOpen: " + channel)
+    log.trace("channelOpen: " + channel)
     channelGroup.add(channel)
   }
 
   override def messageReceived(ctx: ChannelHandlerContext, e: MessageEvent) {
     val (context, norbertMessage) = e.getMessage.asInstanceOf[(RequestContext, NorbertProtos.NorbertMessage)]
     val channel = e.getChannel
-    val message = messageHandlerRegistry.requestMessageDefaultInstanceFor(norbertMessage.getMessageName) map { di =>
-      try {
-        di.newBuilderForType.mergeFrom(norbertMessage.getMessage).build
-      } catch {
-        case ex: InvalidProtocolBufferException =>
-          Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
-          throw ex
-      }
-    } getOrElse {
-      val ex = new InvalidMessageException("No such message of type %s registered".format(norbertMessage.getMessageName))
-      Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
-      throw ex
+
+    val messageName = norbertMessage.getMessageName
+    val requestBytes = ProtoUtils.byteStringToByteArray(norbertMessage.getMessage, avoidByteStringCopy)
+
+    statsActor.beginRequest(0, context.requestId)
+
+    val (handler, is, os) = try {
+      val handler: Any => Any = messageHandlerRegistry.handlerFor(messageName)
+      val is: InputSerializer[Any, Any] = messageHandlerRegistry.inputSerializerFor(messageName)
+      val os: OutputSerializer[Any, Any] = messageHandlerRegistry.outputSerializerFor(messageName)
+
+      (handler, is, os)
+    } catch {
+      case ex: InvalidMessageException =>
+        Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex)))
+        statsActor.endRequest(0, context.requestId)
+
+        throw ex
     }
 
-    messageExecutor.executeMessage(message, either => responseHandler(context, e.getChannel, either))
+    val request = is.requestFromBytes(requestBytes)
+
+    try {
+      messageExecutor.executeMessage(request, (either: Either[Exception, Any]) => {
+        responseHandler(context, e.getChannel, either)(is, os)
+      })(is)
+    }
+    catch {
+      case ex: HeavyLoadException =>
+        Channels.write(ctx, Channels.future(channel), (context, ResponseHelper.errorResponse(context.requestId, ex, NorbertProtos.NorbertMessage.Status.HEAVYLOAD)))
+        statsActor.endRequest(0, context.requestId)
+    }
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, e: ExceptionEvent) = log.info(e.getCause, "Caught exception in channel: %s".format(e.getChannel))
 
-  def responseHandler(context: RequestContext, channel: Channel, either: Either[Exception, Message]) {
-    val message = either match {
+  def responseHandler[RequestMsg, ResponseMsg](context: RequestContext, channel: Channel, either: Either[Exception, ResponseMsg])
+  (implicit is: InputSerializer[RequestMsg, ResponseMsg], os: OutputSerializer[RequestMsg, ResponseMsg]) {
+    val response = either match {
       case Left(ex) => ResponseHelper.errorResponse(context.requestId, ex)
-      case Right(message) => ResponseHelper.responseBuilder(context.requestId)
-              .setMessageName(message.getDescriptorForType.getFullName)
-              .setMessage(message.toByteString)
-              .build
+      case Right(responseMsg) =>
+        ResponseHelper.responseBuilder(context.requestId)
+        .setMessageName(os.responseName)
+        .setMessage(ProtoUtils.byteArrayToByteString(os.responseToBytes(responseMsg), avoidByteStringCopy))
+        .build
     }
 
-    log.ifDebug("Sending response: %s", message)
+    log.debug("Sending response: %s".format(response))
 
-    channel.write((context, message))
+    channel.write((context, response))
+
+    statsActor.endRequest(0, context.requestId)
   }
 }
 
@@ -132,10 +143,10 @@ private[netty] object ResponseHelper {
     NorbertProtos.NorbertMessage.newBuilder.setRequestIdMsb(requestId.getMostSignificantBits).setRequestIdLsb(requestId.getLeastSignificantBits)
   }
 
-  def errorResponse(requestId: UUID, ex: Exception) = {
+  def errorResponse(requestId: UUID, ex: Exception, status: NorbertProtos.NorbertMessage.Status = NorbertProtos.NorbertMessage.Status.ERROR) = {
     responseBuilder(requestId)
             .setMessageName(ex.getClass.getName)
-            .setStatus(NorbertProtos.NorbertMessage.Status.ERROR)
+            .setStatus(status)
             .setErrorMessage(if (ex.getMessage == null) "" else ex.getMessage)
             .build
   }
@@ -143,5 +154,22 @@ private[netty] object ResponseHelper {
 
 trait NetworkServerStatisticsMBean {
   def getRequestsPerSecond: Int
-  def getAverageRequestProcessingTime: Int
+  def getAverageRequestProcessingTime: Double
+  def getMedianTime: Double
 }
+
+class NetworkServerStatisticsMBeanImpl(serviceName: String, val stats: CachedNetworkStatistics[Int, UUID])
+  extends MBean(classOf[NetworkServerStatisticsMBean], JMX.name(None, serviceName)) with NetworkServerStatisticsMBean {
+
+  def getMedianTime = stats.getStatistics(0.5).map(_.finished.values.map(_.percentile)).flatten.sum
+
+  def getRequestsPerSecond = stats.getStatistics(0.5).map(_.rps().values).flatten.sum
+
+  def getAverageRequestProcessingTime = stats.getStatistics(0.5).map { stats =>
+    val total = stats.finished.values.map(_.total).sum
+    val size = stats.finished.values.map(_.size).sum
+
+    safeDivide(total.toDouble, size)(0.0)
+  } getOrElse(0.0)
+}
+

@@ -13,21 +13,22 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import java.util.concurrent.Executors
-import com.linkedin.norbert.util.NamedPoolThreadFactory
 import org.jboss.netty.bootstrap.ServerBootstrap
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory
 import org.jboss.netty.handler.logging.LoggingHandler
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
-import com.linkedin.norbert.protos.NorbertProtos
 import org.jboss.netty.channel.group.DefaultChannelGroup
-import com.linkedin.norbert.network.NetworkDefaults
-import com.linkedin.norbert.network.server._
+import server._
+import cluster.{ClusterClient, ClusterClientComponent}
+import protos.NorbertProtos
+import norbertutils.NamedPoolThreadFactory
 import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
-import com.linkedin.norbert.cluster.{ClusterClient, ClusterClientComponent}
 
 class NetworkServerConfig {
   var clusterClient: ClusterClient = _
@@ -35,9 +36,16 @@ class NetworkServerConfig {
   var zooKeeperConnectString: String = _
   var zooKeeperSessionTimeoutMillis = 30000
 
+  var requestTimeoutMillis = NetworkDefaults.REQUEST_TIMEOUT_MILLIS
+
   var requestThreadCorePoolSize = NetworkDefaults.REQUEST_THREAD_CORE_POOL_SIZE
   var requestThreadMaxPoolSize = NetworkDefaults.REQUEST_THREAD_MAX_POOL_SIZE
   var requestThreadKeepAliveTimeSecs = NetworkDefaults.REQUEST_THREAD_KEEP_ALIVE_TIME_SECS
+
+  var threadPoolQueueSize = NetworkDefaults.REQUEST_THREAD_POOL_QUEUE_SIZE
+
+  var requestStatisticsWindow = NetworkDefaults.REQUEST_STATISTICS_WINDOW
+  var avoidByteStringCopy = NetworkDefaults.AVOID_BYTESTRING_COPY
 }
 
 class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServer with ClusterClientComponent with NettyClusterIoServerComponent
@@ -46,25 +54,40 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
     serverConfig.zooKeeperSessionTimeoutMillis)
 
   val messageHandlerRegistry = new MessageHandlerRegistry
-  val messageExecutor = new ThreadPoolMessageExecutor(messageHandlerRegistry, serverConfig.requestThreadCorePoolSize, serverConfig.requestThreadMaxPoolSize,
-    serverConfig.requestThreadKeepAliveTimeSecs)
+  val messageExecutor = new ThreadPoolMessageExecutor(serviceName = clusterClient.serviceName,
+                                                      messageHandlerRegistry = messageHandlerRegistry,
+                                                      requestTimeout = serverConfig.requestTimeoutMillis,
+                                                      corePoolSize = serverConfig.requestThreadCorePoolSize,
+                                                      maxPoolSize = serverConfig.requestThreadMaxPoolSize,
+                                                      keepAliveTime = serverConfig.requestThreadKeepAliveTimeSecs,
+                                                      maxWaitingQueueSize = serverConfig.threadPoolQueueSize,
+                                                      requestStatisticsWindow = serverConfig.requestStatisticsWindow)
 
   val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-server-pool-%s".format(clusterClient.serviceName)))
   val bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(executor, executor))
   val channelGroup = new DefaultChannelGroup("norbert-server-group-%s".format(clusterClient.serviceName))
-  val requestContextEncoder = new RequestContextEncoder(clusterClient.serviceName)
+  val requestContextEncoder = new RequestContextEncoder()
 
   bootstrap.setOption("reuseAddress", true)
   bootstrap.setOption("tcpNoDelay", true)
   bootstrap.setOption("child.tcpNoDelay", true)
   bootstrap.setOption("child.reuseAddress", true)
+
+  val serverChannelHandler = new ServerChannelHandler(
+    serviceName = clusterClient.serviceName,
+    channelGroup = channelGroup,
+    messageHandlerRegistry = messageHandlerRegistry,
+    messageExecutor = messageExecutor,
+    requestStatisticsWindow = serverConfig.requestStatisticsWindow,
+    avoidByteStringCopy = serverConfig.avoidByteStringCopy)
+
   bootstrap.setPipelineFactory(new ChannelPipelineFactory {
-    private val loggingHandler = new LoggingHandler
-    private val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
-    private val requestContextDecoder = new RequestContextDecoder
-    private val frameEncoder = new LengthFieldPrepender(4)
-    private val protobufEncoder = new ProtobufEncoder
-    private val handler = new ServerChannelHandler(channelGroup, messageHandlerRegistry, messageExecutor)
+    val loggingHandler = new LoggingHandler
+    val protobufDecoder = new ProtobufDecoder(NorbertProtos.NorbertMessage.getDefaultInstance)
+    val requestContextDecoder = new RequestContextDecoder
+    val frameEncoder = new LengthFieldPrepender(4)
+    val protobufEncoder = new ProtobufEncoder
+    val handler = serverChannelHandler
 
     def getPipeline = {
       val p = Channels.pipeline
@@ -89,6 +112,8 @@ class NettyNetworkServer(serverConfig: NetworkServerConfig) extends NetworkServe
 
   override def shutdown = {
     if (serverConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
-    requestContextEncoder.shutdown
+    messageExecutor.shutdown
+//    requestContextEncoder.shutdown
+    serverChannelHandler.shutdown
   }
 }

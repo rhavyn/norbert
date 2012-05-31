@@ -13,15 +13,17 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.common
+package com.linkedin.norbert
+package network
+package common
 
-import org.specs.SpecificationWithJUnit
-import com.google.protobuf.Message
+import org.specs.Specification
 import org.specs.mock.Mockito
 import java.util.concurrent.{TimeoutException, ExecutionException, TimeUnit}
+import scala.Right
 
-class NorbertFutureSpec extends SpecificationWithJUnit with Mockito {
-  val future = new NorbertFuture
+class NorbertFutureSpec extends Specification with Mockito with SampleMessage {
+  val future = new FutureAdapter[Ping]
 
   "NorbertFuture" should {
     "not be done when created" in {
@@ -29,15 +31,15 @@ class NorbertFutureSpec extends SpecificationWithJUnit with Mockito {
     }
 
     "be done when value is set" in {
-      future.offerResponse(Right(mock[Message]))
+      future.apply(Right(new Ping))
       future.isDone must beTrue
     }
 
     "return the value that is set" in {
-      val message = mock[Message]
-      future.offerResponse(Right(message))
-      future.get must be(message)
-      future.get(1, TimeUnit.MILLISECONDS) must be(message)
+      val message = new Ping
+      future.apply(Right(request))
+      future.get must be(request)
+      future.get(1, TimeUnit.MILLISECONDS) must be(request)
     }
 
     "throw a TimeoutException if no response is available" in {
@@ -46,43 +48,9 @@ class NorbertFutureSpec extends SpecificationWithJUnit with Mockito {
 
     "throw an ExecutionExcetion for an error" in {
       val ex = new Exception
-      future.offerResponse(Left(ex))
+      future.apply(Left(ex))
       future.get must throwA[ExecutionException]
       future.get(1, TimeUnit.MILLISECONDS) must throwA[ExecutionException]
-    }
-  }
-}
-
-class NorbertResponseIteratorSpec extends SpecificationWithJUnit with Mockito {
-  val it = new NorbertResponseIterator(2)
-
-  "NorbertResponseIterator" should {
-    "return true for next until all responses have been consumed" in {
-      it.hasNext must beTrue
-
-      it.offerResponse(Right(mock[Message]))
-      it.offerResponse(Right(mock[Message]))
-      it.next must notBeNull
-      it.hasNext must beTrue
-
-      it.next must notBeNull
-      it.hasNext must beFalse
-    }
-
-    "return true for nextAvailable if any responses are available" in {
-      it.nextAvailable must beFalse
-      it.offerResponse(Right(mock[Message]))
-      it.nextAvailable must beTrue
-    }
-
-    "throw a TimeoutException if no response is available" in {
-      it.next(1, TimeUnit.MILLISECONDS) must throwA[TimeoutException]
-    }
-
-    "throw an ExecutionException for an error" in {
-      val ex = new Exception
-      it.offerResponse(Left(ex))
-      it.next must throwA[ExecutionException]
     }
   }
 }

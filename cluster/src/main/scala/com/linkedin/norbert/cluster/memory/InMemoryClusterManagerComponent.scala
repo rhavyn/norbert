@@ -13,20 +13,20 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.cluster.memory
+package com.linkedin.norbert
+package cluster
+package memory
 
 import actors.Actor
 import Actor._
-import collection.immutable.IntMap
-import com.linkedin.norbert.cluster.{InvalidNodeException, Node, ClusterNotificationManagerComponent, ClusterManagerComponent}
-import com.linkedin.norbert.cluster.common.ClusterManagerHelper
+import common.{ClusterManagerComponent, ClusterNotificationManagerComponent, ClusterManagerHelper}
 
 trait InMemoryClusterManagerComponent extends ClusterManagerComponent with ClusterManagerHelper {
   this: ClusterNotificationManagerComponent =>
 
   class InMemoryClusterManager extends Actor {
-    private var currentNodes: Map[Int, Node] = IntMap.empty
-    private var available = Set[Int]()
+    private var currentNodes = scala.collection.mutable.Map[Int, Node]()
+    private var available = scala.collection.mutable.Set[Int]()
 
     def act() = {
       actor {
@@ -42,11 +42,7 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent with Clust
           case AddNode(node) => if (currentNodes.contains(node.id)) {
             reply(ClusterManagerResponse(Some(new InvalidNodeException("A node with id %d already exists".format(node.id)))))
           } else {
-            val n = if (available.contains(node.id)) {
-              Node(node.id, node.url, node.partitions, true)
-            } else {
-              Node(node.id, node.url, node.partitions, false)
-            }
+            val n = if (available.contains(node.id)) node.copy(available = true) else node.copy(available = false)
 
             currentNodes += (n.id -> n)
             clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
@@ -59,17 +55,13 @@ trait InMemoryClusterManagerComponent extends ClusterManagerComponent with Clust
             reply(ClusterManagerResponse(None))
 
           case MarkNodeAvailable(nodeId) =>
-            currentNodes.get(nodeId).foreach { node =>
-              currentNodes = currentNodes.update(nodeId, Node(node.id, node.url, node.partitions, true))
-            }
+            currentNodes.get(nodeId).foreach { node => currentNodes.update(nodeId, node.copy(available = true)) }
             available += nodeId
             clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
             reply(ClusterManagerResponse(None))
 
           case MarkNodeUnavailable(nodeId) =>
-            currentNodes.get(nodeId).foreach { node =>
-              currentNodes = currentNodes.update(nodeId, Node(node.id, node.url, node.partitions, false))
-            }
+            currentNodes.get(nodeId).foreach { node => currentNodes.update(nodeId, node.copy(available = false)) }
             available -= nodeId
             clusterNotificationManager ! ClusterNotificationMessages.NodesChanged(currentNodes)
             reply(ClusterManagerResponse(None))

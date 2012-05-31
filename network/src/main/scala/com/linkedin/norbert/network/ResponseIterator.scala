@@ -13,7 +13,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network
+package com.linkedin.norbert
+package network
 
 import com.google.protobuf.Message
 import java.util.concurrent.{TimeoutException, ExecutionException, TimeUnit}
@@ -21,7 +22,7 @@ import java.util.concurrent.{TimeoutException, ExecutionException, TimeUnit}
 /**
  * An iterator over the responses from a network request.
  */
-trait ResponseIterator {
+trait ResponseIterator[ResponseMsg] extends Iterator[ResponseMsg] {
   /**
    * Calculates whether you have iterated over all of the responses. A return value of true indicates
    * that there are more responses, it does not indicate that those responses have been received and
@@ -45,14 +46,14 @@ trait ResponseIterator {
    * @throws ExecutionException thrown if there was an error
    */
   @throws(classOf[ExecutionException])
-  def next: Message
+  def next: ResponseMsg
 
   /**
    * Retrieves the next response, waiting for the specified time if there are no responses available.
    *
    * @param timeout how long to wait before giving up, in terms of <code>unit</code>
    * @param unit the <code>TimeUnit</code> that <code>timeout</code> should be interpreted in
-   * 
+   *
    * @return a response
    * @throws ExecutionException thrown if there was an error
    * @throws TimeoutException thrown if a response wasn't available before the specified timeout
@@ -61,5 +62,18 @@ trait ResponseIterator {
   @throws(classOf[ExecutionException])
   @throws(classOf[TimeoutException])
   @throws(classOf[InterruptedException])
-  def next(timeout: Long, unit: TimeUnit): Message
+  def next(timeout: Long, unit: TimeUnit): ResponseMsg
+}
+
+
+/**
+ * Internal-use only
+ */
+trait DynamicResponseIterator[ResponseMsg] extends ResponseIterator[ResponseMsg] {
+
+  /**
+   * Adjust # of remaining items.
+   */
+  def addAndGet(delta:Int) : Int
+
 }

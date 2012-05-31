@@ -13,12 +13,16 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.client.loadbalancer
+package com.linkedin.norbert
+package network
+package client
+package loadbalancer
 
-import org.specs.SpecificationWithJUnit
-import com.linkedin.norbert.cluster.Node
+import org.specs.Specification
+import cluster.Node
+import common.Endpoint
 
-class RoundRobinLoadBalancerFactorySpec extends SpecificationWithJUnit {
+class RoundRobinLoadBalancerFactorySpec extends Specification {
   "RoundRobinLoadBalancerFactory" should {
     "create a round robin load balancer" in {
       val nodes = Set(Node(1, "localhost:31310", true), Node(2, "localhost:31311", true), Node(3, "localhost:31312", true),
@@ -26,11 +30,49 @@ class RoundRobinLoadBalancerFactorySpec extends SpecificationWithJUnit {
         Node(7, "localhost:31316", true), Node(8, "localhost:31317", true), Node(9, "localhost:31318", true),
         Node(10, "localhost:31319", true))
       val loadBalancerFactory = new RoundRobinLoadBalancerFactory
-      val lb = loadBalancerFactory.newLoadBalancer(nodes)
+
+      val endpoints = nodes.map(n => new Endpoint {
+        def node = n
+
+        def canServeRequests = true
+      })
+
+      val lb = loadBalancerFactory.newLoadBalancer(endpoints)
 
       for (i <- 0 until 100) {
         val node = lb.nextNode
         node must beSome[Node].which { nodes must contain(_) }
+      }
+    }
+
+    "Not route to offline endpoints" in {
+      val nodes = for(i <- 0 until 3) yield Node(i, "localhost:3131" + i, true)
+
+      var availabilityMap = nodes.map(n => (n, true)).toMap
+
+      val lbf = new RoundRobinLoadBalancerFactory
+
+      val endpoints = nodes.map(n => new Endpoint {
+        def node = n
+
+        def canServeRequests = availabilityMap(n)
+      }).toSet
+
+      var lb = lbf.newLoadBalancer(endpoints)
+
+      for(i <- 0 until 9) {
+        val node = lb.nextNode.get
+        val nodeId = i % 3
+        node must be_==(Node(nodeId, "localhost:3131" + nodeId, true))
+      }
+
+      availabilityMap += Node(0, "localhost:31310", true) -> false
+
+      lb = lbf.newLoadBalancer(endpoints)
+      for(i <- 0 until 9) {
+        val node = lb.nextNode.get
+        val nodeId = i % 2 + 1
+        node must be_==(Node(nodeId, "localhost:3131" + nodeId, true))
       }
     }
   }

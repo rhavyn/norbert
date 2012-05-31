@@ -13,33 +13,48 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.group.{ChannelGroup, DefaultChannelGroup}
 import org.jboss.netty.channel.{ChannelFutureListener, ChannelFuture, Channel}
-import com.linkedin.norbert.logging.Logging
 import java.util.concurrent.{TimeoutException, ArrayBlockingQueue, LinkedBlockingQueue}
 import java.net.InetSocketAddress
-import com.linkedin.norbert.jmx.JMX
-import com.linkedin.norbert.jmx.JMX.MBean
+import jmx.JMX.MBean
+import jmx.JMX
+import logging.Logging
+import cluster.{Node, ClusterClient}
+import java.util.concurrent.atomic.{AtomicLong, AtomicBoolean, AtomicInteger}
+import norbertutils.{SystemClock}
+import java.io.IOException
+import common.{BackoffStrategy, SimpleBackoffStrategy}
 
 class ChannelPoolClosedException extends Exception
 
-class ChannelPoolFactory(maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap) {
+class ChannelPoolFactory(maxConnections: Int, openTimeoutMillis: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap, errorStrategy: Option[BackoffStrategy]) {
+
   def newChannelPool(address: InetSocketAddress): ChannelPool = {
     val group = new DefaultChannelGroup("norbert-client [%s]".format(address))
-    new ChannelPool(address, maxConnections, writeTimeoutMillis, bootstrap, group)
+    new ChannelPool(address = address,
+      maxConnections = maxConnections,
+      openTimeoutMillis = openTimeoutMillis,
+      writeTimeoutMillis = writeTimeoutMillis,
+      bootstrap = bootstrap,
+      channelGroup = group,
+      errorStrategy = errorStrategy)
   }
 
-  def shutdown: Unit = bootstrap.releaseExternalResources
+  def shutdown: Unit = {
+    bootstrap.releaseExternalResources
+  }
 }
 
-class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap,
-    channelGroup: ChannelGroup) extends Logging {
+class ChannelPool(address: InetSocketAddress, maxConnections: Int, openTimeoutMillis: Int, writeTimeoutMillis: Int, bootstrap: ClientBootstrap,
+    channelGroup: ChannelGroup, val errorStrategy: Option[BackoffStrategy]) extends Logging {
   private val pool = new ArrayBlockingQueue[Channel](maxConnections)
-  private val waitingWrites = new LinkedBlockingQueue[Request]
+  private val waitingWrites = new LinkedBlockingQueue[Request[_, _]]
   private val poolSize = new AtomicInteger(0)
   private val closed = new AtomicBoolean
   private val requestsSent = new AtomicInteger(0)
@@ -51,10 +66,10 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
 
     def getMaxChannels = maxConnections
 
-    def getNumberRequestsSent = requestsSent.get
+    def getNumberRequestsSent = requestsSent.get.abs
   })
 
-  def sendRequest(request: Request): Unit = if (closed.get) {
+  def sendRequest[RequestMsg, ResponseMsg](request: Request[RequestMsg, ResponseMsg]): Unit = if (closed.get) {
     throw new ChannelPoolClosedException
   } else {
     checkoutChannel match {
@@ -63,8 +78,8 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
         checkinChannel(channel)
 
       case None =>
-        openChannel
         waitingWrites.offer(request)
+        openChannel(request)
     }
   }
 
@@ -75,14 +90,17 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
     }
   }
 
-  private def checkinChannel(channel: Channel) {
+  private def checkinChannel(channel: Channel, isFirstWriteToChannel: Boolean = false) {
     while (!waitingWrites.isEmpty) {
       waitingWrites.poll match {
         case null => // do nothing
 
         case request =>
-          if((System.currentTimeMillis - request.timestamp) < writeTimeoutMillis) writeRequestToChannel(request, channel)
-          else request.responseCallback(Left(new TimeoutException("Timed out while waiting to write")))
+          val timeout = if (isFirstWriteToChannel) writeTimeoutMillis + openTimeoutMillis else writeTimeoutMillis
+          if((System.currentTimeMillis - request.timestamp) < timeout)
+            writeRequestToChannel(request, channel)
+          else
+            request.onFailure(new TimeoutException("Timed out while waiting to write"))
       }
     }
 
@@ -107,40 +125,52 @@ class ChannelPool(address: InetSocketAddress, maxConnections: Int, writeTimeoutM
       }
     }
 
-    if (channel == null) None else Some(channel)
+    Option(channel)
   }
 
-  private def openChannel {
+  private def openChannel(request: Request[_, _]) {
     if (poolSize.incrementAndGet > maxConnections) {
       poolSize.decrementAndGet
-      log.ifDebug("Unable to open channel, pool is full")
+      log.warn("Unable to open channel, pool is full")
     } else {
-      log.ifDebug("Opening a channel to: %s", address)
+      log.debug("Opening a channel to: %s".format(address))
 
       bootstrap.connect(address).addListener(new ChannelFutureListener {
         def operationComplete(openFuture: ChannelFuture) = {
           if (openFuture.isSuccess) {
             val channel = openFuture.getChannel
+            log.debug("Opened a channel to: %s".format(address))
+
             channelGroup.add(channel)
-            checkinChannel(channel)
+            checkinChannel(channel, isFirstWriteToChannel = true)
           } else {
-            log.error(openFuture.getCause, "Error when opening channel to: %s", address)
+            log.error(openFuture.getCause, "Error when opening channel to: %s, marking offline".format(address))
+            errorStrategy.foreach(_.notifyFailure(request.node))
             poolSize.decrementAndGet
+
+            request.onFailure(openFuture.getCause)
           }
         }
       })
     }
   }
 
-  private def writeRequestToChannel(request: Request, channel: Channel) {
-    log.ifDebug("Writing to %s: %s", channel, request)
+  private def writeRequestToChannel(request: Request[_, _], channel: Channel) {
+    log.debug("Writing to %s: %s".format(channel, request))
     requestsSent.incrementAndGet
     channel.write(request).addListener(new ChannelFutureListener {
       def operationComplete(writeFuture: ChannelFuture) = if (!writeFuture.isSuccess) {
-        request.responseCallback(Left(writeFuture.getCause))
+        // Take the node out of rotation for a bit
+        log.error("IO exception for " + request.node + ", marking node offline")
+        errorStrategy.foreach(_.notifyFailure(request.node))
+        channel.close
+
+        request.onFailure(writeFuture.getCause)
       }
     })
   }
+
+  def numRequestsSent = requestsSent.get
 }
 
 trait ChannelPoolMBean {

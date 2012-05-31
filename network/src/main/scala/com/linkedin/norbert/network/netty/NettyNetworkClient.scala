@@ -13,34 +13,56 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package com.linkedin.norbert.network.netty
+package com.linkedin.norbert
+package network
+package netty
 
 import org.jboss.netty.bootstrap.ClientBootstrap
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory
 import org.jboss.netty.handler.logging.LoggingHandler
 import org.jboss.netty.handler.codec.frame.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import org.jboss.netty.handler.codec.protobuf.{ProtobufDecoder, ProtobufEncoder}
-import com.linkedin.norbert.protos.NorbertProtos
 import java.util.concurrent.Executors
-import com.linkedin.norbert.cluster.{ClusterClientComponent, ClusterClient}
-import com.linkedin.norbert.util.NamedPoolThreadFactory
-import com.linkedin.norbert.network.client.loadbalancer.{LoadBalancerFactory, LoadBalancerFactoryComponent}
-import com.linkedin.norbert.network.client.{NetworkClientConfig, NetworkClient}
-import com.linkedin.norbert.network.partitioned.PartitionedNetworkClient
-import com.linkedin.norbert.network.partitioned.loadbalancer.{PartitionedLoadBalancerFactory, PartitionedLoadBalancerFactoryComponent}
-import com.linkedin.norbert.network.common.{BaseNetworkClient, MessageRegistry, MessageRegistryComponent}
-import org.jboss.netty.channel.{Channels, ChannelPipelineFactory}
+import partitioned.loadbalancer.{PartitionedLoadBalancerFactoryComponent, PartitionedLoadBalancerFactory}
+import partitioned.PartitionedNetworkClient
+import client.loadbalancer.{LoadBalancerFactoryComponent, LoadBalancerFactory}
+import cluster.{ClusterClient, ClusterClientComponent}
+import protos.NorbertProtos
+import org.jboss.netty.channel.{ChannelPipelineFactory, Channels}
+import client.{ThreadPoolResponseHandler, ResponseHandlerComponent, NetworkClient, NetworkClientConfig}
+import common.{CompositeCanServeRequestStrategy, SimpleBackoffStrategy, BaseNetworkClient}
+import java.util.{Map => JMap}
+import jmx.JMX
+import jmx.JMX.MBean
+import norbertutils._
 
-abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with MessageRegistryComponent {
-  val messageRegistry = new MessageRegistry
-  val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.serviceName, clientConfig.zooKeeperConnectString,
+abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends BaseNetworkClient with ClusterClientComponent with NettyClusterIoClientComponent with ResponseHandlerComponent {
+  val clusterClient = if (clientConfig.clusterClient != null) clientConfig.clusterClient else ClusterClient(clientConfig.clientName, clientConfig.serviceName, clientConfig.zooKeeperConnectString,
     clientConfig.zooKeeperSessionTimeoutMillis)
 
   private val executor = Executors.newCachedThreadPool(new NamedPoolThreadFactory("norbert-client-pool-%s".format(clusterClient.serviceName)))
   private val bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(executor, executor))
   private val connectTimeoutMillis = clientConfig.connectTimeoutMillis
-  private val handler = new ClientChannelHandler(clusterClient.serviceName, messageRegistry, clientConfig.maxConnectionsPerNode,
-    clientConfig.staleRequestCleanupFrequenceMins)
+
+  val responseHandler = new ThreadPoolResponseHandler(
+    clientName = clusterClient.clientName,
+    serviceName = clusterClient.serviceName,
+    corePoolSize = clientConfig.responseHandlerCorePoolSize,
+    maxPoolSize = clientConfig.responseHandlerMaxPoolSize,
+    keepAliveTime = clientConfig.responseHandlerKeepAliveTime,
+    maxWaitingQueueSize = clientConfig.responseHandlerMaxWaitingQueueSize,
+    avoidByteStringCopy = clientConfig.avoidByteStringCopy)
+
+  private val handler = new ClientChannelHandler(
+    clientName = clusterClient.clientName,
+    serviceName = clusterClient.serviceName,
+    staleRequestTimeoutMins = clientConfig.staleRequestTimeoutMins,
+    staleRequestCleanupFrequencyMins= clientConfig.staleRequestCleanupFrequenceMins,
+    requestStatisticsWindow = clientConfig.requestStatisticsWindow,
+    outlierMultiplier = clientConfig.outlierMuliplier,
+    outlierConstant = clientConfig.outlierConstant,
+    responseHandler = responseHandler,
+    avoidByteStringCopy = clientConfig.avoidByteStringCopy)
 
   // TODO why isn't clientConfig visible here?
   bootstrap.setOption("connectTimeoutMillis", connectTimeoutMillis)
@@ -69,11 +91,38 @@ abstract class BaseNettyNetworkClient(clientConfig: NetworkClientConfig) extends
     }
   })
 
-  val clusterIoClient = new NettyClusterIoClient(new ChannelPoolFactory(clientConfig.maxConnectionsPerNode, clientConfig.writeTimeoutMillis, bootstrap))
+  trait EndpointStatusMBean {
+    def getEndpoints: JMap[Int, Boolean]
+
+    def getNumNodesDown: Int
+  }
+
+  private val endpointsJMX = JMX.register(new MBean(classOf[EndpointStatusMBean], JMX.name(clusterClient.clientName, clusterClient.serviceName))
+          with EndpointStatusMBean {
+    def getEndpoints = {
+      toJMap(endpoints.map{e => (e.node.id, e.canServeRequests)}.toMap)
+    }
+
+    def getNumNodesDown = endpoints.filter(e => !e.canServeRequests).size
+  })
+
+  val channelPoolStrategy = new SimpleBackoffStrategy(SystemClock)
+  val clientChannelStrategy = handler.strategy // TODO: Carefully consider making this strategy a constructor for the ClientChannelHandler
+
+  val strategy = CompositeCanServeRequestStrategy(channelPoolStrategy, clientChannelStrategy)
+
+  val channelPoolFactory = new ChannelPoolFactory(maxConnections = clientConfig.maxConnectionsPerNode,
+    openTimeoutMillis = clientConfig.connectTimeoutMillis,
+    writeTimeoutMillis = clientConfig.writeTimeoutMillis,
+    bootstrap = bootstrap,
+    errorStrategy = Some(channelPoolStrategy))
+
+  val clusterIoClient = new NettyClusterIoClient(channelPoolFactory, strategy)
 
   override def shutdown = {
     if (clientConfig.clusterClient == null) clusterClient.shutdown else super.shutdown
     handler.shutdown
+    endpointsJMX.foreach(JMX.unregister(_))
   }
 }
 
